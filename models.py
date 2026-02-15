@@ -5,6 +5,35 @@ from typing import Dict, List
 
 
 @dataclass
+class Task:
+    day: int
+    text: str
+    type: str
+
+    @staticmethod
+    def from_dict(data: dict) -> "Task":
+        return Task(day=int(data["day"]), text=data["text"], type=data.get("type", "обычное"))
+
+
+@dataclass
+class AppSettings:
+    children: List[str] = field(default_factory=list)
+    language: str = "ru"
+    secret_celebration_command: str = "eid-mode"
+
+    @staticmethod
+    def from_dict(data: dict) -> "AppSettings":
+        return AppSettings(
+            children=list(data.get("children", [])),
+            language=data.get("language", "ru"),
+            secret_celebration_command=data.get("secret_celebration_command", "eid-mode"),
+        )
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
 class Day:
     """Mutable state for one Ramadan day."""
 
@@ -47,4 +76,11 @@ class Session:
         )
 
     def all_days_closed(self) -> bool:
-        return all(day.closed for day in self.days.values())
+        return bool(self.days) and all(day.closed for day in self.days.values())
+
+    def total_score(self, child: str) -> int:
+        return sum(day.scores.get(child, 0) for day in self.days.values())
+
+    def leaderboard(self) -> List[dict]:
+        board = [{"child": child, "total": self.total_score(child)} for child in self.children]
+        return sorted(board, key=lambda item: (-item["total"], item["child"]))
