@@ -1,0 +1,50 @@
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from typing import Dict, List
+
+
+@dataclass
+class Day:
+    """Mutable state for one Ramadan day."""
+
+    scores: Dict[str, int] = field(default_factory=dict)
+    closed: bool = False
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @staticmethod
+    def from_dict(data: dict) -> "Day":
+        return Day(scores=data.get("scores", {}), closed=data.get("closed", False))
+
+
+@dataclass
+class Session:
+    """Global mutable session state."""
+
+    current_day: int
+    celebration_mode: bool
+    children: List[str]
+    days: Dict[int, Day] = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return {
+            "current_day": self.current_day,
+            "celebration_mode": self.celebration_mode,
+            "children": self.children,
+            "days": {str(day_num): day.to_dict() for day_num, day in self.days.items()},
+        }
+
+    @staticmethod
+    def from_dict(data: dict) -> "Session":
+        days = {int(k): Day.from_dict(v) for k, v in data.get("days", {}).items()}
+        return Session(
+            current_day=data.get("current_day", 1),
+            celebration_mode=data.get("celebration_mode", False),
+            children=data.get("children", []),
+            days=days,
+        )
+
+    def all_days_closed(self) -> bool:
+        return all(day.closed for day in self.days.values())
