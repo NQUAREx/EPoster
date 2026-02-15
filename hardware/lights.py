@@ -1,0 +1,1 @@
+"""Stub light control module."""
