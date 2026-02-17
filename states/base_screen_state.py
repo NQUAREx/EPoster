@@ -50,6 +50,7 @@ class BaseScreenState(BaseState):
             "countdown": f"{delta // 3600:02d}:{(delta % 3600) // 60:02d}:{delta % 60:02d}",
             "phase": phase,
             "phase_progress": progress,
+            "phase_total_seconds": total,
             "day_fraction": day_fraction,
             "suhoor": data.fajr,
             "iftar": data.maghrib,
