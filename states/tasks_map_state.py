@@ -12,6 +12,7 @@ class TasksMapState(BaseState):
     def __init__(self, session: Session, tasks: list[Task]):
         self.session = session
         self.tasks = tasks
+        self.warning = ""
 
     def _status(self, day_number: int) -> str:
         day = self.session.days[day_number]
@@ -26,7 +27,7 @@ class TasksMapState(BaseState):
             "view": self.name,
             "current_day": self.session.current_day,
             "selected_day": self.session.selected_day,
-            "warning": "",
+            "warning": self.warning,
             "circles": [
                 {
                     "day": day,
@@ -40,16 +41,21 @@ class TasksMapState(BaseState):
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
         if command in {"next", "+1"}:
+            self.warning = ""
             self.session.selected_day = min(30, self.session.selected_day + 1)
             return None
         if command in {"prev", "-1"}:
+            self.warning = ""
             self.session.selected_day = max(1, self.session.selected_day - 1)
             return None
         if command in {"ok", "open_selected_day"}:
             if self.session.selected_day > self.session.current_day + 2:
+                self.warning = "Задание открыть нельзя!"
                 return None
+            self.warning = ""
             self.session.days[self.session.selected_day].viewed = True
             return "task_info_state"
         if command == "back":
+            self.warning = ""
             return "base_state"
         return None

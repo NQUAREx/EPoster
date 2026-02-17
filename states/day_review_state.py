@@ -15,18 +15,26 @@ class DayReviewState(BaseState):
         self.tasks = tasks
         self.completed = False
 
-    def _remaining_children(self) -> list[str]:
+    def _ensure_random_order(self) -> None:
         day_data = self.session.days[self.session.current_day]
-        return [child for child in self.session.children if day_data.scores.get(child) is None]
+        if not day_data.review_order:
+            day_data.review_order = list(self.session.children)
+            random.shuffle(day_data.review_order)
+            day_data.review_index = 0
+
+    def _current_child(self) -> str | None:
+        self._ensure_random_order()
+        day_data = self.session.days[self.session.current_day]
+        if day_data.review_index >= len(day_data.review_order):
+            return None
+        return day_data.review_order[day_data.review_index]
 
     def show(self) -> dict[str, Any]:
-        remaining = self._remaining_children()
-        child = random.choice(remaining) if remaining else None
         return {
             "view": self.name,
             "day": self.session.current_day,
             "task_text": self.tasks[self.session.current_day - 1].text,
-            "child": child,
+            "child": self._current_child(),
             "completed": self.completed,
             "score_options": [
                 {"score": 1, "emoji": "☹️", "label": "Плохо"},
@@ -48,12 +56,12 @@ class DayReviewState(BaseState):
             return None
 
         day_data = self.session.days[self.session.current_day]
-        remaining = self._remaining_children()
-        if not remaining:
+        child = self._current_child()
+        if child is None:
             return "base_state"
 
-        target_child = child if child in remaining else random.choice(remaining)
-        day_data.scores[target_child] = score
+        day_data.scores[child] = score
+        day_data.review_index += 1
 
         if not self._remaining_children():
             day_data.closed = True

@@ -5,10 +5,9 @@ const errorBox = document.getElementById('errorBox');
 const wakeBtn = document.getElementById('wakeBtn');
 
 let wakeActiveUntil = 0;
-let refreshTimer = null;
 let baseTickTimer = null;
+let hueTimer = null;
 let currentState = '';
-let lastModelSignature = '';
 let baseRuntime = null;
 
 function asGlass(content) {
@@ -17,6 +16,16 @@ function asGlass(content) {
 
 function textGradient(text) {
   return `<span class="water-text">${text}</span>`;
+}
+
+function computeGlobalHue() {
+  const now = new Date();
+  const seconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  return 20 + Math.round((seconds / 86400) * 120);
+}
+
+function updateGlobalHue() {
+  document.body.style.setProperty('--dynamic-hue', String(computeGlobalHue()));
 }
 
 function parseCountdownToSeconds(value) {
@@ -33,14 +42,10 @@ function formatCountdown(totalSeconds) {
 }
 
 function renderBase(model) {
-  const p = model.next_prayer.phase_progress;
-  const hue = model.next_prayer.phase === 'day' ? (12 + p * 110) : (122 - p * 110);
-  document.body.style.setProperty('--dynamic-hue', String(Math.round(hue)));
-
-  return `<section class="base-screen state-enter">
-      ${asGlass(`<div class="day-title">${textGradient(`день ${model.day}`)}</div><div class="progress"><span id="monthProgressBar" style="width:${model.month_progress * 100}%"></span></div>`)}
-      ${asGlass(`<p id="nextPrayerLabel">${textGradient(`До ${model.next_prayer.next}`)}</p><h1 id="countdownClock" class="liquid-clock">${textGradient(model.next_prayer.countdown)}</h1><p>${textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`)}</p>`)}
-      ${asGlass(`<p class="large-copy">${textGradient(model.today_task)}</p>`)}
+  return `<section class="base-screen" data-view="base_state">
+      ${asGlass(`<div class="day-title" id="baseDayTitle">${textGradient(`день ${model.day}`)}</div><div class="progress"><span id="monthProgressBar" style="width:${model.month_progress * 100}%"></span></div>`)}
+      ${asGlass(`<p id="nextPrayerLabel">${textGradient(`До ${model.next_prayer.next}`)}</p><h1 id="countdownClock" class="liquid-clock">${textGradient(model.next_prayer.countdown)}</h1><p id="prayerTimesLabel">${textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`)}</p>`)}
+      ${asGlass(`<p class="large-copy" id="todayTaskText">${textGradient(model.today_task)}</p>`)}
     </section>`;
 }
 
@@ -48,27 +53,27 @@ function renderTaskInfo(model) {
   const scores = model.closed
     ? `<div class="scores-line">${model.scores_line.map((item) => `<span>${item.child}: <span class="emoji-plain">${item.emoji}</span></span>`).join(' · ')}</div>`
     : '';
-  return `<section class="task-info-screen state-enter">${asGlass(`<h1>${textGradient(`Задание дня ${model.day}`)}</h1><p class="large-copy">${textGradient(model.task_text)}</p>${scores}`)}</section>`;
+  return `<section class="task-info-screen" data-view="task_info_state">${asGlass(`<h1>${textGradient(`Задание дня ${model.day}`)}</h1><p class="large-copy">${textGradient(model.task_text)}</p>${scores}`)}</section>`;
 }
 
 function renderMap(model) {
   const circles = model.circles.map((circle) => {
     const icon = circle.status === 'completed' ? '✓' : circle.day;
     const lock = circle.status === 'locked' && !circle.viewed ? '<span class="lock-overlay">🔒</span>' : '';
-    return `<div class="circle-wrap"><div class="circle ${circle.status} ${circle.selected ? 'selected' : ''}"><span>${icon}</span>${lock}</div></div>`;
+    return `<div class="circle-wrap"><div data-day="${circle.day}" class="circle ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="circle-icon">${icon}</span>${lock}</div></div>`;
   }).join('');
-  const warning = model.warning ? `<div class="warning">${textGradient(model.warning)}</div>` : '';
-  return `<section class="map-screen state-enter">${asGlass(`<div class="grid">${circles}</div>${warning}`)}</section>`;
+  const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
+  return `<section class="map-screen" data-view="tasks_map_state">${asGlass(`<div class="grid">${circles}</div>${warning}`)}</section>`;
 }
 
 function renderReview(model) {
   const done = model.completed ? `<h1>${textGradient('День завершен!')}</h1>` : '';
   const options = model.score_options.map((s) => `<div class="score">${s.emoji}<small>${textGradient(s.label)}</small></div>`).join('');
-  return `<section class="review-screen state-enter">${asGlass(`<h2>${textGradient(model.task_text)}</h2><h1>${textGradient(`Отвечает: ${model.child ?? '-'}`)}</h1><div class="score-row">${options}</div>${done}`)}</section>`;
+  return `<section class="review-screen" data-view="day_review_state">${asGlass(`<h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${model.child ?? '-'}`)}</h1><div class="score-row">${options}</div>${done}`)}</section>`;
 }
 
 function renderEid(model) {
-  return `<section class="eid-screen state-enter"><div class="confetti"></div>${asGlass(`<h1>${textGradient(model.message)}</h1>`)}</section>`;
+  return `<section class="eid-screen" data-view="eid_state"><div class="confetti"></div>${asGlass(`<h1>${textGradient(model.message)}</h1>`)}</section>`;
 }
 
 function renderState(model) {
@@ -78,6 +83,62 @@ function renderState(model) {
   if (model.view === 'day_review_state') return renderReview(model);
   if (model.view === 'eid_state') return renderEid(model);
   return `<section class="state-enter">${asGlass(`<h1>${textGradient('Неизвестный state')}</h1>`)}</section>`;
+}
+
+function patchBaseView(model) {
+  const dayTitle = document.getElementById('baseDayTitle');
+  const nextPrayerLabel = document.getElementById('nextPrayerLabel');
+  const prayerTimesLabel = document.getElementById('prayerTimesLabel');
+  const todayTaskText = document.getElementById('todayTaskText');
+  const progressBar = document.getElementById('monthProgressBar');
+
+  if (dayTitle) dayTitle.innerHTML = textGradient(`день ${model.day}`);
+  if (nextPrayerLabel) nextPrayerLabel.innerHTML = textGradient(`До ${model.next_prayer.next}`);
+  if (prayerTimesLabel) prayerTimesLabel.innerHTML = textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`);
+  if (todayTaskText) todayTaskText.innerHTML = textGradient(model.today_task);
+  if (progressBar) progressBar.style.width = `${(Number(model.month_progress || 0) * 100).toFixed(4)}%`;
+}
+
+function patchMapView(model) {
+  for (const circle of model.circles) {
+    const node = stateView.querySelector(`.circle[data-day="${circle.day}"]`);
+    if (!node) continue;
+
+    node.classList.toggle('completed', circle.status === 'completed');
+    node.classList.toggle('open', circle.status === 'open');
+    node.classList.toggle('locked', circle.status === 'locked');
+    node.classList.toggle('selected', Boolean(circle.selected));
+
+    const iconNode = node.querySelector('.circle-icon');
+    if (iconNode) iconNode.textContent = circle.status === 'completed' ? '✓' : String(circle.day);
+
+    const existingLock = node.querySelector('.lock-overlay');
+    const shouldLock = circle.status === 'locked' && !circle.viewed;
+    if (shouldLock && !existingLock) {
+      node.insertAdjacentHTML('beforeend', '<span class="lock-overlay">🔒</span>');
+    }
+    if (!shouldLock && existingLock) {
+      existingLock.remove();
+    }
+  }
+
+  const warningNode = document.getElementById('mapWarning');
+  if (warningNode) {
+    warningNode.innerHTML = model.warning ? textGradient(model.warning) : '';
+  }
+}
+
+function patchReviewView(model) {
+  const childText = document.getElementById('reviewChildText');
+  if (childText) {
+    childText.innerHTML = textGradient(`Отвечает: ${model.child ?? '-'}`);
+  }
+}
+
+function patchCurrentView(model) {
+  if (model.view === 'base_state') patchBaseView(model);
+  if (model.view === 'tasks_map_state') patchMapView(model);
+  if (model.view === 'day_review_state') patchReviewView(model);
 }
 
 function updateWakeBorder() {
@@ -97,13 +158,9 @@ function startBaseTicker(model) {
 
   const countdownSeconds = parseCountdownToSeconds(model.next_prayer.countdown);
   baseRuntime = {
-    day: model.day,
     startMonthProgress: Number(model.month_progress || 0),
     startedAt: Date.now(),
     endAt: Date.now() + countdownSeconds * 1000,
-    phase: model.next_prayer.phase,
-    phaseProgressAtStart: Number(model.next_prayer.phase_progress || 0),
-    phaseTotalSeconds: Math.max(1, Number(model.next_prayer.phase_total_seconds || 1)),
   };
 
   baseTickTimer = setInterval(() => {
@@ -125,81 +182,46 @@ function startBaseTicker(model) {
     if (progressBar) {
       progressBar.style.width = `${(progress * 100).toFixed(4)}%`;
     }
-
-    const phaseProgressDelta = ((now - baseRuntime.startedAt) / 1000) / baseRuntime.phaseTotalSeconds;
-    const phaseProgressNow = Math.max(0, Math.min(1, baseRuntime.phaseProgressAtStart + phaseProgressDelta));
-    const hue = baseRuntime.phase === 'day' ? (12 + phaseProgressNow * 110) : (122 - phaseProgressNow * 110);
-    document.body.style.setProperty('--dynamic-hue', String(Math.round(hue)));
   }, 1000);
 }
 
-function animateDynamicHueOutsideBase() {
-  if (currentState === 'base_state') return;
-  const now = new Date();
-  const seconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-  const hue = 20 + Math.round((seconds / 86400) * 120);
-  document.body.style.setProperty('--dynamic-hue', String(hue));
-}
-
-function getModelSignature(model) {
-  return JSON.stringify({
-    view: model.view,
-    day: model.day,
-    child: model.child,
-    selected_day: model.selected_day,
-    current_day: model.current_day,
-    warning: model.warning,
-    countdown: model.next_prayer?.countdown,
-    month_progress: model.month_progress,
-    today_task: model.today_task,
-    circles: model.circles,
-    task_text: model.task_text,
-    scores_line: model.scores_line,
-    completed: model.completed,
-  });
-}
-
-function applyViewModel(model, { force = false } = {}) {
-  const stateChanged = currentState && currentState !== model.view;
-  const modelSignature = getModelSignature(model);
-  const shouldRerender = force || stateChanged || modelSignature !== lastModelSignature;
-
+function applyViewModel(model, { forceFullRender = false } = {}) {
+  const stateChanged = currentState !== model.view;
   currentState = model.view;
-  if (shouldRerender) {
+
+  if (forceFullRender || stateChanged || !stateView.firstElementChild) {
     stateView.innerHTML = renderState(model);
-    lastModelSignature = modelSignature;
+    const section = stateView.querySelector('section');
+    if (section) {
+      section.classList.add('state-enter');
+    }
     if (stateChanged) {
       document.body.classList.add('state-transitioning');
-      setTimeout(() => document.body.classList.remove('state-transitioning'), 350);
+      setTimeout(() => document.body.classList.remove('state-transitioning'), 320);
     }
+  } else {
+    patchCurrentView(model);
   }
 
-  if (model.view === 'base_state') {
+  if (model.view === 'base_state' && (stateChanged || forceFullRender || !baseTickTimer)) {
     startBaseTicker(model);
-  } else {
+  }
+  if (model.view !== 'base_state') {
     stopBaseTicker();
   }
 
   if (model.wake_active) {
     wakeActiveUntil = Date.now() + 6000;
   }
+
   updateWakeBorder();
-  scheduleRefresh(model.view);
+  updateGlobalHue();
 }
 
-function scheduleRefresh(stateName) {
-  if (refreshTimer) {
-    clearTimeout(refreshTimer);
-    refreshTimer = null;
-  }
-  const delay = stateName === 'base_state' ? 15000 : 12000;
-  refreshTimer = setTimeout(refreshState, delay);
-}
-
-async function refreshState() {
+async function refreshState(forceFullRender = false) {
   const response = await fetch('/api/state');
   const data = await response.json();
-  applyViewModel(data.view_model);
+  applyViewModel(data.view_model, { forceFullRender });
 }
 
 async function sendWake() {
@@ -209,7 +231,7 @@ async function sendWake() {
     body: JSON.stringify({ source: 'manual' }),
   });
   const data = await response.json();
-  applyViewModel(data.view_model, { force: true });
+  applyViewModel(data.view_model, { forceFullRender: true });
 }
 
 async function sendCommand() {
@@ -254,5 +276,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 setInterval(updateWakeBorder, 200);
-setInterval(animateDynamicHueOutsideBase, 1000);
-refreshState();
+hueTimer = setInterval(updateGlobalHue, 1000);
+updateGlobalHue();
+refreshState(true);
