@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+import time
 
 from command_router import CommandEvent, CommandRouter
 from state_manager import StateManager
@@ -30,6 +31,7 @@ class AppController:
 
         self.session = session
         self.state_manager = StateManager(session, self.tasks, self.settings, self.prayer_times)
+        self._wake_active_until = 0.0
         self._sync_ramadan_day()
 
     def _sync_ramadan_day(self) -> None:
@@ -75,11 +77,17 @@ class AppController:
         self.prayer_times = load_prayer_times()
         self.state_manager.refresh_data(self.tasks, self.prayer_times)
 
+    def _wake_is_active(self) -> bool:
+        return time.monotonic() < self._wake_active_until
+
+    def mark_wake_detected(self, duration_seconds: float = 6.0) -> None:
+        self._wake_active_until = max(self._wake_active_until, time.monotonic() + duration_seconds)
+
     def render(self) -> dict:
         self._reload_runtime_data()
         self._sync_ramadan_day()
         ui_payload = self.state_manager.show()
-        ui_payload["wake_active"] = False
+        ui_payload["wake_active"] = self._wake_is_active()
         save_session(self.session)
         return ui_payload
 
@@ -98,9 +106,12 @@ class AppController:
         self._reload_runtime_data()
         self._sync_ramadan_day()
         normalized = self.command_router.normalize_event(event)
+        if normalized.wake_word_detected:
+            self.mark_wake_detected()
+
         ui_payload = self.state_manager.handle_command(normalized.command, normalized.payload)
         ui_payload["command_source"] = normalized.source
-        ui_payload["wake_active"] = normalized.wake_word_detected
+        ui_payload["wake_active"] = self._wake_is_active()
         save_session(self.session)
         save_settings(self.settings)
         return ui_payload

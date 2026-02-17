@@ -182,20 +182,17 @@ class VoiceRecognizer:
                 continue
 
             normalized = self.mapper.normalize_text(phrase)
-            print(f"[voice] recognized: {normalized}")
 
             if not wake_detected:
                 if self.wake_word in normalized.split():
                     wake_detected = True
                     waiting_until = time.monotonic() + self.command_window_seconds
                     self.backend.send_wake()
-                    print("[voice] wake word detected, command window open")
                 continue
 
             command = self.mapper.to_backend_command(normalized)
             if command:
                 self.backend.send_command(command)
-                print(f"[voice] mapped command: {command}")
                 wake_detected = False
                 continue
 

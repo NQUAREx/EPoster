@@ -48,14 +48,23 @@ def test_map_navigation_and_open_selected_day(isolated_app):
     assert payload["view"] == "task_info_state"
 
 
-def test_map_shows_warning_for_locked_day(isolated_app):
+def test_map_shows_warning_for_far_future_day(isolated_app):
     app = isolated_app
     app.dispatch("open_tasks_map")
-    for _ in range(5):
+    for _ in range(6):
         app.dispatch("next")
     payload = app.dispatch("ok")
     assert payload["view"] == "tasks_map_state"
-    assert payload["warning"]
+    assert payload["warning"] == "Задание открыть нельзя!"
+
+
+def test_map_allows_opening_closed_day(isolated_app):
+    app = isolated_app
+    current_day = app.session.current_day
+    app.session.days[current_day].closed = True
+    app.dispatch("open_tasks_map")
+    payload = app.dispatch("ok")
+    assert payload["view"] == "task_info_state"
 
 
 def test_session_current_day_comes_from_settings(tmp_path, monkeypatch):

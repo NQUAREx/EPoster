@@ -50,11 +50,8 @@ class TasksMapState(BaseState):
             return None
         if command in {"ok", "open_selected_day"}:
             selected_data = self.session.days[self.session.selected_day]
-            if self.session.selected_day > self.session.current_day + 1:
-                self.warning = "Этот день пока закрыт, открыть его нельзя."
-                return None
-            if selected_data.closed:
-                self.warning = "Этот день уже закрыт после проверки."
+            if self.session.selected_day > self.session.current_day + 2:
+                self.warning = "Задание открыть нельзя!"
                 return None
             self.warning = ""
             selected_data.viewed = True

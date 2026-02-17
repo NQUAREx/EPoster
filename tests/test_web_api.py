@@ -53,3 +53,12 @@ def test_wake_endpoint(client):
 def test_command_validation(client):
     response = client.post("/api/command", json={"command": "  "})
     assert response.status_code == 400
+
+
+def test_wake_state_persists_for_polling(client):
+    wake_response = client.post("/api/wake", json={"source": "voice"})
+    assert wake_response.status_code == 200
+
+    state_response = client.get("/api/state")
+    assert state_response.status_code == 200
+    assert state_response.json()["view_model"]["wake_active"] is True
