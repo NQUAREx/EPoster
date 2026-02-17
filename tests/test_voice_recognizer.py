@@ -20,6 +20,7 @@ def test_command_mapper_fixed_aliases():
     mapper = CommandMapper()
     assert mapper.to_backend_command("  Открыть   карту ") == "open_tasks_map"
     assert mapper.to_backend_command("режим проверки") == "open_day_review"
+    assert mapper.to_backend_command("отлично") == "score_3"
     assert mapper.to_backend_command("неизвестно") is None
 
 

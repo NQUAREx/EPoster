@@ -48,6 +48,16 @@ def test_map_navigation_and_open_selected_day(isolated_app):
     assert payload["view"] == "task_info_state"
 
 
+def test_map_shows_warning_for_locked_day(isolated_app):
+    app = isolated_app
+    app.dispatch("open_tasks_map")
+    for _ in range(5):
+        app.dispatch("next")
+    payload = app.dispatch("ok")
+    assert payload["view"] == "tasks_map_state"
+    assert payload["warning"]
+
+
 def test_session_current_day_comes_from_settings(tmp_path, monkeypatch):
     source_data = REPO_ROOT / "data"
     shutil.copytree(source_data, tmp_path / "data")
