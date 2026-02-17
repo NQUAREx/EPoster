@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from typing import Dict, List
 
 
@@ -30,13 +31,33 @@ class AppSettings:
     language: str = "ru"
     secret_celebration_command: str = "eid-mode"
     children: List[str] = field(default_factory=list)
+    ramadan_day: int = 1
+    ramadan_day_updated_on: str = ""
 
     @staticmethod
     def from_dict(data: dict) -> "AppSettings":
+        raw_day = data.get("ramadan_day", 1)
+        try:
+            ramadan_day = int(raw_day)
+        except (TypeError, ValueError):
+            ramadan_day = 1
+        ramadan_day = min(30, max(1, ramadan_day))
+
+        updated_on = data.get("ramadan_day_updated_on", "")
+        if not isinstance(updated_on, str):
+            updated_on = ""
+        if updated_on:
+            try:
+                datetime.strptime(updated_on, "%Y-%m-%d")
+            except ValueError:
+                updated_on = ""
+
         return AppSettings(
             language="ru",
             secret_celebration_command=data.get("secret_celebration_command", "eid-mode"),
             children=[name.strip() for name in data.get("children", []) if isinstance(name, str) and name.strip()],
+            ramadan_day=ramadan_day,
+            ramadan_day_updated_on=updated_on,
         )
 
     def to_dict(self) -> dict:
