@@ -13,46 +13,40 @@ class TaskMapState(BaseState):
         self.session = session
         self.tasks = tasks
 
-    def _all_children_scored(self) -> bool:
-        day_data = self.session.days[self.session.current_day]
-        return all(day_data.scores.get(child) is not None for child in self.session.children)
+    def _status(self, day_number: int) -> str:
+        if self.session.days[day_number].closed:
+            return "completed"
+        if day_number == self.session.current_day:
+            return "open"
+        return "locked"
 
     def show(self) -> dict[str, Any]:
-        day_data = self.session.days[self.session.current_day]
+        circles = []
+        for index in range(30):
+            day_number = index + 1
+            circles.append(
+                {
+                    "day": day_number,
+                    "status": self._status(day_number),
+                    "selected": day_number == self.session.selected_day,
+                }
+            )
         return {
             "view": self.name,
-            "screen": "ui/task_map.html",
-            "day": self.session.current_day,
-            "children": self.session.children,
-            "scores": day_data.scores,
-            "closed": day_data.closed,
-            "can_close_day": self._all_children_scored(),
+            "current_day": self.session.current_day,
+            "selected_day": self.session.selected_day,
+            "circles": circles,
         }
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
-        payload = payload or {}
-        day_data = self.session.days[self.session.current_day]
-
-        if command == "set_score":
-            child = payload.get("child")
-            score = payload.get("score")
-            if child in self.session.children and isinstance(score, int) and 0 <= score <= 3:
-                day_data.scores[child] = score
+        if command in {"next", "forward"}:
+            self.session.selected_day = min(30, self.session.selected_day + 1)
             return None
-
-        if command == "clear_score":
-            child = payload.get("child")
-            if child in self.session.children:
-                day_data.scores[child] = None
+        if command in {"prev", "back"}:
+            self.session.selected_day = max(1, self.session.selected_day - 1)
             return None
-
-        if command == "finish_day":
-            if not self._all_children_scored():
-                return None
-            day_data.closed = True
-            return "summary"
-
-        if command == "back":
-            return "day_review"
-
+        if command == "open_selected_day" and self.session.selected_day == self.session.current_day:
+            return "task"
+        if command == "home":
+            return "base"
         return None

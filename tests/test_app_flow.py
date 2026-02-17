@@ -17,39 +17,29 @@ def isolated_app(tmp_path, monkeypatch):
     return AppController()
 
 
-def test_finish_day_blocked_until_all_children_scored(isolated_app):
-    app = isolated_app
-    app.dispatch("open_map")
+def test_initial_state_is_base(isolated_app):
+    payload = isolated_app.render()
+    assert payload["view"] == "base"
+    assert "today_task" in payload
 
-    payload = app.dispatch("finish_day")
+
+def test_day_review_scores_and_moves_to_map(isolated_app):
+    app = isolated_app
+    app.dispatch("open_review")
+
+    app.dispatch("set_points")
+    for _ in app.session.children:
+        payload = app.dispatch("score_3")
+
     assert payload["view"] == "task_map"
-    assert payload["can_close_day"] is False
-
-    for child in app.session.children:
-        payload = app.dispatch("set_score", {"child": child, "score": 3})
-    assert payload["can_close_day"] is True
-
-    payload = app.dispatch("finish_day")
-    assert payload["view"] == "summary"
-    assert app.session.days[app.session.current_day].closed is True
+    assert app.session.days[1].closed is True
+    assert app.session.current_day == 2
 
 
-def test_score_range_0_to_3(isolated_app):
+def test_map_navigation_and_open_selected_day(isolated_app):
     app = isolated_app
     app.dispatch("open_map")
-
-    payload = app.dispatch("set_score", {"child": app.session.children[0], "score": 5})
-    assert payload["scores"][app.session.children[0]] is None
-
-    payload = app.dispatch("set_score", {"child": app.session.children[0], "score": 2})
-    assert payload["scores"][app.session.children[0]] == 2
-
-
-def test_settings_and_secret_command(isolated_app):
-    app = isolated_app
-    payload = app.dispatch("open_settings")
-    assert payload["view"] == "settings"
-
-    app.dispatch("set_secret_command", {"secret": "party"})
-    payload = app.dispatch("party")
-    assert payload["view"] == "celebration"
+    app.dispatch("next")
+    app.dispatch("prev")
+    payload = app.dispatch("open_selected_day")
+    assert payload["view"] == "task"

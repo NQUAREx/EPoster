@@ -7,36 +7,14 @@
   <link rel="stylesheet" href="/ui/styles.css" />
 </head>
 <body>
-  <main class="app-shell">
-    <header class="top-panel">
-      <div>
-        <p class="label">Текущее состояние</p>
-        <h1 id="stateName">—</h1>
-      </div>
-      <button id="refreshBtn" class="btn secondary">Обновить</button>
-    </header>
+  <main id="stateView" class="fullscreen"></main>
 
-    <section class="command-panel card">
-      <h2>Команда</h2>
-      <div class="row">
-        <input id="commandInput" type="text" placeholder="Например: open_map" />
-        <button id="sendBtn" class="btn">Отправить</button>
-      </div>
-      <textarea id="payloadInput" rows="3" placeholder='Payload JSON (опционально), например: {"child":"Али","score":3}'></textarea>
-      <div class="quick-buttons" id="quickButtons"></div>
-      <p id="errorBox" class="error"></p>
-    </section>
-
-    <section class="card">
-      <h2>View Model</h2>
-      <pre id="viewModelBox">{}</pre>
-    </section>
-
-    <section class="card">
-      <h2>Экран состояния</h2>
-      <div id="stateView"></div>
-    </section>
-  </main>
+  <section class="command-panel">
+    <input id="commandInput" type="text" placeholder="Команда (open_map, open_selected_day, set_points, score_3...)" />
+    <textarea id="payloadInput" rows="2" placeholder='Payload JSON (опционально), например {"score":2}'></textarea>
+    <button id="sendBtn">Отправить</button>
+    <p id="errorBox"></p>
+  </section>
 
   <script src="/ui/app.js"></script>
 </body>
