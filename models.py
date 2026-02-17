@@ -17,7 +17,6 @@ class Task:
 
 @dataclass
 class AppSettings:
-    children: List[str] = field(default_factory=list)
     language: str = "ru"
     secret_celebration_command: str = "eid-mode"
     gift_total_target: int | None = None
@@ -26,42 +25,49 @@ class AppSettings:
     def from_dict(data: dict) -> "AppSettings":
         target = data.get("gift_total_target")
         return AppSettings(
-            children=list(data.get("children", [])),
-            language=data.get("language", "ru"),
+            language="ru",
             secret_celebration_command=data.get("secret_celebration_command", "eid-mode"),
             gift_total_target=int(target) if isinstance(target, int) and target >= 0 else None,
         )
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        payload = asdict(self)
+        payload["language"] = "ru"
+        return payload
 
 
 @dataclass
 class Day:
-    """Mutable state for one Ramadan day."""
-
     scores: Dict[str, int | None] = field(default_factory=dict)
     closed: bool = False
+    review_order: List[str] = field(default_factory=list)
+    review_index: int = 0
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @staticmethod
     def from_dict(data: dict) -> "Day":
-        scores = data.get("scores", {})
+        scores_data = data.get("scores", {})
         normalized: Dict[str, int | None] = {}
-        for child, score in scores.items():
-            if isinstance(score, int):
-                normalized[child] = score
-            else:
-                normalized[child] = None
-        return Day(scores=normalized, closed=data.get("closed", False))
+        for child, score in scores_data.items():
+            normalized[child] = score if isinstance(score, int) else None
+
+        order_data = data.get("review_order", [])
+        order = [child for child in order_data if isinstance(child, str)]
+        index = data.get("review_index", 0)
+        review_index = index if isinstance(index, int) and index >= 0 else 0
+
+        return Day(
+            scores=normalized,
+            closed=bool(data.get("closed", False)),
+            review_order=order,
+            review_index=review_index,
+        )
 
 
 @dataclass
 class Session:
-    """Global mutable session state."""
-
     current_day: int
     celebration_mode: bool
     children: List[str]

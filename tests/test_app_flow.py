@@ -17,32 +17,22 @@ def isolated_app(tmp_path, monkeypatch):
     return AppController()
 
 
-def test_finish_day_blocked_until_all_children_scored(isolated_app):
+def test_day_review_moves_child_by_child_and_closes_day(isolated_app):
     app = isolated_app
-    app.dispatch("open_map")
+    payload = app.dispatch("start_day_review")
+    assert payload["view"] == "day_review"
 
-    payload = app.dispatch("finish_day")
-    assert payload["view"] == "task_map"
-    assert payload["can_close_day"] is False
+    order = payload["review_order"]
+    for _ in order:
+        payload = app.dispatch("set_score", {"score": 3})
 
-    for child in app.session.children:
-        payload = app.dispatch("set_score", {"child": child, "score": 3})
-    assert payload["can_close_day"] is True
-
-    payload = app.dispatch("finish_day")
     assert payload["view"] == "summary"
     assert app.session.days[app.session.current_day].closed is True
 
 
-def test_score_range_0_to_3(isolated_app):
+def test_children_loaded_from_separate_file(isolated_app):
     app = isolated_app
-    app.dispatch("open_map")
-
-    payload = app.dispatch("set_score", {"child": app.session.children[0], "score": 5})
-    assert payload["scores"][app.session.children[0]] is None
-
-    payload = app.dispatch("set_score", {"child": app.session.children[0], "score": 2})
-    assert payload["scores"][app.session.children[0]] == 2
+    assert app.session.children == ["Камила", "Самир", "Амалия", "Сулейман"]
 
 
 def test_settings_and_secret_command(isolated_app):
