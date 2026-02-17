@@ -135,7 +135,7 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 .score:hover { transform: translateY(-6px) scale(1.03); }
 .score small { font-size: 28px; font-weight: 900; }
 .scores-line { font-size: clamp(28px, 3.2vw, 48px); font-weight: 900; }
-.command-panel { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); width: min(98vw, 900px); display:grid; gap:8px; background:#000a; padding:10px; border-radius:22px; }
+.command-panel { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); width: min(98vw, 900px); display:grid; gap:8px; background:#000a; padding:10px; border-radius:22px; max-height: 200px; overflow: auto; }
 .command-panel input,.command-panel textarea,.command-panel button{ border:none; border-radius:16px; padding:12px; font-size: 20px; font-family: inherit; }
 .wake-btn { background: #2c7dff; color: #fff; font-weight: 700; }
 .confetti { position: fixed; inset: 0; pointer-events:none; background-image: radial-gradient(circle, #fff 2px, transparent 2px); background-size: 30px 30px; animation: fall 8s linear infinite; opacity:.5; }
