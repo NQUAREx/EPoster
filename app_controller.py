@@ -21,12 +21,10 @@ class AppController:
         self.tasks = load_tasks()
         self.prayer_times = load_prayer_times()
 
-        children = self.settings.children or load_children()
+        children = load_children()
         session = load_session()
         if session is None:
             session = create_session(children)
-        else:
-            session.children = children
 
         self.session = session
         self.state_manager = StateManager(session, self.tasks, self.settings, self.prayer_times)

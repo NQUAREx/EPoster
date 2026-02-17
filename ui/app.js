@@ -41,9 +41,20 @@ function formatCountdown(totalSeconds) {
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
 }
 
+function renderMonthSegments(monthProgress) {
+  const total = 30;
+  const scaled = Number(monthProgress || 0) * total;
+  const completed = Math.floor(scaled);
+  return Array.from({ length: total }, (_, index) => {
+    const part = index + 1;
+    const active = part <= completed ? 'active' : '';
+    return `<span class="segment ${active}" data-segment="${part}"></span>`;
+  }).join('');
+}
+
 function renderBase(model) {
   return `<section class="base-screen" data-view="base_state">
-      ${asGlass(`<div class="day-title" id="baseDayTitle">${textGradient(`день ${model.day}`)}</div><div class="progress"><span id="monthProgressBar" style="width:${model.month_progress * 100}%"></span></div>`)}
+      ${asGlass(`<div class="day-title" id="baseDayTitle">${textGradient(`день ${model.day}`)}</div><div class="progress-30" id="monthProgressBar">${renderMonthSegments(model.month_progress)}</div>`)}
       ${asGlass(`<p id="nextPrayerLabel">${textGradient(`До ${model.next_prayer.next}`)}</p><h1 id="countdownClock" class="liquid-clock">${textGradient(model.next_prayer.countdown)}</h1><p id="prayerTimesLabel">${textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`)}</p>`)}
       ${asGlass(`<p class="large-copy" id="todayTaskText">${textGradient(model.today_task)}</p>`)}
     </section>`;
@@ -96,7 +107,7 @@ function patchBaseView(model) {
   if (nextPrayerLabel) nextPrayerLabel.innerHTML = textGradient(`До ${model.next_prayer.next}`);
   if (prayerTimesLabel) prayerTimesLabel.innerHTML = textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`);
   if (todayTaskText) todayTaskText.innerHTML = textGradient(model.today_task);
-  if (progressBar) progressBar.style.width = `${(Number(model.month_progress || 0) * 100).toFixed(4)}%`;
+  if (progressBar) progressBar.innerHTML = renderMonthSegments(model.month_progress);
 }
 
 function patchMapView(model) {
@@ -180,7 +191,7 @@ function startBaseTicker(model) {
     const progress = Math.min(1, baseRuntime.startMonthProgress + elapsedDayShare);
     const progressBar = document.getElementById('monthProgressBar');
     if (progressBar) {
-      progressBar.style.width = `${(progress * 100).toFixed(4)}%`;
+      progressBar.innerHTML = renderMonthSegments(progress);
     }
   }, 1000);
 }

@@ -1,131 +1,404 @@
 {
   "current_day": 1,
+  "selected_day": 1,
   "celebration_mode": false,
   "children": [
-    "Али",
-    "Сами",
-    "Лейла"
+    "Камила",
+    "Самир",
+    "Амалия",
+    "Сулейман",
+    "Айя"
   ],
   "days": {
     "1": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "2": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "3": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "4": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "5": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "6": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "7": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "8": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "9": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "10": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "11": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "12": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "13": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "14": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "15": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "16": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "17": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "18": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "19": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "20": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "21": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "22": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "23": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "24": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "25": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "26": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "27": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "28": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "29": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     },
     "30": {
-      "scores": {},
-      "closed": false
+      "scores": {
+        "Камила": null,
+        "Самир": null,
+        "Амалия": null,
+        "Сулейман": null,
+        "Айя": null
+      },
+      "closed": false,
+      "viewed": false,
+      "review_order": [],
+      "review_index": 0
     }
   }
 }
