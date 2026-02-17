@@ -6,7 +6,6 @@ const wakeBtn = document.getElementById('wakeBtn');
 
 let wakeActiveUntil = 0;
 let baseTickTimer = null;
-let hueTimer = null;
 let currentState = '';
 let baseRuntime = null;
 
@@ -18,14 +17,18 @@ function textGradient(text) {
   return `<span class="water-text">${text}</span>`;
 }
 
-function computeGlobalHue() {
-  const now = new Date();
-  const seconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-  return 20 + Math.round((seconds / 86400) * 120);
+function computePhaseHue(phase, progress) {
+  const clampedProgress = Math.min(1, Math.max(0, Number(progress) || 0));
+  const minHue = 0;
+  const maxHue = 120;
+  if (phase === 'night') {
+    return Math.round(maxHue - clampedProgress * (maxHue - minHue));
+  }
+  return Math.round(minHue + clampedProgress * (maxHue - minHue));
 }
 
-function updateGlobalHue() {
-  document.body.style.setProperty('--dynamic-hue', String(computeGlobalHue()));
+function updateDynamicHue(phase, progress) {
+  document.body.style.setProperty('--dynamic-hue', String(computePhaseHue(phase, progress)));
 }
 
 function parseCountdownToSeconds(value) {
@@ -172,13 +175,28 @@ function startBaseTicker(model) {
     startMonthProgress: Number(model.month_progress || 0),
     startedAt: Date.now(),
     endAt: Date.now() + countdownSeconds * 1000,
+    phase: model.next_prayer.phase,
+    phaseTotalSeconds: Math.max(1, Number(model.next_prayer.phase_total_seconds) || 1),
+    lastHueMinuteMark: null,
+    awaitingResync: false,
   };
+
+  updateDynamicHue(baseRuntime.phase, Number(model.next_prayer.phase_progress || 0));
 
   baseTickTimer = setInterval(() => {
     if (currentState !== 'base_state' || !baseRuntime) return;
 
     const now = Date.now();
     const secondsLeft = Math.max(0, Math.ceil((baseRuntime.endAt - now) / 1000));
+    const elapsedInPhase = Math.max(0, baseRuntime.phaseTotalSeconds - secondsLeft);
+    const phaseProgress = Math.min(1, elapsedInPhase / baseRuntime.phaseTotalSeconds);
+
+    const minuteMark = Math.floor(now / 60000);
+    if (baseRuntime.lastHueMinuteMark !== minuteMark) {
+      baseRuntime.lastHueMinuteMark = minuteMark;
+      updateDynamicHue(baseRuntime.phase, phaseProgress);
+    }
+
     const clock = document.getElementById('countdownClock');
     if (clock) {
       clock.innerHTML = textGradient(formatCountdown(secondsLeft));
@@ -192,6 +210,11 @@ function startBaseTicker(model) {
     const progressBar = document.getElementById('monthProgressBar');
     if (progressBar) {
       progressBar.innerHTML = renderMonthSegments(progress);
+    }
+
+    if (secondsLeft <= 0 && !baseRuntime.awaitingResync) {
+      baseRuntime.awaitingResync = true;
+      refreshState(true);
     }
   }, 1000);
 }
@@ -226,7 +249,9 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
   }
 
   updateWakeBorder();
-  updateGlobalHue();
+  if (model.view !== 'base_state') {
+    updateDynamicHue('day', 0.5);
+  }
 }
 
 async function refreshState(forceFullRender = false) {
@@ -287,6 +312,5 @@ document.addEventListener('visibilitychange', () => {
 });
 
 setInterval(updateWakeBorder, 200);
-hueTimer = setInterval(updateGlobalHue, 1000);
-updateGlobalHue();
+updateDynamicHue('day', 0.5);
 refreshState(true);
