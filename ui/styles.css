@@ -26,10 +26,12 @@ body.wake-active { box-shadow: inset 0 0 0 10px #0f6bff; }
 }
 
 .base-screen {
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 12px;
-  align-content: stretch;
-  padding-bottom: clamp(120px, 18vh, 190px);
+  grid-template-rows: minmax(120px, auto) minmax(250px, 1fr) minmax(120px, auto);
+  gap: clamp(8px, 1.5vh, 14px);
+  align-content: start;
+  justify-items: center;
+  padding-inline: clamp(12px, 2.4vw, 30px);
+  padding-bottom: clamp(72px, 10vh, 108px);
 }
 
 .base-screen .glass {
@@ -37,6 +39,7 @@ body.wake-active { box-shadow: inset 0 0 0 10px #0f6bff; }
   flex-direction: column;
   justify-content: center;
   min-height: 0;
+  width: min(92vw, 1240px);
 }
 
 #countdownClock {
