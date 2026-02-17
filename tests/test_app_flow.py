@@ -17,29 +17,29 @@ def isolated_app(tmp_path, monkeypatch):
     return AppController()
 
 
-def test_day_review_moves_child_by_child_and_closes_day(isolated_app):
+def test_initial_state_is_base(isolated_app):
+    payload = isolated_app.render()
+    assert payload["view"] == "base"
+    assert "today_task" in payload
+
+
+def test_day_review_scores_and_moves_to_map(isolated_app):
     app = isolated_app
-    payload = app.dispatch("start_day_review")
-    assert payload["view"] == "day_review"
+    app.dispatch("open_review")
 
-    order = payload["review_order"]
-    for _ in order:
-        payload = app.dispatch("set_score", {"score": 3})
+    app.dispatch("set_points")
+    for _ in app.session.children:
+        payload = app.dispatch("score_3")
 
-    assert payload["view"] == "summary"
-    assert app.session.days[app.session.current_day].closed is True
+    assert payload["view"] == "task_map"
+    assert app.session.days[1].closed is True
+    assert app.session.current_day == 2
 
 
-def test_children_loaded_from_separate_file(isolated_app):
+def test_map_navigation_and_open_selected_day(isolated_app):
     app = isolated_app
-    assert app.session.children == ["Камила", "Самир", "Амалия", "Сулейман"]
-
-
-def test_settings_and_secret_command(isolated_app):
-    app = isolated_app
-    payload = app.dispatch("open_settings")
-    assert payload["view"] == "settings"
-
-    app.dispatch("set_secret_command", {"secret": "party"})
-    payload = app.dispatch("party")
-    assert payload["view"] == "celebration"
+    app.dispatch("open_map")
+    app.dispatch("next")
+    app.dispatch("prev")
+    payload = app.dispatch("open_selected_day")
+    assert payload["view"] == "task"

@@ -13,22 +13,40 @@ class TaskMapState(BaseState):
         self.session = session
         self.tasks = tasks
 
+    def _status(self, day_number: int) -> str:
+        if self.session.days[day_number].closed:
+            return "completed"
+        if day_number == self.session.current_day:
+            return "open"
+        return "locked"
+
     def show(self) -> dict[str, Any]:
-        day_data = self.session.days[self.session.current_day]
+        circles = []
+        for index in range(30):
+            day_number = index + 1
+            circles.append(
+                {
+                    "day": day_number,
+                    "status": self._status(day_number),
+                    "selected": day_number == self.session.selected_day,
+                }
+            )
         return {
             "view": self.name,
-            "screen": "ui/task_map.html",
-            "day": self.session.current_day,
-            "children": self.session.children,
-            "scores": day_data.scores,
-            "closed": day_data.closed,
-            "review_order": day_data.review_order,
-            "review_index": day_data.review_index,
+            "current_day": self.session.current_day,
+            "selected_day": self.session.selected_day,
+            "circles": circles,
         }
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
-        if command == "start_day_review":
-            return "day_review"
-        if command == "back":
+        if command in {"next", "forward"}:
+            self.session.selected_day = min(30, self.session.selected_day + 1)
+            return None
+        if command in {"prev", "back"}:
+            self.session.selected_day = max(1, self.session.selected_day - 1)
+            return None
+        if command == "open_selected_day" and self.session.selected_day == self.session.current_day:
+            return "task"
+        if command == "home":
             return "base"
         return None

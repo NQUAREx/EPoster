@@ -1,5 +1,11 @@
 {
+  "children": [
+    "Камила",
+    "Самир",
+    "Амалия",
+    "Сулейман",
+    "Айя"
+  ],
   "language": "ru",
-  "secret_celebration_command": "eid-mode",
-  "gift_total_target": null
+  "secret_celebration_command": "eid-mode"
 }

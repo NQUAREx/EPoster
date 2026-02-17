@@ -1,110 +1,77 @@
-const stateName = document.getElementById('stateName');
-const viewModelBox = document.getElementById('viewModelBox');
 const stateView = document.getElementById('stateView');
 const commandInput = document.getElementById('commandInput');
 const payloadInput = document.getElementById('payloadInput');
 const errorBox = document.getElementById('errorBox');
-const quickButtons = document.getElementById('quickButtons');
 
-const quickCommands = [
-  'start_day_review',
-  'set_score',
-  'open_map',
-  'open_summary',
-  'open_settings',
-  'next_day',
-  'back'
-];
-
-function renderQuickButtons() {
-  quickButtons.innerHTML = '';
-  for (const command of quickCommands) {
-    const button = document.createElement('button');
-    button.className = 'btn secondary';
-    button.textContent = command;
-    button.addEventListener('click', () => sendCommand(command));
-    quickButtons.appendChild(button);
-  }
-}
-
-function pills(map) {
-  return Object.entries(map || {})
-    .map(([key, value]) => `<span class="pill">${key}: ${value ?? '—'}</span>`)
-    .join('');
-}
-
-function renderStateView(model) {
-  if (!model) {
-    stateView.innerHTML = '<p>Нет данных состояния.</p>';
-    return;
-  }
-
-  if (model.view === 'base') {
-    stateView.innerHTML = `
-      <h2>Домашний экран</h2>
-      <p>День: <b>${model.day}</b></p>
-      <p>До сухура: <b>${model.time_to_suhur}</b></p>
-      <p>До ифтара: <b>${model.time_to_iftar}</b></p>
-      <p>Задание на сегодня: ${model.today_task}</p>
-    `;
-    return;
-  }
-
-  if (model.view === 'day_review') {
-    stateView.innerHTML = `
-      <div class="full-screen-card">
-        <p class="label">День ${model.day}</p>
-        <h2>${model.active_child ?? 'Проверка завершена'}</h2>
-        <p>${model.task.text}</p>
-        <p>Порядок: ${model.review_order.join(' → ')}</p>
-        <div>${pills(model.scores)}</div>
+function renderBase(model) {
+  return `
+    <section class="base-screen">
+      <div class="clock-box">
+        <p>До ${model.next_prayer.next}</p>
+        <h1>${model.next_prayer.countdown}</h1>
+        <p>Сухур: ${model.next_prayer.suhoor} · Ифтар: ${model.next_prayer.iftar}</p>
       </div>
-    `;
-    return;
-  }
+      <div class="task-box">Задание на сегодня: ${model.today_task}</div>
+    </section>`;
+}
 
-  if (model.view === 'task_map') {
-    stateView.innerHTML = `<h2>Карта дня</h2><p>День: ${model.day}</p><div>${pills(model.scores)}</div>`;
-    return;
-  }
+function renderMap(model) {
+  const circles = model.circles
+    .map((circle) => {
+      const css = `circle ${circle.status} ${circle.selected ? 'selected' : ''}`;
+      const mark = circle.status === 'completed' ? '✓' : circle.day;
+      return `<div class="${css}">${mark}</div>`;
+    })
+    .join('');
+  return `<section class="map-screen"><div class="grid">${circles}</div></section>`;
+}
 
-  if (model.view === 'summary') {
-    stateView.innerHTML = `<h2>Сводка дня ${model.day}</h2><div>${pills(model.totals)}</div>`;
-    return;
-  }
+function renderReview(model) {
+  const options = model.score_dialog_open
+    ? `<div class="score-modal">
+        <div class="score red">😟 1</div>
+        <div class="score yellow">🙂 2</div>
+        <div class="score green">😄 3</div>
+      </div>`
+    : '';
+  return `<section class="review-screen"><h1>Отвечает: ${model.current_child}</h1>${options}</section>`;
+}
 
-  if (model.view === 'settings') {
-    stateView.innerHTML = `<h2>Настройки</h2><p>Язык: русский</p><p>Секретная команда: ${model.secret_celebration_command}</p>`;
-    return;
-  }
+function renderTask(model) {
+  return `<section class="task-screen"><h1>Задание дня ${model.day}</h1><p>${model.task_text}</p></section>`;
+}
 
-  if (model.view === 'celebration') {
-    stateView.innerHTML = `<h2>${model.message}</h2><div>${pills(model.totals)}</div>`;
-  }
+function renderEid(model) {
+  const totals = Object.entries(model.children_totals).map(([name, score]) => `<div>${name}: ${score}</div>`).join('');
+  return `<section class="eid-screen"><h1>${model.message}</h1><div>${totals}</div><h2>Общий счет: ${model.total_points}</h2></section>`;
+}
+
+function renderState(model) {
+  if (model.view === 'base') return renderBase(model);
+  if (model.view === 'task_map') return renderMap(model);
+  if (model.view === 'day_review') return renderReview(model);
+  if (model.view === 'task') return renderTask(model);
+  if (model.view === 'eid') return renderEid(model);
+  return '<section><h1>Неизвестный state</h1></section>';
 }
 
 async function refreshState() {
-  errorBox.textContent = '';
   const response = await fetch('/api/state');
   const data = await response.json();
-  stateName.textContent = data.state;
-  viewModelBox.textContent = JSON.stringify(data.view_model, null, 2);
-  renderStateView(data.view_model);
+  stateView.innerHTML = renderState(data.view_model);
 }
 
-async function sendCommand(forced = null) {
+async function sendCommand() {
   errorBox.textContent = '';
-  const command = forced || commandInput.value.trim();
+  const command = commandInput.value.trim();
   if (!command) {
     errorBox.textContent = 'Введите command';
     return;
   }
-
   let payload = null;
-  const payloadRaw = payloadInput.value.trim();
-  if (payloadRaw) {
+  if (payloadInput.value.trim()) {
     try {
-      payload = JSON.parse(payloadRaw);
+      payload = JSON.parse(payloadInput.value.trim());
     } catch {
       errorBox.textContent = 'Payload должен быть валидным JSON';
       return;
@@ -126,14 +93,9 @@ async function sendCommand(forced = null) {
     errorBox.textContent = data.detail || 'Ошибка команды';
     return;
   }
-
-  stateName.textContent = data.state;
-  viewModelBox.textContent = JSON.stringify(data.view_model, null, 2);
-  renderStateView(data.view_model);
+  stateView.innerHTML = renderState(data.view_model);
 }
 
-document.getElementById('sendBtn').addEventListener('click', () => sendCommand());
-document.getElementById('refreshBtn').addEventListener('click', refreshState);
-
-renderQuickButtons();
+document.getElementById('sendBtn').addEventListener('click', sendCommand);
 refreshState();
+setInterval(refreshState, 30000);
