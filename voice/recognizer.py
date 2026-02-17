@@ -19,14 +19,16 @@ class VoiceRecognizer:
     def __init__(self):
         self._queue: list[VoiceCommand] = []
         self._aliases = {
-            "открыть карту": "open_map",
-            "карта": "open_map",
-            "итоги": "open_summary",
-            "настройки": "open_settings",
-            "завершить день": "finish_day",
-            "следующий день": "next_day",
+            "открыть карту": "open_tasks_map",
+            "карта": "open_tasks_map",
+            "режим проверки": "open_day_review",
+            "проверка": "open_day_review",
+            "задание": "open_task_info",
+            "следующий": "next",
+            "предыдущий": "prev",
+            "ок": "ok",
             "назад": "back",
-            "перезапуск": "restart",
+            "праздник": "open_eid",
         }
 
     def push_simulated(self, text: str, confidence: float = 1.0) -> None:

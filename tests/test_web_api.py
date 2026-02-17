@@ -37,6 +37,18 @@ def test_command_transition(client):
     assert response.json()["state"] == "tasks_map_state"
 
 
+def test_command_alias_transition(client):
+    response = client.post("/api/command", json={"command": "open_map"})
+    assert response.status_code == 200
+    assert response.json()["state"] == "tasks_map_state"
+
+
+def test_wake_endpoint(client):
+    response = client.post("/api/wake", json={"source": "voice"})
+    assert response.status_code == 200
+    assert response.json()["view_model"]["wake_active"] is True
+
+
 def test_command_validation(client):
     response = client.post("/api/command", json={"command": "  "})
     assert response.status_code == 400
