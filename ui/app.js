@@ -82,7 +82,7 @@ function renderState(model) {
   if (model.view === 'tasks_map_state') return renderMap(model);
   if (model.view === 'day_review_state') return renderReview(model);
   if (model.view === 'eid_state') return renderEid(model);
-  return `<section>${asGlass(`<h1>${textGradient('Неизвестный state')}</h1>`)}</section>`;
+  return `<section class="state-enter">${asGlass(`<h1>${textGradient('Неизвестный state')}</h1>`)}</section>`;
 }
 
 function patchBaseView(model) {
@@ -264,7 +264,7 @@ async function sendCommand() {
     return;
   }
 
-  applyViewModel(data.view_model);
+  applyViewModel(data.view_model, { force: true });
 }
 
 document.getElementById('sendBtn').addEventListener('click', sendCommand);

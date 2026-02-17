@@ -50,6 +50,7 @@ class DayReviewState(BaseState):
         score = payload.get("score") if payload and command == "set_score" else None
         if command in {"score_1", "score_2", "score_3"}:
             score = int(command.split("_")[1])
+        child = payload.get("child") if payload else None
 
         if score not in {1, 2, 3}:
             return None
@@ -62,7 +63,7 @@ class DayReviewState(BaseState):
         day_data.scores[child] = score
         day_data.review_index += 1
 
-        if day_data.review_index >= len(day_data.review_order):
+        if not self._remaining_children():
             day_data.closed = True
             day_data.review_index = 0
             day_data.review_order = []
