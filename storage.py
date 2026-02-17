@@ -12,6 +12,7 @@ SESSION_FILE = DATA_DIR / "session.json"
 TASKS_FILE = DATA_DIR / "tasks.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"
 PRAYER_TIMES_FILE = DATA_DIR / "prayer_times_2026.json"
+CHILDREN_FILE = DATA_DIR / "children.json"
 
 
 def _build_empty_scores(children: list[str]) -> dict[str, int | None]:

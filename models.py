@@ -29,12 +29,14 @@ class PrayerTimes:
 class AppSettings:
     language: str = "ru"
     secret_celebration_command: str = "eid-mode"
+    children: List[str] = field(default_factory=list)
 
     @staticmethod
     def from_dict(data: dict) -> "AppSettings":
         return AppSettings(
             language="ru",
             secret_celebration_command=data.get("secret_celebration_command", "eid-mode"),
+            children=[name.strip() for name in data.get("children", []) if isinstance(name, str) and name.strip()],
         )
 
     def to_dict(self) -> dict:
@@ -57,9 +59,14 @@ class Day:
     def from_dict(data: dict) -> "Day":
         scores_data = data.get("scores", {})
         normalized: Dict[str, int | None] = {}
-        for child, score in scores.items():
+        for child, score in scores_data.items():
             normalized[child] = score if isinstance(score, int) else None
-        return Day(scores=normalized, closed=data.get("closed", False))
+        return Day(
+            scores=normalized,
+            closed=data.get("closed", False),
+            review_order=[name for name in data.get("review_order", []) if isinstance(name, str)],
+            review_index=int(data.get("review_index", 0) or 0),
+        )
 
 
 @dataclass
