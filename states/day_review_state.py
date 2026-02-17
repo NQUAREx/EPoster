@@ -73,8 +73,6 @@ class DayReviewState(BaseState):
             day_data.review_index = 0
             day_data.review_order = []
             self.completed = True
-            if self.session.current_day < 30:
-                self.session.current_day += 1
-                self.session.selected_day = self.session.current_day
+            self.session.selected_day = self.session.current_day
             return "base_state"
         return None
