@@ -7,5 +7,7 @@
     "Айя"
   ],
   "language": "ru",
-  "secret_celebration_command": "eid-mode"
+  "secret_celebration_command": "eid-mode",
+  "ramadan_day": 1,
+  "ramadan_day_updated_on": ""
 }
