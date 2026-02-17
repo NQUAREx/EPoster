@@ -15,6 +15,7 @@ sys.path.append(str(REPO_ROOT))
 def client(tmp_path, monkeypatch):
     shutil.copytree(REPO_ROOT / "data", tmp_path / "data")
     shutil.copytree(REPO_ROOT / "ui", tmp_path / "ui")
+    monkeypatch.setenv("EPOSTER_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.chdir(tmp_path)
 
     from fastapi.testclient import TestClient

@@ -29,6 +29,11 @@ class DayReviewState(BaseState):
             return None
         return day_data.review_order[day_data.review_index]
 
+
+    def _remaining_children(self) -> int:
+        day_data = self.session.days[self.session.current_day]
+        return max(0, len(day_data.review_order) - day_data.review_index)
+
     def show(self) -> dict[str, Any]:
         return {
             "view": self.name,
