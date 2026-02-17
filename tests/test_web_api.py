@@ -28,13 +28,13 @@ def client(tmp_path, monkeypatch):
 def test_get_state(client):
     response = client.get("/api/state")
     assert response.status_code == 200
-    assert response.get_json()["state"] == "base"
+    assert response.json()["state"] == "base_state"
 
 
 def test_command_transition(client):
-    response = client.post("/api/command", json={"command": "start_day_review"})
+    response = client.post("/api/command", json={"command": "open_tasks_map"})
     assert response.status_code == 200
-    assert response.get_json()["state"] == "task_map"
+    assert response.json()["state"] == "tasks_map_state"
 
 
 def test_command_validation(client):

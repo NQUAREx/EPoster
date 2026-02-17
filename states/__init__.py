@@ -1,8 +1,7 @@
-from states.base_home_state import BaseHomeState
-from states.celebration_state import CelebrationState
+from states.base_screen_state import BaseScreenState
 from states.day_review_state import DayReviewState
-from states.home_state import HomeState
-from states.task_map_state import TaskMapState
-from states.task_state import TaskState
+from states.eid_state import EidState
+from states.task_info_state import TaskInfoState
+from states.tasks_map_state import TasksMapState
 
-__all__ = ["CelebrationState", "DayReviewState", "HomeState", "TaskMapState", "TaskState"]
+__all__ = ["BaseScreenState", "DayReviewState", "EidState", "TaskInfoState", "TasksMapState"]

@@ -1,88 +1,50 @@
 :root {
-  color-scheme: dark;
-  --bg1: #0d1130;
-  --bg2: #1f2c6d;
-  --glass: rgba(255, 255, 255, 0.1);
+  --dynamic-hue: 35;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: Inter, system-ui, sans-serif;
-  background: radial-gradient(circle at 20% 10%, #3142a0, var(--bg1));
+  font-family: "Arial Rounded MT Bold", "Nunito", sans-serif;
   color: #fff;
+  background:
+    radial-gradient(circle at 20% 20%, hsla(calc(var(--dynamic-hue) + 20), 90%, 55%, 0.35), transparent 35%),
+    radial-gradient(circle at 80% 70%, hsla(calc(var(--dynamic-hue) - 10), 85%, 45%, 0.35), transparent 40%),
+    linear-gradient(140deg, hsl(var(--dynamic-hue), 85%, 45%), hsl(calc(var(--dynamic-hue) + 20), 85%, 58%));
   overflow: hidden;
 }
-.fullscreen, .fullscreen section {
-  width: 100vw;
-  height: 100vh;
-}
-.base-screen, .review-screen, .task-screen, .eid-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
+body.wake-active { box-shadow: inset 0 0 0 10px #0f6bff; }
+.fullscreen, .fullscreen section { width: 100vw; height: 100vh; }
+.base-screen, .task-info-screen, .map-screen, .review-screen, .eid-screen {
+  display: grid;
+  place-items: center;
+  gap: 22px;
   padding: 24px;
+}
+.glass {
+  background: rgba(228, 234, 240, 0.22);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 34px;
+  padding: 22px;
+  backdrop-filter: blur(10px);
+  min-width: min(90vw, 980px);
   text-align: center;
 }
-.clock-box, .task-box {
-  background: var(--glass);
-  padding: 24px;
-  border-radius: 28px;
-  min-width: min(88vw, 760px);
-}
-.clock-box h1 { font-size: clamp(68px, 13vw, 180px); margin: 8px 0; }
-.task-box { font-size: clamp(22px, 3vw, 36px); }
-.map-screen { display: grid; place-items: center; }
-.grid {
-  width: min(96vw, 1200px);
-  display: grid;
-  grid-template-columns: repeat(6, minmax(80px, 1fr));
-  gap: 18px;
-}
-.circle {
-  aspect-ratio: 1;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-size: 30px;
-  transition: transform .25s ease;
-}
-.circle.completed { background: #1ea95c; }
-.circle.open { border: 4px solid #7b8bff; background: transparent; }
-.circle.locked { background: #60657c; }
-.circle.selected { transform: scale(1.1); box-shadow: 0 0 0 4px #fff6; }
-.score-modal { display: flex; gap: 18px; }
-.score {
-  width: 130px;
-  height: 130px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 36px;
-}
-.red { background: #ce2f2f; }
-.yellow { background: #e0bf2f; }
-.green { background: #23a84d; }
-.task-screen p { font-size: clamp(30px, 5vw, 64px); }
-.command-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
-  width: min(92vw, 720px);
-  background: rgba(5, 8, 24, 0.82);
-  border-radius: 16px;
-  padding: 12px;
-  display: grid;
-  gap: 8px;
-  backdrop-filter: blur(6px);
-}
-.command-panel input, .command-panel textarea, .command-panel button {
-  border: none;
-  border-radius: 10px;
-  padding: 10px;
-}
-.command-panel button { background: #7b8bff; color: #fff; font-weight: 700; }
-#errorBox { margin: 0; color: #ffbcbc; min-height: 18px; }
+h1 { font-size: clamp(58px, 12vw, 170px); margin: 0; }
+h2, p { margin: 8px 0; }
+.day-title { font-size: 34px; }
+.progress { height: 16px; border-radius: 999px; background: #ffffff33; overflow: hidden; }
+.progress span { display:block; height:100%; background:#fff; }
+.grid { display:grid; grid-template-columns: repeat(6, minmax(80px, 1fr)); gap: 12px; }
+.circle { aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:30px; }
+.circle.completed { background:#20b55f; }
+.circle.open { background:#ffffff2a; box-shadow:0 0 20px #fff8; }
+.circle.locked { background:#6667; }
+.circle.selected { outline:4px solid #fff; }
+.warning { margin-top: 16px; color: #ffe9b3; font-size: 30px; }
+.score-row { display:flex; justify-content:center; gap:16px; }
+.score { width:130px;height:130px;border-radius:50%;background:#fff3;display:grid;place-items:center;font-size:46px; }
+.command-panel { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); width: min(96vw, 780px); display:grid; gap:8px; background:#0009; padding:10px; border-radius:16px; }
+.command-panel input,.command-panel textarea,.command-panel button{ border:none; border-radius:10px; padding:10px; }
+.confetti { position: fixed; inset: 0; pointer-events:none; background-image: radial-gradient(circle, #fff 2px, transparent 2px); background-size: 30px 30px; animation: fall 8s linear infinite; opacity:.5; }
+@keyframes fall { from { transform: translateY(-100%);} to { transform: translateY(100%);} }
