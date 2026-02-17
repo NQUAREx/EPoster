@@ -14,9 +14,10 @@ class TasksMapState(BaseState):
         self.tasks = tasks
 
     def _status(self, day_number: int) -> str:
-        if self.session.days[day_number].closed:
+        day = self.session.days[day_number]
+        if day.closed:
             return "completed"
-        if day_number <= self.session.current_day + 1:
+        if day.viewed or day_number <= self.session.current_day + 1:
             return "open"
         return "locked"
 
@@ -31,6 +32,7 @@ class TasksMapState(BaseState):
                     "day": day,
                     "status": self._status(day),
                     "selected": day == self.session.selected_day,
+                    "viewed": self.session.days[day].viewed,
                 }
                 for day in range(1, 31)
             ],
@@ -46,6 +48,7 @@ class TasksMapState(BaseState):
         if command in {"ok", "open_selected_day"}:
             if self.session.selected_day > self.session.current_day + 2:
                 return None
+            self.session.days[self.session.selected_day].viewed = True
             return "task_info_state"
         if command == "back":
             return "base_state"

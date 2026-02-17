@@ -14,15 +14,14 @@ class DayReviewState(BaseState):
         self.session = session
         self.tasks = tasks
         self.completed = False
-        day = self.session.days[self.session.current_day]
-        if not day.review_order:
-            day.review_order = list(self.session.children)
-            random.shuffle(day.review_order)
-            day.review_index = 0
+
+    def _remaining_children(self) -> list[str]:
+        day_data = self.session.days[self.session.current_day]
+        return [child for child in self.session.children if day_data.scores.get(child) is None]
 
     def show(self) -> dict[str, Any]:
-        day_data = self.session.days[self.session.current_day]
-        child = None if day_data.review_index >= len(day_data.review_order) else day_data.review_order[day_data.review_index]
+        remaining = self._remaining_children()
+        child = random.choice(remaining) if remaining else None
         return {
             "view": self.name,
             "day": self.session.current_day,
@@ -40,20 +39,23 @@ class DayReviewState(BaseState):
         if command == "back":
             return "base_state"
 
-        day_data = self.session.days[self.session.current_day]
         score = payload.get("score") if payload and command == "set_score" else None
         if command in {"score_1", "score_2", "score_3"}:
             score = int(command.split("_")[1])
+        child = payload.get("child") if payload else None
 
         if score not in {1, 2, 3}:
             return None
 
-        if day_data.review_index < len(day_data.review_order):
-            child = day_data.review_order[day_data.review_index]
-            day_data.scores[child] = score
-            day_data.review_index += 1
+        day_data = self.session.days[self.session.current_day]
+        remaining = self._remaining_children()
+        if not remaining:
+            return "base_state"
 
-        if day_data.review_index >= len(day_data.review_order):
+        target_child = child if child in remaining else random.choice(remaining)
+        day_data.scores[target_child] = score
+
+        if not self._remaining_children():
             day_data.closed = True
             day_data.review_index = 0
             day_data.review_order = []
