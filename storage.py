@@ -39,6 +39,7 @@ def _normalize_session(session: Session) -> Session:
     if session.selected_day < 1 or session.selected_day > 30:
         session.selected_day = session.current_day
     for day in session.days.values():
+        day.viewed = bool(day.viewed)
         for child in session.children:
             day.scores.setdefault(child, None)
 

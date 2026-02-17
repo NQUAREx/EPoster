@@ -44,11 +44,14 @@ class BaseScreenState(BaseState):
         delta = max(0, int((target - now).total_seconds()))
         total = max(1, int((end - start).total_seconds()))
         progress = min(1.0, max(0.0, (now - start).total_seconds() / total))
+        day_fraction = (now.hour * 3600 + now.minute * 60 + now.second) / 86400
         return {
             "next": next_name,
-            "countdown": f"{delta // 3600:02d}:{(delta % 3600) // 60:02d}",
+            "countdown": f"{delta // 3600:02d}:{(delta % 3600) // 60:02d}:{delta % 60:02d}",
             "phase": phase,
             "phase_progress": progress,
+            "phase_total_seconds": total,
+            "day_fraction": day_fraction,
             "suhoor": data.fajr,
             "iftar": data.maghrib,
         }
@@ -58,7 +61,7 @@ class BaseScreenState(BaseState):
         return {
             "view": self.name,
             "day": self.session.current_day,
-            "month_progress": self.session.current_day / 30,
+            "month_progress": ((self.session.current_day - 1) + times["day_fraction"]) / 30,
             "today_task": self.tasks[self.session.current_day - 1].text,
             "next_prayer": times,
         }

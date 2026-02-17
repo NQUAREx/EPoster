@@ -49,6 +49,7 @@ class AppSettings:
 class Day:
     scores: Dict[str, int | None] = field(default_factory=dict)
     closed: bool = False
+    viewed: bool = False
     review_order: List[str] = field(default_factory=list)
     review_index: int = 0
 
@@ -64,6 +65,7 @@ class Day:
         return Day(
             scores=normalized,
             closed=data.get("closed", False),
+            viewed=bool(data.get("viewed", False)),
             review_order=[name for name in data.get("review_order", []) if isinstance(name, str)],
             review_index=int(data.get("review_index", 0) or 0),
         )

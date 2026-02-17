@@ -14,20 +14,27 @@ class DayReviewState(BaseState):
         self.session = session
         self.tasks = tasks
         self.completed = False
-        day = self.session.days[self.session.current_day]
-        if not day.review_order:
-            day.review_order = list(self.session.children)
-            random.shuffle(day.review_order)
-            day.review_index = 0
+
+    def _ensure_random_order(self) -> None:
+        day_data = self.session.days[self.session.current_day]
+        if not day_data.review_order:
+            day_data.review_order = list(self.session.children)
+            random.shuffle(day_data.review_order)
+            day_data.review_index = 0
+
+    def _current_child(self) -> str | None:
+        self._ensure_random_order()
+        day_data = self.session.days[self.session.current_day]
+        if day_data.review_index >= len(day_data.review_order):
+            return None
+        return day_data.review_order[day_data.review_index]
 
     def show(self) -> dict[str, Any]:
-        day_data = self.session.days[self.session.current_day]
-        child = None if day_data.review_index >= len(day_data.review_order) else day_data.review_order[day_data.review_index]
         return {
             "view": self.name,
             "day": self.session.current_day,
             "task_text": self.tasks[self.session.current_day - 1].text,
-            "child": child,
+            "child": self._current_child(),
             "completed": self.completed,
             "score_options": [
                 {"score": 1, "emoji": "☹️", "label": "Плохо"},
@@ -40,7 +47,6 @@ class DayReviewState(BaseState):
         if command == "back":
             return "base_state"
 
-        day_data = self.session.days[self.session.current_day]
         score = payload.get("score") if payload and command == "set_score" else None
         if command in {"score_1", "score_2", "score_3"}:
             score = int(command.split("_")[1])
@@ -48,10 +54,13 @@ class DayReviewState(BaseState):
         if score not in {1, 2, 3}:
             return None
 
-        if day_data.review_index < len(day_data.review_order):
-            child = day_data.review_order[day_data.review_index]
-            day_data.scores[child] = score
-            day_data.review_index += 1
+        day_data = self.session.days[self.session.current_day]
+        child = self._current_child()
+        if child is None:
+            return "base_state"
+
+        day_data.scores[child] = score
+        day_data.review_index += 1
 
         if day_data.review_index >= len(day_data.review_order):
             day_data.closed = True

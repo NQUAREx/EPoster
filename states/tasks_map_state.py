@@ -12,11 +12,13 @@ class TasksMapState(BaseState):
     def __init__(self, session: Session, tasks: list[Task]):
         self.session = session
         self.tasks = tasks
+        self.warning = ""
 
     def _status(self, day_number: int) -> str:
-        if self.session.days[day_number].closed:
+        day = self.session.days[day_number]
+        if day.closed:
             return "completed"
-        if day_number <= self.session.current_day + 1:
+        if day.viewed or day_number <= self.session.current_day + 1:
             return "open"
         return "locked"
 
@@ -25,12 +27,13 @@ class TasksMapState(BaseState):
             "view": self.name,
             "current_day": self.session.current_day,
             "selected_day": self.session.selected_day,
-            "warning": "",
+            "warning": self.warning,
             "circles": [
                 {
                     "day": day,
                     "status": self._status(day),
                     "selected": day == self.session.selected_day,
+                    "viewed": self.session.days[day].viewed,
                 }
                 for day in range(1, 31)
             ],
@@ -38,15 +41,21 @@ class TasksMapState(BaseState):
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
         if command in {"next", "+1"}:
+            self.warning = ""
             self.session.selected_day = min(30, self.session.selected_day + 1)
             return None
         if command in {"prev", "-1"}:
+            self.warning = ""
             self.session.selected_day = max(1, self.session.selected_day - 1)
             return None
         if command in {"ok", "open_selected_day"}:
             if self.session.selected_day > self.session.current_day + 2:
+                self.warning = "Задание открыть нельзя!"
                 return None
+            self.warning = ""
+            self.session.days[self.session.selected_day].viewed = True
             return "task_info_state"
         if command == "back":
+            self.warning = ""
             return "base_state"
         return None

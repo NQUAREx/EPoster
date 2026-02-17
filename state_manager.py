@@ -13,6 +13,15 @@ class StateManager:
         self.prayer_times = prayer_times
         self.state: BaseState = self._create_state("base_state")
 
+    def refresh_data(self, tasks: list[Task], prayer_times: dict[str, PrayerTimes]) -> None:
+        self.tasks = tasks
+        self.prayer_times = prayer_times
+
+        if hasattr(self.state, "tasks"):
+            self.state.tasks = tasks
+        if hasattr(self.state, "prayer_times"):
+            self.state.prayer_times = prayer_times
+
     def _create_state(self, state_name: str) -> BaseState:
         if state_name == "base_state":
             return BaseScreenState(self.session, self.tasks, self.prayer_times)
@@ -37,9 +46,4 @@ class StateManager:
         next_state_name = self.state.handle_command(command, payload)
         if next_state_name:
             self.state = self._create_state(next_state_name)
-        ui_payload = self.show()
-
-        if self.state.name == "tasks_map_state" and command in {"ok", "open_selected_day"} and self.session.selected_day > self.session.current_day + 2:
-            ui_payload["warning"] = "Задание открыть нельзя!"
-
-        return ui_payload
+        return self.show()
