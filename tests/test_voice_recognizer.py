@@ -19,15 +19,10 @@ class DummyBackend(BackendClient):
 
 def test_command_mapper_fixed_aliases_and_score():
     mapper = CommandMapper()
-    assert mapper.to_backend_event("  Открыть   карту ").command == "open_tasks_map"
-    assert mapper.to_backend_event("режим проверки").command == "open_day_review"
-
-    score_event = mapper.to_backend_event("оценка три")
-    assert score_event is not None
-    assert score_event.command == "set_score"
-    assert score_event.payload == {"score": 3}
-
-    assert mapper.to_backend_event("неизвестно") is None
+    assert mapper.to_backend_command("  Открыть   карту ") == "open_tasks_map"
+    assert mapper.to_backend_command("режим проверки") == "open_day_review"
+    assert mapper.to_backend_command("отлично") == "score_3"
+    assert mapper.to_backend_command("неизвестно") is None
 
 
 def test_voice_flow_wake_then_command():

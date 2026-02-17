@@ -30,28 +30,36 @@ class CommandMapper:
 
     def __init__(self) -> None:
         self._aliases = {
-            "карта": BackendEvent("open_tasks_map"),
-            "открыть карту": BackendEvent("open_tasks_map"),
-            "покажи карту": BackendEvent("open_tasks_map"),
-            "проверка": BackendEvent("open_day_review"),
-            "режим проверки": BackendEvent("open_day_review"),
-            "открыть проверку": BackendEvent("open_day_review"),
-            "задание": BackendEvent("open_task_info"),
-            "открыть задание": BackendEvent("open_task_info"),
-            "следующий": BackendEvent("next"),
-            "вперед": BackendEvent("next"),
-            "предыдущий": BackendEvent("prev"),
-            "назад": BackendEvent("back"),
-            "ок": BackendEvent("ok"),
-            "подтвердить": BackendEvent("ok"),
-            "праздник": BackendEvent("open_eid"),
-            "ид": BackendEvent("open_eid"),
-            "оценка 1": BackendEvent("set_score", {"score": 1}),
-            "оценка один": BackendEvent("set_score", {"score": 1}),
-            "оценка 2": BackendEvent("set_score", {"score": 2}),
-            "оценка два": BackendEvent("set_score", {"score": 2}),
-            "оценка 3": BackendEvent("set_score", {"score": 3}),
-            "оценка три": BackendEvent("set_score", {"score": 3}),
+            "карта": "open_tasks_map",
+            "открыть карту": "open_tasks_map",
+            "открой карту": "open_tasks_map",
+            "покажи карту": "open_tasks_map",
+            "режим карты": "open_tasks_map",
+            "проверка": "open_day_review",
+            "режим проверки": "open_day_review",
+            "открыть проверку": "open_day_review",
+            "начать проверку": "open_day_review",
+            "задание": "open_task_info",
+            "открыть задание": "open_task_info",
+            "открой задание": "open_task_info",
+            "покажи задание": "open_task_info",
+            "следующий": "next",
+            "дальше": "next",
+            "вперед": "next",
+            "предыдущий": "prev",
+            "раньше": "prev",
+            "назад": "back",
+            "вернуться": "back",
+            "домой": "back",
+            "ок": "ok",
+            "подтвердить": "ok",
+            "выбрать": "ok",
+            "плохо": "score_1",
+            "средне": "score_2",
+            "хорошо": "score_3",
+            "отлично": "score_3",
+            "праздник": "open_eid",
+            "ид": "open_eid",
         }
 
     def normalize_text(self, text: str) -> str:
@@ -230,20 +238,17 @@ class VoiceRecognizer:
                 continue
 
             normalized = self.mapper.normalize_text(phrase)
-            print(f"[voice] recognized: {normalized}")
 
             if not wake_detected:
                 if self.wake_word in normalized.split():
                     wake_detected = True
                     waiting_until = time.monotonic() + self.command_window_seconds
                     self.backend.send_wake()
-                    print("[voice] wake word detected, command window open")
                 continue
 
-            event = self.mapper.to_backend_event(normalized)
-            if event:
-                self.backend.send_command(event.command, event.payload)
-                print(f"[voice] mapped command: {event.command} payload={event.payload}")
+            command = self.mapper.to_backend_command(normalized)
+            if command:
+                self.backend.send_command(command)
                 wake_detected = False
                 continue
 

@@ -16,22 +16,37 @@ body {
   transition: background 0.9s ease, filter 0.4s ease;
 }
 body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
-body.wake-active { box-shadow: inset 0 0 0 10px #0f6bff; }
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  border: 0 solid transparent;
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.2s ease, border-width 0.2s ease;
+}
+body.wake-active::after {
+  border-width: 10px;
+  border-color: #0f6bff;
+  box-shadow: inset 0 0 25px rgba(15, 107, 255, 0.45), 0 0 25px rgba(15, 107, 255, 0.35);
+  opacity: 1;
+}
 .fullscreen, .fullscreen section { width: 100vw; height: 100vh; }
 .base-screen, .task-info-screen, .map-screen, .review-screen, .eid-screen {
   display: grid;
   place-items: stretch;
-  gap: 14px;
-  padding: 12px;
+  gap: clamp(10px, 1.8vh, 18px);
+  padding: clamp(14px, 2.2vh, 24px) clamp(14px, 2.2vw, 24px);
 }
 
 .base-screen {
-  grid-template-rows: minmax(120px, auto) minmax(250px, 1fr) minmax(120px, auto);
-  gap: clamp(8px, 1.5vh, 14px);
-  align-content: start;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 1.6vh, 16px);
+  align-content: stretch;
   justify-items: center;
-  padding-inline: clamp(12px, 2.4vw, 30px);
-  padding-bottom: clamp(72px, 10vh, 108px);
+  padding: clamp(16px, 2.4vh, 32px) clamp(16px, 2.4vw, 32px);
 }
 
 .base-screen .glass {
@@ -39,7 +54,7 @@ body.wake-active { box-shadow: inset 0 0 0 10px #0f6bff; }
   flex-direction: column;
   justify-content: center;
   min-height: 0;
-  width: min(92vw, 1240px);
+  width: min(100%, 1240px);
 }
 
 #countdownClock {
@@ -116,7 +131,7 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: repeat(5, minmax(0, 1fr));
   gap: min(1.1vh, 10px);
-  height: calc(100vh - 230px);
+  height: calc(100vh - 260px);
 }
 .circle-wrap {
   width: 100%;
@@ -160,9 +175,6 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 .score:hover { transform: translateY(-6px) scale(1.03); }
 .score small { font-size: 28px; font-weight: 900; }
 .scores-line { font-size: clamp(28px, 3.2vw, 48px); font-weight: 900; }
-.command-panel { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); width: min(98vw, 900px); display:grid; gap:8px; background:#000a; padding:10px; border-radius:22px; max-height: 200px; overflow: auto; }
-.command-panel input,.command-panel textarea,.command-panel button{ border:none; border-radius:16px; padding:12px; font-size: 20px; font-family: inherit; }
-.wake-btn { background: #2c7dff; color: #fff; font-weight: 700; }
 .confetti { position: fixed; inset: 0; pointer-events:none; background-image: radial-gradient(circle, #fff 2px, transparent 2px); background-size: 30px 30px; animation: fall 8s linear infinite; opacity:.5; }
 .state-enter { animation: fadeSlide .36s ease; }
 @keyframes fall { from { transform: translateY(-100%);} to { transform: translateY(100%);} }

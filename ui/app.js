@@ -1,8 +1,4 @@
 const stateView = document.getElementById('stateView');
-const commandInput = document.getElementById('commandInput');
-const payloadInput = document.getElementById('payloadInput');
-const errorBox = document.getElementById('errorBox');
-const wakeBtn = document.getElementById('wakeBtn');
 
 let wakeActiveUntil = 0;
 let baseTickTimer = null;
@@ -260,51 +256,6 @@ async function refreshState(forceFullRender = false) {
   applyViewModel(data.view_model, { forceFullRender });
 }
 
-async function sendWake() {
-  const response = await fetch('/api/wake', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ source: 'manual' }),
-  });
-  const data = await response.json();
-  applyViewModel(data.view_model, { forceFullRender: true });
-}
-
-async function sendCommand() {
-  errorBox.textContent = '';
-  const command = commandInput.value.trim();
-  if (!command) {
-    errorBox.textContent = 'Введите команду';
-    return;
-  }
-
-  let payload = null;
-  if (payloadInput.value.trim()) {
-    try {
-      payload = JSON.parse(payloadInput.value.trim());
-    } catch {
-      errorBox.textContent = 'Payload должен быть JSON';
-      return;
-    }
-  }
-
-  const response = await fetch('/api/command', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ command, payload, source: 'manual', wake_word_detected: false }),
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    errorBox.textContent = data.detail || 'Ошибка команды';
-    return;
-  }
-
-  applyViewModel(data.view_model, { forceFullRender: true });
-}
-
-document.getElementById('sendBtn').addEventListener('click', sendCommand);
-wakeBtn.addEventListener('click', sendWake);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     refreshState();
