@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EPoster</title>
+  <link rel="stylesheet" href="/ui/styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="top-panel">
+      <div>
+        <p class="label">Текущее состояние</p>
+        <h1 id="stateName">—</h1>
+      </div>
+      <button id="refreshBtn" class="btn secondary">Обновить</button>
+    </header>
+
+    <section class="command-panel card">
+      <h2>Команда</h2>
+      <div class="row">
+        <input id="commandInput" type="text" placeholder="Например: open_map" />
+        <button id="sendBtn" class="btn">Отправить</button>
+      </div>
+      <textarea id="payloadInput" rows="3" placeholder='Payload JSON (опционально), например: {"child":"Али","score":3}'></textarea>
+      <div class="quick-buttons" id="quickButtons"></div>
+      <p id="errorBox" class="error"></p>
+    </section>
+
+    <section class="card">
+      <h2>View Model</h2>
+      <pre id="viewModelBox">{}</pre>
+    </section>
+
+    <section class="card">
+      <h2>Экран состояния</h2>
+      <div id="stateView"></div>
+    </section>
+  </main>
+
+  <script src="/ui/app.js"></script>
+</body>
+</html>
