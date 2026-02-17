@@ -36,11 +36,11 @@ class SummaryState(BaseState):
         if command == "next_day":
             if self.session.current_day < 30:
                 self.session.current_day += 1
-                return "day_review"
+                return "base"
             self.session.celebration_mode = True
             return "celebration"
 
         if command == "back":
-            return "task_map"
+            return "base"
 
         return None

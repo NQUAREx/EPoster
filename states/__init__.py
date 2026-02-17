@@ -1,3 +1,4 @@
+from states.base_home_state import BaseHomeState
 from states.celebration_state import CelebrationState
 from states.day_review_state import DayReviewState
 from states.home_state import HomeState

@@ -27,33 +27,35 @@ class PrayerTimes:
 
 @dataclass
 class AppSettings:
-    children: List[str] = field(default_factory=list)
     language: str = "ru"
     secret_celebration_command: str = "eid-mode"
 
     @staticmethod
     def from_dict(data: dict) -> "AppSettings":
         return AppSettings(
-            children=list(data.get("children", [])),
-            language=data.get("language", "ru"),
+            language="ru",
             secret_celebration_command=data.get("secret_celebration_command", "eid-mode"),
         )
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        payload = asdict(self)
+        payload["language"] = "ru"
+        return payload
 
 
 @dataclass
 class Day:
     scores: Dict[str, int | None] = field(default_factory=dict)
     closed: bool = False
+    review_order: List[str] = field(default_factory=list)
+    review_index: int = 0
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @staticmethod
     def from_dict(data: dict) -> "Day":
-        scores = data.get("scores", {})
+        scores_data = data.get("scores", {})
         normalized: Dict[str, int | None] = {}
         for child, score in scores.items():
             normalized[child] = score if isinstance(score, int) else None

@@ -12,7 +12,9 @@ class AppController:
 
         session = load_session()
         if session is None:
-            session = create_session(self.settings.children)
+            session = create_session(children)
+        else:
+            session.children = children
 
         session.children = list(self.settings.children)
         for day in session.days.values():

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from models import Session, Task
 from states.base_state import BaseState
@@ -9,7 +9,7 @@ from states.base_state import BaseState
 class TaskMapState(BaseState):
     name = "task_map"
 
-    def __init__(self, session: Session, tasks: List[Task]):
+    def __init__(self, session: Session, tasks: list[Task]):
         self.session = session
         self.tasks = tasks
 

@@ -10,7 +10,7 @@ from states.base_state import BaseState
 class DayReviewState(BaseState):
     name = "day_review"
 
-    def __init__(self, session: Session, tasks: List[Task]):
+    def __init__(self, session: Session, tasks: list[Task]):
         self.session = session
         self.tasks = tasks
         self.review_order: list[str] = random.sample(self.session.children, len(self.session.children))
@@ -19,6 +19,12 @@ class DayReviewState(BaseState):
 
     def _current_child(self) -> str:
         return self.review_order[self.current_index]
+
+    def _active_child(self) -> str | None:
+        day = self.session.days[self.session.current_day]
+        if day.review_index >= len(day.review_order):
+            return None
+        return day.review_order[day.review_index]
 
     def show(self) -> dict[str, Any]:
         return {

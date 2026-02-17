@@ -78,15 +78,19 @@ async function sendCommand() {
     }
   }
 
+  if (command === 'set_score' && !payload) {
+    payload = { score: 3 };
+  }
+
   const response = await fetch('/api/command', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ command, payload }),
+    body: JSON.stringify({ command, payload })
   });
 
   const data = await response.json();
   if (!response.ok) {
-    errorBox.textContent = data.error || 'Ошибка команды';
+    errorBox.textContent = data.detail || 'Ошибка команды';
     return;
   }
   stateView.innerHTML = renderState(data.view_model);

@@ -16,20 +16,13 @@ class SettingsState(BaseState):
         return {
             "view": self.name,
             "screen": "ui/settings.html",
-            "language": self.settings.language,
+            "language": "ru",
             "secret_celebration_command": self.settings.secret_celebration_command,
-            "children": self.settings.children,
             "gift_total_target": self.settings.gift_total_target,
         }
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
         payload = payload or {}
-
-        if command == "set_language":
-            language = payload.get("language")
-            if isinstance(language, str) and language:
-                self.settings.language = language
-            return None
 
         if command == "set_secret_command":
             secret = payload.get("secret")
@@ -44,6 +37,6 @@ class SettingsState(BaseState):
             return None
 
         if command == "back":
-            return "day_review"
+            return "base"
 
         return None
