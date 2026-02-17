@@ -300,7 +300,7 @@ async function sendCommand() {
     return;
   }
 
-  applyViewModel(data.view_model, { force: true });
+  applyViewModel(data.view_model, { forceFullRender: true });
 }
 
 document.getElementById('sendBtn').addEventListener('click', sendCommand);
@@ -314,3 +314,7 @@ document.addEventListener('visibilitychange', () => {
 setInterval(updateWakeBorder, 200);
 updateDynamicHue('day', 0.5);
 refreshState(true);
+
+setInterval(() => {
+  refreshState().catch(() => {});
+}, 1000);
