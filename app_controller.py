@@ -31,13 +31,20 @@ class AppController:
         self.session = session
         self.state_manager = StateManager(session, self.tasks, self.settings, self.prayer_times)
 
+    def _reload_runtime_data(self) -> None:
+        self.tasks = load_tasks()
+        self.prayer_times = load_prayer_times()
+        self.state_manager.refresh_data(self.tasks, self.prayer_times)
+
     def render(self) -> dict:
+        self._reload_runtime_data()
         ui_payload = self.state_manager.show()
         ui_payload["wake_active"] = False
         save_session(self.session)
         return ui_payload
 
     def dispatch(self, command: str, payload: dict | None = None) -> dict:
+        self._reload_runtime_data()
         event = self.command_router.normalize_event(CommandEvent(command=command, payload=payload))
         ui_payload = self.state_manager.handle_command(event.command, event.payload)
         ui_payload["command_source"] = event.source
@@ -47,6 +54,7 @@ class AppController:
         return ui_payload
 
     def dispatch_event(self, event: CommandEvent) -> dict:
+        self._reload_runtime_data()
         normalized = self.command_router.normalize_event(event)
         ui_payload = self.state_manager.handle_command(normalized.command, normalized.payload)
         ui_payload["command_source"] = normalized.source

@@ -16,12 +16,17 @@ class TaskInfoState(BaseState):
     def show(self) -> dict[str, Any]:
         day_num = self.session.selected_day
         day = self.session.days[day_num]
+        day.viewed = True
         return {
             "view": self.name,
             "day": day_num,
             "task_text": self.tasks[day_num - 1].text,
             "closed": day.closed,
-            "scores_line": [f"{child}: {self._emoji(score)}" for child, score in day.scores.items() if score is not None],
+            "scores_line": [
+                {"child": child, "emoji": self._emoji(score)}
+                for child, score in day.scores.items()
+                if score is not None
+            ],
         }
 
     def _emoji(self, score: int | None) -> str:
