@@ -7,13 +7,13 @@ const errorBox = document.getElementById('errorBox');
 const quickButtons = document.getElementById('quickButtons');
 
 const quickCommands = [
+  'start_day_review',
+  'set_score',
   'open_map',
   'open_summary',
   'open_settings',
-  'back',
-  'finish_day',
   'next_day',
-  'restart'
+  'back'
 ];
 
 function renderQuickButtons() {
@@ -27,10 +27,9 @@ function renderQuickButtons() {
   }
 }
 
-function formatPairs(obj) {
-  if (!obj) return '<p>Нет данных.</p>';
-  return Object.entries(obj)
-    .map(([key, value]) => `<span class="pill">${key}: ${value === null ? '—' : value}</span>`)
+function pills(map) {
+  return Object.entries(map || {})
+    .map(([key, value]) => `<span class="pill">${key}: ${value ?? '—'}</span>`)
     .join('');
 }
 
@@ -40,28 +39,48 @@ function renderStateView(model) {
     return;
   }
 
-  if (model.view === 'day_review') {
-    stateView.innerHTML = `<p>День: <b>${model.day}</b></p><p>Задание: ${model.task.text}</p>${formatPairs(model.scores)}`;
-    return;
-  }
-  if (model.view === 'task_map') {
-    stateView.innerHTML = `<p>День: <b>${model.day}</b>, можно закрыть: <b>${model.can_close_day}</b></p>${formatPairs(model.scores)}`;
-    return;
-  }
-  if (model.view === 'summary') {
-    stateView.innerHTML = `<p>Сводка дня ${model.day}</p><h3>Сумма баллов</h3>${formatPairs(model.totals)}`;
-    return;
-  }
-  if (model.view === 'settings') {
-    stateView.innerHTML = `<p>Язык: ${model.language}</p><p>Секретная команда: ${model.secret_celebration_command}</p>`;
-    return;
-  }
-  if (model.view === 'celebration') {
-    stateView.innerHTML = `<h3>${model.message}</h3>${formatPairs(model.totals)}`;
+  if (model.view === 'base') {
+    stateView.innerHTML = `
+      <h2>Домашний экран</h2>
+      <p>День: <b>${model.day}</b></p>
+      <p>До сухура: <b>${model.time_to_suhur}</b></p>
+      <p>До ифтара: <b>${model.time_to_iftar}</b></p>
+      <p>Задание на сегодня: ${model.today_task}</p>
+    `;
     return;
   }
 
-  stateView.innerHTML = '<p>Неизвестное состояние.</p>';
+  if (model.view === 'day_review') {
+    stateView.innerHTML = `
+      <div class="full-screen-card">
+        <p class="label">День ${model.day}</p>
+        <h2>${model.active_child ?? 'Проверка завершена'}</h2>
+        <p>${model.task.text}</p>
+        <p>Порядок: ${model.review_order.join(' → ')}</p>
+        <div>${pills(model.scores)}</div>
+      </div>
+    `;
+    return;
+  }
+
+  if (model.view === 'task_map') {
+    stateView.innerHTML = `<h2>Карта дня</h2><p>День: ${model.day}</p><div>${pills(model.scores)}</div>`;
+    return;
+  }
+
+  if (model.view === 'summary') {
+    stateView.innerHTML = `<h2>Сводка дня ${model.day}</h2><div>${pills(model.totals)}</div>`;
+    return;
+  }
+
+  if (model.view === 'settings') {
+    stateView.innerHTML = `<h2>Настройки</h2><p>Язык: русский</p><p>Секретная команда: ${model.secret_celebration_command}</p>`;
+    return;
+  }
+
+  if (model.view === 'celebration') {
+    stateView.innerHTML = `<h2>${model.message}</h2><div>${pills(model.totals)}</div>`;
+  }
 }
 
 async function refreshState() {
@@ -73,9 +92,9 @@ async function refreshState() {
   renderStateView(data.view_model);
 }
 
-async function sendCommand(forcedCommand = null) {
+async function sendCommand(forced = null) {
   errorBox.textContent = '';
-  const command = forcedCommand || commandInput.value.trim();
+  const command = forced || commandInput.value.trim();
   if (!command) {
     errorBox.textContent = 'Введите command';
     return;
@@ -86,21 +105,25 @@ async function sendCommand(forcedCommand = null) {
   if (payloadRaw) {
     try {
       payload = JSON.parse(payloadRaw);
-    } catch (error) {
+    } catch {
       errorBox.textContent = 'Payload должен быть валидным JSON';
       return;
     }
   }
 
+  if (command === 'set_score' && !payload) {
+    payload = { score: 3 };
+  }
+
   const response = await fetch('/api/command', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ command, payload }),
+    body: JSON.stringify({ command, payload })
   });
 
   const data = await response.json();
   if (!response.ok) {
-    errorBox.textContent = data.error || 'Ошибка команды';
+    errorBox.textContent = data.detail || 'Ошибка команды';
     return;
   }
 

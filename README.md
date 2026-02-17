@@ -1,36 +1,98 @@
-# EPoster (Ramadan Poster for Raspberry Pi)
+# EPoster
 
-Минимальный офлайн-прототип state-driven приложения с Flask API + single-page UI.
+Офлайн state-driven платформа для электронного плаката Рамадана.
 
-## Что уже работает
+## Что реализовано сейчас
 
-- State machine с состояниями: `day_review`, `task_map`, `summary`, `settings`, `celebration`.
-- Переключение через команды (без голосового слоя):
-  - кнопки быстрых команд в UI;
-  - ручной ввод `command` + JSON `payload`.
-- Единый API:
+- Backend на **FastAPI** с API:
+  - `GET /`
   - `GET /api/state`
   - `POST /api/command`
-- Хранение состояния только в JSON (`data/session.json`, `data/settings.json`, `data/tasks.json`).
+- Home state (`base`) как домашний экран:
+  - день,
+  - время до сухура,
+  - время до ифтара,
+  - краткое задание дня.
+- Day review в режиме поочередной проверки детей:
+  - порядок детей случайный для каждого дня,
+  - на экране показывается только текущий ребенок,
+  - команда `set_score` (0..3) переводит к следующему,
+  - после последнего ребенка автоматически открывается `summary`.
+- Список детей хранится отдельно в `data/children.json`.
+- Локализация только русская.
 
-## Запуск в WSL (Windows)
+## Структура данных
+
+- `data/children.json` — список детей.
+- `data/tasks.json` — 30 заданий по дням.
+- `data/settings.json` — настройки системы.
+- `data/session.json` — текущее состояние плаката.
+
+## Команды (для ручного теста UI)
+
+> В боевом режиме команды должен передавать голосовой модуль.
+
+- `start_day_review`
+- `set_score` с payload: `{"score": 0..3}`
+- `open_map`
+- `open_summary`
+- `open_settings`
+- `next_day`
+- `back`
+
+## Запуск на Linux (включая WSL)
+
+1. Установите Python 3.10+.
+2. В корне проекта:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install flask pytest
+pip install -U pip
+pip install fastapi uvicorn pytest httpx
+```
+
+3. Запуск API + UI:
+
+```bash
 python web_app.py
 ```
 
-Открыть в браузере: `http://localhost:5000`
+4. Откройте браузер:
 
-## Команды
+- В Linux: `http://127.0.0.1:8000`
+- В WSL через Windows браузер: `http://localhost:8000`
 
-- `open_map`, `open_summary`, `back`
-- `set_score` (`{"child": "Али", "score": 2}`), `clear_score`
-- `finish_day`, `next_day`, `restart`
-- `open_settings`, `set_language`, `set_secret_command`, `set_gift_total_target`
-- секретная команда из `settings.secret_celebration_command`
+## Если Windows не открывает localhost для WSL
+
+1. Проверьте, что сервер слушает `0.0.0.0:8000`.
+2. Проверьте из WSL:
+
+```bash
+curl http://127.0.0.1:8000/api/state
+```
+
+3. Если в браузере Windows всё еще не открывается, используйте IP WSL:
+
+```bash
+hostname -I
+```
+
+и откройте `http://<WSL_IP>:8000`.
+
+4. Проверьте, что порт 8000 не занят другим процессом.
+
+## Запуск на Windows (без WSL, PowerShell)
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -U pip
+pip install fastapi uvicorn pytest httpx
+python web_app.py
+```
+
+Откройте: `http://127.0.0.1:8000`
 
 ## Тесты
 

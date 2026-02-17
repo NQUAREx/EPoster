@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EPoster</title>
+  <title>Электронный плакат</title>
   <link rel="stylesheet" href="/ui/styles.css" />
 </head>
 <body>
   <main class="app-shell">
-    <header class="top-panel">
+    <header class="top-panel card">
       <div>
         <p class="label">Текущее состояние</p>
         <h1 id="stateName">—</h1>
@@ -16,25 +16,22 @@
       <button id="refreshBtn" class="btn secondary">Обновить</button>
     </header>
 
+    <section class="state-panel card" id="stateView"></section>
+
     <section class="command-panel card">
-      <h2>Команда</h2>
+      <h2>Ручной тест команд (в проде команды идут из голосового модуля)</h2>
       <div class="row">
-        <input id="commandInput" type="text" placeholder="Например: open_map" />
+        <input id="commandInput" type="text" placeholder="Например: start_day_review" />
         <button id="sendBtn" class="btn">Отправить</button>
       </div>
-      <textarea id="payloadInput" rows="3" placeholder='Payload JSON (опционально), например: {"child":"Али","score":3}'></textarea>
+      <textarea id="payloadInput" rows="3" placeholder='JSON payload (опционально), пример: {"score":3}'></textarea>
       <div class="quick-buttons" id="quickButtons"></div>
       <p id="errorBox" class="error"></p>
     </section>
 
     <section class="card">
-      <h2>View Model</h2>
+      <h2>View Model (debug)</h2>
       <pre id="viewModelBox">{}</pre>
-    </section>
-
-    <section class="card">
-      <h2>Экран состояния</h2>
-      <div id="stateView"></div>
     </section>
   </main>
 

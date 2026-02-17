@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from models import AppSettings, Session, Task
-from states import CelebrationState, DayReviewState, SettingsState, SummaryState, TaskMapState
+from states import BaseHomeState, CelebrationState, DayReviewState, SettingsState, SummaryState, TaskMapState
 from states.base_state import BaseState
 
 
@@ -15,9 +15,11 @@ class StateManager:
     def _build_initial_state(self) -> BaseState:
         if self.session.celebration_mode:
             return CelebrationState(self.session, self.settings)
-        return DayReviewState(self.session, self.tasks)
+        return BaseHomeState(self.session, self.tasks)
 
     def _create_state(self, state_name: str) -> BaseState:
+        if state_name == "base":
+            return BaseHomeState(self.session, self.tasks)
         if state_name == "day_review":
             return DayReviewState(self.session, self.tasks)
         if state_name == "task_map":

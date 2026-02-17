@@ -36,5 +36,5 @@ class CelebrationState(BaseState):
                 day.closed = False
                 for child in self.session.children:
                     day.scores[child] = None
-            return "day_review"
+            return "base"
         return None

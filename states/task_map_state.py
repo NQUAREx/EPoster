@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from models import Session, Task
 from states.base_state import BaseState
@@ -9,13 +9,9 @@ from states.base_state import BaseState
 class TaskMapState(BaseState):
     name = "task_map"
 
-    def __init__(self, session: Session, tasks: List[Task]):
+    def __init__(self, session: Session, tasks: list[Task]):
         self.session = session
         self.tasks = tasks
-
-    def _all_children_scored(self) -> bool:
-        day_data = self.session.days[self.session.current_day]
-        return all(day_data.scores.get(child) is not None for child in self.session.children)
 
     def show(self) -> dict[str, Any]:
         day_data = self.session.days[self.session.current_day]
@@ -26,33 +22,13 @@ class TaskMapState(BaseState):
             "children": self.session.children,
             "scores": day_data.scores,
             "closed": day_data.closed,
-            "can_close_day": self._all_children_scored(),
+            "review_order": day_data.review_order,
+            "review_index": day_data.review_index,
         }
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
-        payload = payload or {}
-        day_data = self.session.days[self.session.current_day]
-
-        if command == "set_score":
-            child = payload.get("child")
-            score = payload.get("score")
-            if child in self.session.children and isinstance(score, int) and 0 <= score <= 3:
-                day_data.scores[child] = score
-            return None
-
-        if command == "clear_score":
-            child = payload.get("child")
-            if child in self.session.children:
-                day_data.scores[child] = None
-            return None
-
-        if command == "finish_day":
-            if not self._all_children_scored():
-                return None
-            day_data.closed = True
-            return "summary"
-
-        if command == "back":
+        if command == "start_day_review":
             return "day_review"
-
+        if command == "back":
+            return "base"
         return None

@@ -4,7 +4,8 @@ import sys
 
 import pytest
 
-pytest.importorskip("flask")
+pytest.importorskip("fastapi")
+pytest.importorskip("httpx")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(REPO_ROOT))
@@ -16,29 +17,29 @@ def client(tmp_path, monkeypatch):
     shutil.copytree(REPO_ROOT / "ui", tmp_path / "ui")
     monkeypatch.chdir(tmp_path)
 
+    from fastapi.testclient import TestClient
     from web_app import create_app
 
     app = create_app()
-    app.config.update(TESTING=True)
-    with app.test_client() as test_client:
+    with TestClient(app) as test_client:
         yield test_client
 
 
 def test_get_state(client):
     response = client.get("/api/state")
     assert response.status_code == 200
-    payload = response.get_json()
-    assert payload["state"] == "day_review"
+    payload = response.json()
+    assert payload["state"] == "base"
     assert "view_model" in payload
 
 
 def test_command_transition(client):
-    response = client.post("/api/command", json={"command": "open_map"})
+    response = client.post("/api/command", json={"command": "start_day_review"})
     assert response.status_code == 200
-    payload = response.get_json()
-    assert payload["state"] == "task_map"
+    payload = response.json()
+    assert payload["state"] == "day_review"
 
 
 def test_command_validation(client):
-    response = client.post("/api/command", json={"payload": {"x": 1}})
+    response = client.post("/api/command", json={"command": "  "})
     assert response.status_code == 400
