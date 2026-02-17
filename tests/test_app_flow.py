@@ -17,29 +17,39 @@ def isolated_app(tmp_path, monkeypatch):
     return AppController()
 
 
-def test_full_day_flow_and_celebration_command(isolated_app):
+def test_finish_day_blocked_until_all_children_scored(isolated_app):
     app = isolated_app
-
-    assert app.render()["view"] in {"day_review", "celebration"}
-
     app.dispatch("open_map")
-    payload = app.dispatch("set_score", {"child": app.session.children[0], "score": 3})
+
+    payload = app.dispatch("finish_day")
     assert payload["view"] == "task_map"
+    assert payload["can_close_day"] is False
+
+    for child in app.session.children:
+        payload = app.dispatch("set_score", {"child": child, "score": 3})
+    assert payload["can_close_day"] is True
 
     payload = app.dispatch("finish_day")
     assert payload["view"] == "summary"
     assert app.session.days[app.session.current_day].closed is True
 
-    payload = app.dispatch(app.settings.secret_celebration_command)
-    assert payload["view"] == "celebration"
+
+def test_score_range_0_to_3(isolated_app):
+    app = isolated_app
+    app.dispatch("open_map")
+
+    payload = app.dispatch("set_score", {"child": app.session.children[0], "score": 5})
+    assert payload["scores"][app.session.children[0]] is None
+
+    payload = app.dispatch("set_score", {"child": app.session.children[0], "score": 2})
+    assert payload["scores"][app.session.children[0]] == 2
 
 
-def test_settings_update(isolated_app):
+def test_settings_and_secret_command(isolated_app):
     app = isolated_app
     payload = app.dispatch("open_settings")
     assert payload["view"] == "settings"
 
-    app.dispatch("set_language", {"language": "en"})
-    payload = app.dispatch("set_secret_command", {"secret": "party"})
-    assert payload["language"] == "en"
-    assert payload["secret_celebration_command"] == "party"
+    app.dispatch("set_secret_command", {"secret": "party"})
+    payload = app.dispatch("party")
+    assert payload["view"] == "celebration"

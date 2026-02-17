@@ -14,7 +14,7 @@ class StateManager:
 
     def _build_initial_state(self) -> BaseState:
         if self.session.celebration_mode:
-            return CelebrationState(self.session)
+            return CelebrationState(self.session, self.settings)
         return DayReviewState(self.session, self.tasks)
 
     def _create_state(self, state_name: str) -> BaseState:
@@ -23,9 +23,9 @@ class StateManager:
         if state_name == "task_map":
             return TaskMapState(self.session, self.tasks)
         if state_name == "summary":
-            return SummaryState(self.session, self.tasks)
+            return SummaryState(self.session, self.tasks, self.settings)
         if state_name == "celebration":
-            return CelebrationState(self.session)
+            return CelebrationState(self.session, self.settings)
         if state_name == "settings":
             return SettingsState(self.settings)
         raise ValueError(f"Неизвестное состояние: {state_name}")

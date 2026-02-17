@@ -21,6 +21,7 @@ class DayReviewState(BaseState):
         task = self._current_task()
         return {
             "view": self.name,
+            "screen": "ui/day_review.html",
             "day": self.session.current_day,
             "task": {"text": task.text, "type": task.type},
             "closed": day.closed,

@@ -20,13 +20,16 @@ class AppSettings:
     children: List[str] = field(default_factory=list)
     language: str = "ru"
     secret_celebration_command: str = "eid-mode"
+    gift_total_target: int | None = None
 
     @staticmethod
     def from_dict(data: dict) -> "AppSettings":
+        target = data.get("gift_total_target")
         return AppSettings(
             children=list(data.get("children", [])),
             language=data.get("language", "ru"),
             secret_celebration_command=data.get("secret_celebration_command", "eid-mode"),
+            gift_total_target=int(target) if isinstance(target, int) and target >= 0 else None,
         )
 
     def to_dict(self) -> dict:
@@ -37,7 +40,7 @@ class AppSettings:
 class Day:
     """Mutable state for one Ramadan day."""
 
-    scores: Dict[str, int] = field(default_factory=dict)
+    scores: Dict[str, int | None] = field(default_factory=dict)
     closed: bool = False
 
     def to_dict(self) -> dict:
@@ -45,7 +48,14 @@ class Day:
 
     @staticmethod
     def from_dict(data: dict) -> "Day":
-        return Day(scores=data.get("scores", {}), closed=data.get("closed", False))
+        scores = data.get("scores", {})
+        normalized: Dict[str, int | None] = {}
+        for child, score in scores.items():
+            if isinstance(score, int):
+                normalized[child] = score
+            else:
+                normalized[child] = None
+        return Day(scores=normalized, closed=data.get("closed", False))
 
 
 @dataclass
@@ -79,7 +89,7 @@ class Session:
         return bool(self.days) and all(day.closed for day in self.days.values())
 
     def total_score(self, child: str) -> int:
-        return sum(day.scores.get(child, 0) for day in self.days.values())
+        return sum((day.scores.get(child) or 0) for day in self.days.values())
 
     def leaderboard(self) -> List[dict]:
         board = [{"child": child, "total": self.total_score(child)} for child in self.children]

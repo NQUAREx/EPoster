@@ -9,20 +9,24 @@
 - `state_manager.py` — переключение состояний и глобальные команды.
 - `models.py` — модели `Task`, `AppSettings`, `Day`, `Session`.
 - `storage.py` — загрузка/сохранение `session.json`, `settings.json`, `tasks.json`.
-- `time_model.py` — получение времени намазов из файла.
-- `states/` — модульные состояния плаката (`day_review`, `task_map`, `summary`, `settings`, `celebration`).
-- `data/` — `tasks.json`, `settings.json`, `session.json`, `prayer_times_2026.json`.
-- `voice/`, `hardware/`, `ui/` — интеграционные модули для Raspberry Pi.
-- `tests/` — базовые автотесты сценариев приложения.
+- `states/` — состояния (`day_review`, `task_map`, `summary`, `settings`, `celebration`).
+- `ui/*.html` — отдельный экран под каждый state.
+- `voice/` — lightweight модуль нормализации голосовых команд.
+- `hardware/lights.py` — заглушка подсветки (print принятых команд).
 
-## Поддерживаемые команды
+## Логика оценок
 
-- `open_map`, `open_summary`
-- `set_score` с payload `{"child": "Али", "score": 3}`
-- `finish_day`, `next_day`
-- `open_settings`, `set_language`, `set_secret_command`, `back`
-- секретная команда из `settings.secret_celebration_command` для перехода в celebration
-- `restart` (в celebration)
+- Диапазон оценок: **0..3**.
+- У каждого ребёнка на день стартовое значение — **`None`** (не выставлено).
+- День нельзя закрыть (`finish_day`), пока всем детям не выставлена оценка.
+
+## Команды
+
+- `open_map`, `open_summary`, `back`
+- `set_score` (`{"child": "Али", "score": 2}`), `clear_score`
+- `finish_day`, `next_day`, `restart`
+- `open_settings`, `set_language`, `set_secret_command`, `set_gift_total_target`
+- секретная команда из `settings.secret_celebration_command` для перехода в celebration из любого state
 
 ## Быстрый старт
 

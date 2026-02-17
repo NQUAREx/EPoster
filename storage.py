@@ -12,11 +12,22 @@ TASKS_FILE = DATA_DIR / "tasks.json"
 SETTINGS_FILE = DATA_DIR / "settings.json"
 
 
+def _build_empty_scores(children: list[str]) -> dict[str, int | None]:
+    return {child: None for child in children}
+
+
+def _normalize_session(session: Session) -> Session:
+    for day in session.days.values():
+        for child in session.children:
+            day.scores.setdefault(child, None)
+    return session
+
+
 def load_session() -> Session | None:
     if not SESSION_FILE.exists():
         return None
     with SESSION_FILE.open("r", encoding="utf-8") as file:
-        return Session.from_dict(json.load(file))
+        return _normalize_session(Session.from_dict(json.load(file)))
 
 
 def save_session(session: Session) -> None:
@@ -58,7 +69,7 @@ def load_tasks() -> List[Task]:
 
 
 def create_session(children: List[str]) -> Session:
-    days = {i + 1: Day() for i in range(30)}
+    days = {i + 1: Day(scores=_build_empty_scores(children)) for i in range(30)}
     session = Session(current_day=1, celebration_mode=False, children=children, days=days)
     save_session(session)
     return session

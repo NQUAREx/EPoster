@@ -15,9 +15,11 @@ class SettingsState(BaseState):
     def show(self) -> dict[str, Any]:
         return {
             "view": self.name,
+            "screen": "ui/settings.html",
             "language": self.settings.language,
             "secret_celebration_command": self.settings.secret_celebration_command,
             "children": self.settings.children,
+            "gift_total_target": self.settings.gift_total_target,
         }
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
@@ -33,6 +35,12 @@ class SettingsState(BaseState):
             secret = payload.get("secret")
             if isinstance(secret, str) and secret.strip():
                 self.settings.secret_celebration_command = secret.strip()
+            return None
+
+        if command == "set_gift_total_target":
+            target = payload.get("target")
+            if isinstance(target, int) and target >= 0:
+                self.settings.gift_total_target = target
             return None
 
         if command == "back":
