@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 
 from voice.recognizer import BackendClient, CommandMapper, VoiceRecognizer
 
@@ -10,13 +11,13 @@ class DummyBackend(BackendClient):
         self.calls = []
 
     def send_wake(self) -> None:
-        self.calls.append(("wake", None))
+        self.calls.append(("wake", None, None))
 
-    def send_command(self, command: str) -> None:
-        self.calls.append(("command", command))
+    def send_command(self, command: str, payload: dict | None = None) -> None:
+        self.calls.append(("command", command, payload))
 
 
-def test_command_mapper_fixed_aliases():
+def test_command_mapper_fixed_aliases_and_score():
     mapper = CommandMapper()
     assert mapper.to_backend_command("  Открыть   карту ") == "open_tasks_map"
     assert mapper.to_backend_command("режим проверки") == "open_day_review"
@@ -45,4 +46,19 @@ def test_voice_flow_wake_then_command():
     thread.start()
     thread.join(timeout=2)
 
-    assert backend.calls == [("wake", None), ("command", "open_tasks_map")]
+    assert backend.calls == [("wake", None, None), ("command", "open_tasks_map", None)]
+
+
+def test_vosk_model_validation(tmp_path: Path):
+    recognizer = VoiceRecognizer(model_path=str(tmp_path))
+    assert recognizer._resolve_model_path() is None
+
+    model_dir = tmp_path / "vosk-model-small-ru-0.22"
+    (model_dir / "am").mkdir(parents=True)
+    (model_dir / "conf").mkdir(parents=True)
+    (model_dir / "am" / "final.mdl").write_text("x")
+    (model_dir / "conf" / "model.conf").write_text("x")
+
+    recognizer = VoiceRecognizer(model_path=str(model_dir))
+    resolved = recognizer._resolve_model_path()
+    assert resolved == model_dir.resolve()

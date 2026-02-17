@@ -89,6 +89,7 @@ python web_app.py
 - `назад` → `back`
 - `ок`, `подтвердить` → `ok`
 - `праздник`, `ид` → `open_eid`
+- `оценка 1/2/3`, `оценка один/два/три` → `set_score` с payload `{"score": 1..3}`
 
 ### Запуск voice daemon
 
@@ -107,7 +108,7 @@ python web_app.py
 3. В отдельном терминале запустите голосовой процесс:
 
 ```bash
-python -m voice.recognizer --backend-url http://127.0.0.1:8000 --wake-word плакат --window 7
+python -m voice.recognizer --backend-url http://127.0.0.1:8000 --wake-word плакат --window 7 --model-path /absolute/path/to/vosk-model-small-ru-0.22
 ```
 
 > Если `vosk/sounddevice` не установлены, модуль не будет распознавать аудио (завершит цикл без распознанных фраз).
@@ -117,3 +118,22 @@ python -m voice.recognizer --backend-url http://127.0.0.1:8000 --wake-word пл�
 ```bash
 pytest -q
 ```
+
+
+### Ошибка `vosk model init failed` на Windows
+
+Если видите ошибку вида `Folder ... does not contain model files`, значит Vosk смотрит не в ту папку (или модель повреждена).
+
+Сделайте так:
+
+1. Проверьте, что в папке модели есть файлы:
+   - `am/final.mdl`
+   - `conf/model.conf`
+2. Передайте явный путь через `--model-path` **или** переменную окружения `VOSK_MODEL_PATH`.
+3. Используйте абсолютный путь в Windows, например:
+
+```powershell
+python -m voice.recognizer --model-path "C:\vosk\vosk-model-small-ru-0.22"
+```
+
+В модуле добавлена проверка валидности директории модели до старта распознавания.
