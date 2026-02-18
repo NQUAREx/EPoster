@@ -39,7 +39,7 @@ def test_voice_flow_wake_then_command():
     recognizer = VoiceRecognizer(
         backend=backend,
         recognizer_fn=recognize_once,
-        command_window_seconds=7.0,
+        command_window_seconds=6.0,
     )
 
     thread = threading.Thread(target=recognizer.run_forever)
@@ -62,3 +62,31 @@ def test_vosk_model_validation(tmp_path: Path):
     recognizer = VoiceRecognizer(model_path=str(model_dir))
     resolved = recognizer._resolve_model_path()
     assert resolved == model_dir.resolve()
+
+
+def test_voice_flow_keeps_listening_for_6_seconds_after_command():
+    phrases = iter(["плакат", "карта", "назад"])
+
+    def recognize_once():
+        try:
+            return next(phrases)
+        except StopIteration:
+            recognizer.stop()
+            return None
+
+    backend = DummyBackend()
+    recognizer = VoiceRecognizer(
+        backend=backend,
+        recognizer_fn=recognize_once,
+        command_window_seconds=6.0,
+    )
+
+    thread = threading.Thread(target=recognizer.run_forever)
+    thread.start()
+    thread.join(timeout=2)
+
+    assert backend.calls == [
+        ("wake", None, None),
+        ("command", "open_tasks_map", None),
+        ("command", "back", None),
+    ]

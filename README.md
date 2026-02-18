@@ -74,7 +74,7 @@ python web_app.py
 
 - слушает wake-слово `плакат`;
 - после wake отправляет `POST /api/wake` (для синей рамки в UI);
-- открывает окно 7 секунд на команду;
+- открывает окно 6 секунд на команду; после каждой распознанной команды окно продлевается ещё на 6 секунд;
 - распознает фиксированный набор русских фраз и мапит в backend-команды;
 - отправляет `POST /api/command` с `source="voice"`;
 - печатает распознанный текст и mapped-команду в консоль для отладки.
@@ -108,7 +108,7 @@ python web_app.py
 3. В отдельном терминале запустите голосовой процесс:
 
 ```bash
-python -m voice.recognizer --backend-url http://127.0.0.1:8000 --wake-word плакат --window 7 --model-path /absolute/path/to/vosk-model-small-ru-0.22
+python -m voice.recognizer --backend-url http://127.0.0.1:8000 --wake-word плакат --window 6 --model-path /absolute/path/to/vosk-model-small-ru-0.22
 ```
 
 > Если `vosk/sounddevice` не установлены, модуль не будет распознавать аудио (завершит цикл без распознанных фраз).
