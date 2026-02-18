@@ -216,6 +216,7 @@ function startBaseTicker(model) {
 function applyViewModel(model, { forceFullRender = false } = {}) {
   const stateChanged = currentState !== model.view;
   currentState = model.view;
+  document.body.classList.toggle('base-active', model.view === 'base_state');
 
   if (forceFullRender || stateChanged || !stateView.firstElementChild) {
     stateView.innerHTML = renderState(model);
