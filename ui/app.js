@@ -53,9 +53,7 @@ function renderMonthSegments(monthProgress) {
 
 function renderBase(model) {
   return `<section class="base-screen" data-view="base_state">
-      ${asGlass(`<div class="day-title" id="baseDayTitle">${textGradient(`день ${model.day}`)}</div><div class="progress-30" id="monthProgressBar">${renderMonthSegments(model.month_progress)}</div>`)}
-      ${asGlass(`<p id="nextPrayerLabel">${textGradient(`До ${model.next_prayer.next}`)}</p><h1 id="countdownClock" class="liquid-clock">${textGradient(model.next_prayer.countdown)}</h1><p id="prayerTimesLabel">${textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`)}</p>`)}
-      ${asGlass(`<p class="large-copy" id="todayTaskText">${textGradient(model.today_task)}</p>`)}
+      ${asGlass(`<div class="base-layout"><div class="base-top"><div class="day-title" id="baseDayTitle">${textGradient(`день ${model.day}`)}</div><div class="progress-30" id="monthProgressBar">${renderMonthSegments(model.month_progress)}</div></div><div class="base-clock-wrap"><p id="nextPrayerLabel">${textGradient(`До ${model.next_prayer.next}`)}</p><h1 id="countdownClock" class="liquid-clock">${textGradient(model.next_prayer.countdown)}</h1><p id="prayerTimesLabel">${textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`)}</p></div><div class="base-task-wrap"><p class="large-copy" id="todayTaskText">${textGradient(model.today_task)}</p></div></div>`)}
     </section>`;
 }
 
@@ -68,12 +66,12 @@ function renderTaskInfo(model) {
 
 function renderMap(model) {
   const circles = model.circles.map((circle) => {
-    const icon = circle.status === 'completed' ? '✓' : circle.day;
+    const icon = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
     const lock = circle.status === 'locked' && !circle.viewed ? '<span class="lock-overlay">🔒</span>' : '';
-    return `<div class="circle-wrap"><div data-day="${circle.day}" class="circle ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="circle-icon">${icon}</span>${lock}</div></div>`;
+    return `<div class="note-wrap"><div data-day="${circle.day}" class="task-note ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin-head" aria-hidden="true"></span><span class="note-icon">${icon}</span>${lock}</div></div>`;
   }).join('');
   const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
-  return `<section class="map-screen" data-view="tasks_map_state">${asGlass(`<div class="grid">${circles}</div>${warning}`)}</section>`;
+  return `<section class="map-screen" data-view="tasks_map_state">${asGlass(`<div class="paper-board"><div class="grid">${circles}</div>${warning}</div>`)}</section>`;
 }
 
 function renderReview(model) {
@@ -111,7 +109,7 @@ function patchBaseView(model) {
 
 function patchMapView(model) {
   for (const circle of model.circles) {
-    const node = stateView.querySelector(`.circle[data-day="${circle.day}"]`);
+    const node = stateView.querySelector(`.task-note[data-day="${circle.day}"]`);
     if (!node) continue;
 
     node.classList.toggle('completed', circle.status === 'completed');
@@ -119,8 +117,8 @@ function patchMapView(model) {
     node.classList.toggle('locked', circle.status === 'locked');
     node.classList.toggle('selected', Boolean(circle.selected));
 
-    const iconNode = node.querySelector('.circle-icon');
-    if (iconNode) iconNode.textContent = circle.status === 'completed' ? '✓' : String(circle.day);
+    const iconNode = node.querySelector('.note-icon');
+    if (iconNode) iconNode.textContent = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
 
     const existingLock = node.querySelector('.lock-overlay');
     const shouldLock = circle.status === 'locked' && !circle.viewed;
