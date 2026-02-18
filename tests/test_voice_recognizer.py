@@ -95,3 +95,27 @@ def test_voice_flow_keeps_listening_for_6_seconds_after_command():
         ("command", "open_tasks_map", None),
         ("command", "back", None),
     ]
+
+
+def test_samplerate_candidates_prioritize_device_default():
+    candidates = VoiceRecognizer._samplerate_candidates(4000)
+    assert candidates[0] == 4000
+    assert 16000 in candidates
+
+
+def test_pick_supported_samplerate_uses_first_valid():
+    checked = []
+
+    def fake_check_input_settings(*, device, samplerate, channels, dtype):
+        checked.append(samplerate)
+        if samplerate != 4000:
+            raise ValueError("unsupported")
+
+    chosen = VoiceRecognizer._pick_supported_samplerate(
+        check_input_settings=fake_check_input_settings,
+        default_samplerate=16000,
+        device=2,
+    )
+
+    assert chosen == 4000
+    assert checked[:3] == [16000, 8000, 4000]
