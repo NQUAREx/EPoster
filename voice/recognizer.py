@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import queue
 import threading
 import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
 
 
@@ -17,8 +19,14 @@ class VoiceCommand:
     confidence: float = 1.0
 
 
+@dataclass
+class BackendEvent:
+    command: str
+    payload: dict | None = None
+
+
 class CommandMapper:
-    """Maps fixed Russian phrases to backend commands."""
+    """Maps fixed Russian phrases to backend commands with optional payload."""
 
     def __init__(self) -> None:
         self._aliases = {
@@ -57,7 +65,7 @@ class CommandMapper:
     def normalize_text(self, text: str) -> str:
         return " ".join(text.lower().strip().split())
 
-    def to_backend_command(self, text: str) -> str | None:
+    def to_backend_event(self, text: str) -> BackendEvent | None:
         normalized = self.normalize_text(text)
         return self._aliases.get(normalized)
 
@@ -88,11 +96,12 @@ class BackendClient:
     def send_wake(self) -> None:
         self._post_json("/api/wake", {"source": "voice"})
 
-    def send_command(self, command: str) -> None:
+    def send_command(self, command: str, payload: dict | None = None) -> None:
         self._post_json(
             "/api/command",
             {
                 "command": command,
+                "payload": payload,
                 "source": "voice",
                 "wake_word_detected": True,
             },
@@ -109,6 +118,7 @@ class VoiceRecognizer:
         mapper: CommandMapper | None = None,
         backend: BackendClient | None = None,
         recognizer_fn: Callable[[], str | None] | None = None,
+        model_path: str | None = None,
     ) -> None:
         self.wake_word = wake_word
         self.command_window_seconds = command_window_seconds
@@ -116,19 +126,64 @@ class VoiceRecognizer:
         self.backend = backend or BackendClient()
         self._recognize_once = recognizer_fn or self._recognize_vosk
         self._stop_event = threading.Event()
+        self._model_path = model_path
+        self._vosk_disabled = False
+
+    @staticmethod
+    def _is_valid_model_dir(path: Path) -> bool:
+        return (path / "am" / "final.mdl").exists() and (path / "conf" / "model.conf").exists()
+
+    def _resolve_model_path(self) -> Path | None:
+        candidates: list[Path] = []
+        if self._model_path:
+            candidates.append(Path(self._model_path).expanduser())
+        env_path = os.getenv("VOSK_MODEL_PATH")
+        if env_path:
+            candidates.append(Path(env_path).expanduser())
+
+        home = Path.home()
+        candidates.extend(
+            [
+                home / ".cache" / "vosk" / "vosk-model-small-ru-0.22",
+                home / ".cache" / "vosk-model-small-ru-0.22",
+                home / "AppData" / "Local" / "vosk" / "vosk-model-small-ru-0.22",
+            ]
+        )
+
+        for candidate in candidates:
+            resolved = candidate.resolve()
+            if resolved.is_dir() and self._is_valid_model_dir(resolved):
+                return resolved
+        return None
 
     def _recognize_vosk(self) -> str | None:
         """Recognize speech chunk using vosk + sounddevice if available."""
+        if self._vosk_disabled:
+            time.sleep(0.3)
+            return None
+
         try:
             import sounddevice as sd
             from vosk import KaldiRecognizer, Model
         except ImportError:
+            self._vosk_disabled = True
+            print("[voice] install vosk and sounddevice to enable STT")
             return None
 
         if not hasattr(self, "_vosk_model"):
+            model_dir = self._resolve_model_path()
+            if model_dir is None:
+                self._vosk_disabled = True
+                print(
+                    "[voice] vosk model not found or invalid. "
+                    "Set --model-path or VOSK_MODEL_PATH to a valid model directory"
+                )
+                return None
             try:
-                self._vosk_model = Model(lang="ru")
+                self._vosk_model = Model(str(model_dir))
+                print(f"[voice] using vosk model: {model_dir}")
             except Exception as error:
+                self._vosk_disabled = True
                 print(f"[voice] vosk model init failed: {error}")
                 return None
 
@@ -166,8 +221,9 @@ class VoiceRecognizer:
                     text = str(result.get("text", "")).strip()
                     if text:
                         return text
-        partial = json.loads(recognizer.FinalResult())
-        text = str(partial.get("text", "")).strip()
+
+        result = json.loads(recognizer.FinalResult())
+        text = str(result.get("text", "")).strip()
         return text or None
 
     def stop(self) -> None:
@@ -186,14 +242,12 @@ class VoiceRecognizer:
                 continue
 
             normalized = self.mapper.normalize_text(phrase)
-            print(f"[voice] recognized: {normalized}")
 
             if not wake_detected:
                 if self.wake_word in normalized.split():
                     wake_detected = True
                     waiting_until = time.monotonic() + self.command_window_seconds
                     self.backend.send_wake()
-                    print("[voice] wake word detected, command window open")
                 continue
 
             command = None
@@ -203,7 +257,6 @@ class VoiceRecognizer:
                 command = self.mapper.to_backend_event(normalized)
             if command:
                 self.backend.send_command(command)
-                print(f"[voice] mapped command: {command}")
                 wake_detected = False
                 continue
 
@@ -216,6 +269,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--backend-url", default="http://127.0.0.1:8000")
     parser.add_argument("--wake-word", default="плакат")
     parser.add_argument("--window", type=float, default=7.0)
+    parser.add_argument("--model-path", default=None)
     return parser.parse_args()
 
 
@@ -225,6 +279,7 @@ def main() -> None:
         wake_word=args.wake_word,
         command_window_seconds=args.window,
         backend=BackendClient(args.backend_url),
+        model_path=args.model_path,
     )
     try:
         recognizer.run_forever()

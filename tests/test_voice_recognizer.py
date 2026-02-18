@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 
 from voice.recognizer import BackendClient, CommandMapper, VoiceRecognizer
 
@@ -10,13 +11,13 @@ class DummyBackend(BackendClient):
         self.calls = []
 
     def send_wake(self) -> None:
-        self.calls.append(("wake", None))
+        self.calls.append(("wake", None, None))
 
-    def send_command(self, command: str) -> None:
-        self.calls.append(("command", command))
+    def send_command(self, command: str, payload: dict | None = None) -> None:
+        self.calls.append(("command", command, payload))
 
 
-def test_command_mapper_fixed_aliases():
+def test_command_mapper_fixed_aliases_and_score():
     mapper = CommandMapper()
     assert mapper.to_backend_command("  Открыть   карту ") == "open_tasks_map"
     assert mapper.to_backend_command("режим проверки") == "open_day_review"
