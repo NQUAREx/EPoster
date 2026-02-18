@@ -65,9 +65,13 @@ class CommandMapper:
     def normalize_text(self, text: str) -> str:
         return " ".join(text.lower().strip().split())
 
-    def to_backend_event(self, text: str) -> BackendEvent | None:
+    def to_backend_command(self, text: str) -> str | None:
         normalized = self.normalize_text(text)
         return self._aliases.get(normalized)
+
+    def to_backend_event(self, text: str) -> BackendEvent | None:
+        command = self.to_backend_command(text)
+        return BackendEvent(command=command) if command else None
 
 
 class BackendClient:
@@ -110,7 +114,7 @@ class VoiceRecognizer:
     def __init__(
         self,
         wake_word: str = "плакат",
-        command_window_seconds: float = 7.0,
+        command_window_seconds: float = 6.0,
         mapper: CommandMapper | None = None,
         backend: BackendClient | None = None,
         recognizer_fn: Callable[[], str | None] | None = None,
@@ -249,7 +253,7 @@ class VoiceRecognizer:
             command = self.mapper.to_backend_command(normalized)
             if command:
                 self.backend.send_command(command)
-                wake_detected = False
+                waiting_until = time.monotonic() + self.command_window_seconds
                 continue
 
             if time.monotonic() > waiting_until:
@@ -260,7 +264,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="EPoster voice recognizer daemon")
     parser.add_argument("--backend-url", default="http://127.0.0.1:8000")
     parser.add_argument("--wake-word", default="плакат")
-    parser.add_argument("--window", type=float, default=7.0)
+    parser.add_argument("--window", type=float, default=6.0)
     parser.add_argument("--model-path", default=None)
     return parser.parse_args()
 
