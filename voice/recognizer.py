@@ -24,18 +24,32 @@ class CommandMapper:
         self._aliases = {
             "карта": "open_tasks_map",
             "открыть карту": "open_tasks_map",
+            "открой карту": "open_tasks_map",
             "покажи карту": "open_tasks_map",
+            "режим карты": "open_tasks_map",
             "проверка": "open_day_review",
             "режим проверки": "open_day_review",
             "открыть проверку": "open_day_review",
+            "начать проверку": "open_day_review",
             "задание": "open_task_info",
             "открыть задание": "open_task_info",
+            "открой задание": "open_task_info",
+            "покажи задание": "open_task_info",
             "следующий": "next",
+            "дальше": "next",
             "вперед": "next",
             "предыдущий": "prev",
+            "раньше": "prev",
             "назад": "back",
+            "вернуться": "back",
+            "домой": "back",
             "ок": "ok",
             "подтвердить": "ok",
+            "выбрать": "ok",
+            "плохо": "score_1",
+            "средне": "score_2",
+            "хорошо": "score_3",
+            "отлично": "score_3",
             "праздник": "open_eid",
             "ид": "open_eid",
         }
@@ -46,6 +60,10 @@ class CommandMapper:
     def to_backend_command(self, text: str) -> str | None:
         normalized = self.normalize_text(text)
         return self._aliases.get(normalized)
+
+    def to_backend_event(self, text: str) -> str | None:
+        """Backward-compatible alias used by older launch scripts."""
+        return self.to_backend_command(text)
 
 
 class BackendClient:
@@ -178,7 +196,11 @@ class VoiceRecognizer:
                     print("[voice] wake word detected, command window open")
                 continue
 
-            command = self.mapper.to_backend_command(normalized)
+            command = None
+            if hasattr(self.mapper, "to_backend_command"):
+                command = self.mapper.to_backend_command(normalized)
+            elif hasattr(self.mapper, "to_backend_event"):
+                command = self.mapper.to_backend_event(normalized)
             if command:
                 self.backend.send_command(command)
                 print(f"[voice] mapped command: {command}")

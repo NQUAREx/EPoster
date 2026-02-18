@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -39,8 +38,8 @@ def create_app() -> FastAPI:
 
     @app.post("/api/wake")
     def post_wake(request: WakeRequest) -> dict:
+        controller.mark_wake_detected()
         ui_payload = controller.render()
-        ui_payload["wake_active"] = True
         ui_payload["command_source"] = request.source
         return {"state": ui_payload["view"], "view_model": ui_payload}
 
@@ -68,4 +67,6 @@ app = create_app()
 
 
 if __name__ == "__main__":
+    import uvicorn
+
     uvicorn.run("web_app:app", host="0.0.0.0", port=8000, reload=False)

@@ -49,11 +49,12 @@ class TasksMapState(BaseState):
             self.session.selected_day = max(1, self.session.selected_day - 1)
             return None
         if command in {"ok", "open_selected_day"}:
+            selected_data = self.session.days[self.session.selected_day]
             if self.session.selected_day > self.session.current_day + 2:
                 self.warning = "Задание открыть нельзя!"
                 return None
             self.warning = ""
-            self.session.days[self.session.selected_day].viewed = True
+            selected_data.viewed = True
             return "task_info_state"
         if command == "back":
             self.warning = ""

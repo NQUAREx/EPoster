@@ -20,6 +20,7 @@ def test_command_mapper_fixed_aliases():
     mapper = CommandMapper()
     assert mapper.to_backend_command("  Открыть   карту ") == "open_tasks_map"
     assert mapper.to_backend_command("режим проверки") == "open_day_review"
+    assert mapper.to_backend_command("отлично") == "score_3"
     assert mapper.to_backend_command("неизвестно") is None
 
 
@@ -45,3 +46,8 @@ def test_voice_flow_wake_then_command():
     thread.join(timeout=2)
 
     assert backend.calls == [("wake", None), ("command", "open_tasks_map")]
+
+
+def test_command_mapper_backward_compat_method():
+    mapper = CommandMapper()
+    assert mapper.to_backend_event("карта") == "open_tasks_map"
