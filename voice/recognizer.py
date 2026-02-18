@@ -55,10 +55,6 @@ class CommandMapper:
             "ок": "ok",
             "подтвердить": "ok",
             "выбрать": "ok",
-            "плохо": "score_1",
-            "средне": "score_2",
-            "хорошо": "score_3",
-            "отлично": "score_3",
             "праздник": "open_eid",
             "ид": "open_eid",
         }
@@ -68,17 +64,19 @@ class CommandMapper:
         return " ".join(cleaned.strip().split())
 
     def _extract_score_command(self, normalized: str) -> str | None:
-        score_match = re.search(r"\b(?:оценка|оценить|балл|score)\s*([123])\b", normalized)
-        if score_match:
-            return f"score_{score_match.group(1)}"
-
         words = normalized.split()
-        if "средне" in words:
+        if not words:
+            return None
+
+        if "не" in words and "очень" in words:
             return "score_2"
-        if "плохо" in words:
-            return "score_1"
-        if "хорошо" in words or "отлично" in words:
-            return "score_3"
+
+        for token in words:
+            if token == "плохо":
+                return "score_1"
+            if token == "хорошо":
+                return "score_3"
+
         return None
 
     def to_backend_command(self, text: str) -> str | None:
