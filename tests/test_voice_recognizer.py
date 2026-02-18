@@ -22,6 +22,8 @@ def test_command_mapper_fixed_aliases_and_score():
     assert mapper.to_backend_command("  Открыть   карту ") == "open_tasks_map"
     assert mapper.to_backend_command("режим проверки") == "open_day_review"
     assert mapper.to_backend_command("отлично") == "score_3"
+    assert mapper.to_backend_command("оценка 2, средне") == "score_2"
+    assert mapper.to_backend_command("оценка 1") == "score_1"
     assert mapper.to_backend_command("неизвестно") is None
 
 

@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import queue
+import re
 import threading
 import time
 import urllib.error
@@ -63,10 +64,28 @@ class CommandMapper:
         }
 
     def normalize_text(self, text: str) -> str:
-        return " ".join(text.lower().strip().split())
+        cleaned = re.sub(r"[^\w\s]", " ", text.lower())
+        return " ".join(cleaned.strip().split())
+
+    def _extract_score_command(self, normalized: str) -> str | None:
+        score_match = re.search(r"\b(?:оценка|оценить|балл|score)\s*([123])\b", normalized)
+        if score_match:
+            return f"score_{score_match.group(1)}"
+
+        words = normalized.split()
+        if "средне" in words:
+            return "score_2"
+        if "плохо" in words:
+            return "score_1"
+        if "хорошо" in words or "отлично" in words:
+            return "score_3"
+        return None
 
     def to_backend_command(self, text: str) -> str | None:
         normalized = self.normalize_text(text)
+        score_command = self._extract_score_command(normalized)
+        if score_command:
+            return score_command
         return self._aliases.get(normalized)
 
     def to_backend_event(self, text: str) -> BackendEvent | None:
@@ -242,6 +261,8 @@ class VoiceRecognizer:
                 continue
 
             normalized = self.mapper.normalize_text(phrase)
+            print(f"[voice] recognized: {phrase}")
+            print(f"[voice] normalized: {normalized}")
 
             if not wake_detected:
                 if self.wake_word in normalized.split():
