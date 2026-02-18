@@ -136,6 +136,7 @@ class VoiceRecognizer:
         backend: BackendClient | None = None,
         recognizer_fn: Callable[[], str | None] | None = None,
         model_path: str | None = None,
+        input_device: int | str | None = None,
     ) -> None:
         self.wake_word = wake_word
         self.command_window_seconds = command_window_seconds
@@ -145,6 +146,7 @@ class VoiceRecognizer:
         self._stop_event = threading.Event()
         self._model_path = model_path
         self._vosk_disabled = False
+        self._input_device = input_device
 
     @staticmethod
     def _is_valid_model_dir(path: Path) -> bool:
@@ -172,6 +174,57 @@ class VoiceRecognizer:
             if resolved.is_dir() and self._is_valid_model_dir(resolved):
                 return resolved
         return None
+
+    @staticmethod
+    def _samplerate_candidates(default_samplerate: float | int | None) -> list[int]:
+        candidates: list[int] = []
+        if default_samplerate is not None:
+            try:
+                candidates.append(int(round(float(default_samplerate))))
+            except (TypeError, ValueError):
+                pass
+
+        for samplerate in (16000, 8000, 4000, 48000, 44100, 32000):
+            if samplerate not in candidates:
+                candidates.append(samplerate)
+        return candidates
+
+    @classmethod
+    def _pick_supported_samplerate(
+        cls,
+        check_input_settings: Callable[..., None],
+        default_samplerate: float | int | None,
+        device: int | str | None,
+    ) -> int:
+        candidates = cls._samplerate_candidates(default_samplerate)
+        for samplerate in candidates:
+            try:
+                check_input_settings(
+                    device=device,
+                    samplerate=samplerate,
+                    channels=1,
+                    dtype="int16",
+                )
+                return samplerate
+            except Exception:
+                continue
+
+        target = f"device={device}" if device is not None else "default input device"
+        tried = ", ".join(str(item) for item in candidates)
+        raise RuntimeError(f"No supported sample rate for {target}. Tried: {tried}")
+
+    def _resolve_input_device(self):
+        if self._input_device is not None:
+            return self._input_device
+
+        env_value = os.getenv("VOICE_INPUT_DEVICE")
+        if not env_value:
+            return None
+
+        try:
+            return int(env_value)
+        except ValueError:
+            return env_value
 
     def _recognize_vosk(self) -> str | None:
         """Recognize speech chunk using vosk + sounddevice if available."""
@@ -207,7 +260,17 @@ class VoiceRecognizer:
         if not hasattr(self, "_audio_queue"):
             self._audio_queue = queue.Queue(maxsize=20)
 
-        samplerate = 16000
+        input_device = self._resolve_input_device()
+        device_info = sd.query_devices(input_device, "input") if input_device is not None else sd.query_devices(kind="input")
+        samplerate = self._pick_supported_samplerate(
+            check_input_settings=sd.check_input_settings,
+            default_samplerate=device_info.get("default_samplerate"),
+            device=input_device,
+        )
+        if input_device is not None:
+            print(f"[voice] input device={input_device}, samplerate={samplerate}")
+        else:
+            print(f"[voice] input samplerate={samplerate}")
 
         def callback(indata, frames, time_info, status):  # noqa: ANN001
             if status:
@@ -219,6 +282,7 @@ class VoiceRecognizer:
 
         recognizer = KaldiRecognizer(self._vosk_model, samplerate)
         with sd.RawInputStream(
+            device=input_device,
             samplerate=samplerate,
             blocksize=4000,
             dtype="int16",
@@ -285,6 +349,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--wake-word", default="плакат")
     parser.add_argument("--window", type=float, default=6.0)
     parser.add_argument("--model-path", default=None)
+    parser.add_argument("--input-device", default=None)
     return parser.parse_args()
 
 
@@ -295,6 +360,7 @@ def main() -> None:
         command_window_seconds=args.window,
         backend=BackendClient(args.backend_url),
         model_path=args.model_path,
+        input_device=int(args.input_device) if isinstance(args.input_device, str) and args.input_device.isdigit() else args.input_device,
     )
     try:
         recognizer.run_forever()
