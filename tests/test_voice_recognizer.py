@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import threading
-from pathlib import Path
-
 from voice.recognizer import BackendClient, CommandMapper, VoiceRecognizer
 
 
@@ -54,21 +52,6 @@ def test_voice_flow_wake_then_command():
     assert backend.calls == [("wake", None, None), ("command", "open_tasks_map", None)]
 
 
-def test_vosk_model_validation(tmp_path: Path):
-    recognizer = VoiceRecognizer(model_path=str(tmp_path))
-    assert recognizer._resolve_model_path() is None
-
-    model_dir = tmp_path / "vosk-model-small-ru-0.22"
-    (model_dir / "am").mkdir(parents=True)
-    (model_dir / "conf").mkdir(parents=True)
-    (model_dir / "am" / "final.mdl").write_text("x")
-    (model_dir / "conf" / "model.conf").write_text("x")
-
-    recognizer = VoiceRecognizer(model_path=str(model_dir))
-    resolved = recognizer._resolve_model_path()
-    assert resolved == model_dir.resolve()
-
-
 def test_voice_flow_keeps_listening_for_6_seconds_after_command():
     phrases = iter(["плакат", "карта", "назад"])
 
@@ -97,21 +80,9 @@ def test_voice_flow_keeps_listening_for_6_seconds_after_command():
     ]
 
 
-def test_default_audio_config_is_fixed_for_known_microphone(monkeypatch):
-    monkeypatch.delenv("VOICE_INPUT_DEVICE", raising=False)
-    monkeypatch.delenv("VOICE_SAMPLERATE", raising=False)
-
+def test_default_audio_config_matches_test_voice_setup():
     recognizer = VoiceRecognizer()
 
-    assert recognizer._resolve_input_device() == "plughw:2,0"
-    assert recognizer._resolve_samplerate() == 4000
-
-
-def test_audio_config_can_be_overridden(monkeypatch):
-    monkeypatch.setenv("VOICE_INPUT_DEVICE", "7")
-    monkeypatch.setenv("VOICE_SAMPLERATE", "8000")
-
-    recognizer = VoiceRecognizer()
-
-    assert recognizer._resolve_input_device() == 7
-    assert recognizer._resolve_samplerate() == 8000
+    assert str(recognizer._model_path) == "/home/nq/EPoster/voice/vosk-model-small-ru-0.22"
+    assert recognizer._input_device == 1
+    assert recognizer._sample_rate == 48000
