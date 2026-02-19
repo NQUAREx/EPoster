@@ -175,72 +175,28 @@ class VoiceRecognizer:
                 return resolved
         return None
 
-    @staticmethod
-    def _samplerate_candidates(default_samplerate: float | int | None) -> list[int]:
-        candidates: list[int] = []
-        if default_samplerate is not None:
+    def _resolve_samplerate(self) -> int:
+        env_value = os.getenv("VOICE_SAMPLERATE")
+        if env_value:
             try:
-                candidates.append(int(round(float(default_samplerate))))
-            except (TypeError, ValueError):
+                return int(env_value)
+            except ValueError:
                 pass
-
-        for samplerate in (16000, 8000, 4000, 48000, 44100, 32000):
-            if samplerate not in candidates:
-                candidates.append(samplerate)
-        return candidates
-
-    @classmethod
-    def _pick_supported_samplerate(
-        cls,
-        check_input_settings: Callable[..., None],
-        default_samplerate: float | int | None,
-        device: int | str | None,
-    ) -> list[int]:
-        candidates = cls._samplerate_candidates(default_samplerate)
-        supported: list[int] = []
-        for samplerate in candidates:
-            try:
-                check_input_settings(
-                    device=device,
-                    samplerate=samplerate,
-                    channels=1,
-                    dtype="int16",
-                )
-                supported.append(samplerate)
-            except Exception:
-                continue
-
-        if supported:
-            return supported
-
-        target = f"device={device}" if device is not None else "default input device"
-        tried = ", ".join(str(item) for item in candidates)
-        raise RuntimeError(f"No supported sample rate for {target}. Tried: {tried}")
+        return 4000
 
     def _resolve_input_device(self):
         if self._input_device is not None:
             return self._input_device
 
         env_value = os.getenv("VOICE_INPUT_DEVICE")
-        if not env_value:
-            return None
+        if env_value:
+            try:
+                return int(env_value)
+            except ValueError:
+                return env_value
 
-        try:
-            return int(env_value)
-        except ValueError:
-            return env_value
-
-
-    def _order_samplerates(self, supported_samplerates: list[int]) -> list[int]:
-        if not hasattr(self, "_working_samplerate"):
-            self._working_samplerate = None
-
-        if self._working_samplerate in supported_samplerates:
-            return [self._working_samplerate] + [
-                item for item in supported_samplerates if item != self._working_samplerate
-            ]
-
-        return supported_samplerates
+        # Fixed fallback for known ALSA device reported by user: card 2, device 0.
+        return "plughw:2,0"
 
     def _recognize_vosk(self) -> str | None:
         """Recognize speech chunk using vosk + sounddevice if available."""
@@ -277,16 +233,11 @@ class VoiceRecognizer:
             self._audio_queue = queue.Queue(maxsize=20)
 
         input_device = self._resolve_input_device()
-        device_info = sd.query_devices(input_device, "input") if input_device is not None else sd.query_devices(kind="input")
-        supported_samplerates = self._pick_supported_samplerate(
-            check_input_settings=sd.check_input_settings,
-            default_samplerate=device_info.get("default_samplerate"),
-            device=input_device,
-        )
-        ordered_samplerates = self._order_samplerates(supported_samplerates)
+        samplerate = self._resolve_samplerate()
 
-        if not hasattr(self, "_logged_samplerate_attempts"):
-            self._logged_samplerate_attempts = set()
+        if not hasattr(self, "_logged_audio_config"):
+            print(f"[voice] using input device={input_device}, samplerate={samplerate}")
+            self._logged_audio_config = True
 
         def callback(indata, frames, time_info, status):  # noqa: ANN001
             if status:
@@ -296,50 +247,33 @@ class VoiceRecognizer:
             except queue.Full:
                 pass
 
-        for samplerate in ordered_samplerates:
-            if samplerate not in self._logged_samplerate_attempts:
-                if input_device is not None:
-                    print(f"[voice] trying input device={input_device}, samplerate={samplerate}")
-                else:
-                    print(f"[voice] trying input samplerate={samplerate}")
-                self._logged_samplerate_attempts.add(samplerate)
-
-            recognizer = KaldiRecognizer(self._vosk_model, samplerate)
-            try:
-                with sd.RawInputStream(
-                    device=input_device,
-                    samplerate=samplerate,
-                    blocksize=0,
-                    dtype="int16",
-                    channels=1,
-                    callback=callback,
-                ):
-                    started = time.monotonic()
-                    while time.monotonic() - started < 2.3:
-                        if self._stop_event.is_set():
-                            return None
-                        try:
-                            data = self._audio_queue.get(timeout=0.2)
-                        except queue.Empty:
-                            continue
-                        if recognizer.AcceptWaveform(data):
-                            result = json.loads(recognizer.Result())
-                            text = str(result.get("text", "")).strip()
-                            if text:
-                                self._working_samplerate = samplerate
-                                return text
-            except sd.PortAudioError as error:
-                if "Invalid sample rate" in str(error):
-                    if getattr(self, "_working_samplerate", None) == samplerate:
-                        self._working_samplerate = None
-                    continue
-                raise
-
-            self._working_samplerate = samplerate
-            result = json.loads(recognizer.FinalResult())
-            text = str(result.get("text", "")).strip()
-            if text:
-                return text
+        recognizer = KaldiRecognizer(self._vosk_model, samplerate)
+        try:
+            with sd.RawInputStream(
+                device=input_device,
+                samplerate=samplerate,
+                blocksize=0,
+                dtype="int16",
+                channels=1,
+                callback=callback,
+            ):
+                started = time.monotonic()
+                while time.monotonic() - started < 2.3:
+                    if self._stop_event.is_set():
+                        return None
+                    try:
+                        data = self._audio_queue.get(timeout=0.2)
+                    except queue.Empty:
+                        continue
+                    if recognizer.AcceptWaveform(data):
+                        result = json.loads(recognizer.Result())
+                        text = str(result.get("text", "")).strip()
+                        if text:
+                            return text
+        except sd.PortAudioError as error:
+            print(f"[voice] microphone open failed for device={input_device}, samplerate={samplerate}: {error}")
+            time.sleep(0.5)
+            return None
 
         return None
 
