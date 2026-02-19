@@ -1,9 +1,7 @@
 const stateView = document.getElementById('stateView');
 
 let wakeActiveUntil = 0;
-let baseTickTimer = null;
 let currentState = '';
-let baseRuntime = null;
 
 function asGlass(content) {
   return `<div class="glass">${content}</div>`;
@@ -18,14 +16,6 @@ function parseCountdownToSeconds(value) {
   return h * 3600 + m * 60 + s;
 }
 
-function formatCountdown(totalSeconds) {
-  const safe = Math.max(0, totalSeconds);
-  const hh = Math.floor(safe / 3600);
-  const mm = Math.floor((safe % 3600) / 60);
-  const ss = safe % 60;
-  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
-}
-
 function formatClock(totalSeconds) {
   const safe = Math.max(0, totalSeconds);
   const hh = Math.floor(safe / 3600);
@@ -33,30 +23,14 @@ function formatClock(totalSeconds) {
   return `${String(hh).padStart(2, '0')}${String(mm).padStart(2, '0')}`;
 }
 
-function lerpColor(from, to, t) {
-  const clamped = Math.min(1, Math.max(0, Number(t) || 0));
-  const f = from.map((v, i) => Math.round(v + (to[i] - v) * clamped));
-  return `rgb(${f[0]}, ${f[1]}, ${f[2]})`;
-}
-
-function updateDynamicPalette(phase, progress) {
-  const p = Math.min(1, Math.max(0, Number(progress) || 0));
-  const dayBg = lerpColor([43, 10, 10], [22, 7, 28], p);
-  const dayBlob1 = lerpColor([255, 94, 98], [255, 146, 70], p);
-  const dayBlob2 = lerpColor([255, 153, 102], [255, 94, 98], p);
-  const dayBlob3 = lerpColor([241, 39, 17], [196, 56, 122], p);
-
-  const nightBg = lerpColor([5, 11, 20], [14, 7, 32], p);
-  const nightBlob1 = lerpColor([0, 198, 255], [84, 130, 255], p);
-  const nightBlob2 = lerpColor([0, 114, 255], [120, 70, 220], p);
-  const nightBlob3 = lerpColor([31, 28, 44], [4, 26, 56], p);
-
-  const isNight = phase === 'night';
+function applyPaletteFromModel(model) {
+  const palette = model?.next_prayer?.palette;
+  if (!palette) return;
   const root = document.documentElement;
-  root.style.setProperty('--color-bg', isNight ? nightBg : dayBg);
-  root.style.setProperty('--color-blob1', isNight ? nightBlob1 : dayBlob1);
-  root.style.setProperty('--color-blob2', isNight ? nightBlob2 : dayBlob2);
-  root.style.setProperty('--color-blob3', isNight ? nightBlob3 : dayBlob3);
+  root.style.setProperty('--color-bg', String(palette.bg || ''));
+  root.style.setProperty('--color-blob1', String(palette.blob1 || ''));
+  root.style.setProperty('--color-blob2', String(palette.blob2 || ''));
+  root.style.setProperty('--color-blob3', String(palette.blob3 || ''));
 }
 
 function updateDigit(id, newValue) {
@@ -91,7 +65,7 @@ function updateJellyClock(clockDigits) {
 }
 
 function renderBase(model) {
-  const progress = Math.round((Number(model.next_prayer.phase_progress || 0) || 0) * 100);
+  const progress = Math.round((Number(model.ramadan_progress || 0) || 0) * 100);
   const eventName = `До ${model.next_prayer.next}`;
   return `<section class="base-screen" data-view="base_state">
     <div class="lava-background">
@@ -123,7 +97,7 @@ function renderBase(model) {
     </svg>
 
     <div class="clock-container">
-      <div class="clock">
+      <div class="clock" aria-label="countdown-clock">
         <div class="digit-box" id="h1"></div>
         <div class="digit-box" id="h2"></div>
         <div class="colon">:</div>
@@ -135,7 +109,6 @@ function renderBase(model) {
     <div class="task-container">
       <div class="task-label">Задание на сегодня · День ${model.day}</div>
       <div class="task-text" id="daily-task">${model.today_task}</div>
-      <div class="task-meta" id="prayerTimesLabel">Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}</div>
     </div>
   </section>`;
 }
@@ -181,17 +154,15 @@ function patchBaseView(model) {
   const eventTime = document.getElementById('event-time-left');
   const progressBar = document.getElementById('progress-bar');
   const taskText = document.getElementById('daily-task');
-  const prayerTimesLabel = document.getElementById('prayerTimesLabel');
 
   if (eventName) eventName.textContent = `До ${model.next_prayer.next}`;
   if (eventTime) eventTime.textContent = model.next_prayer.countdown;
   if (taskText) taskText.textContent = model.today_task;
-  if (prayerTimesLabel) prayerTimesLabel.textContent = `Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`;
   if (progressBar) {
-    progressBar.style.width = `${Math.round((Number(model.next_prayer.phase_progress || 0) || 0) * 100)}%`;
+    progressBar.style.width = `${Math.round((Number(model.ramadan_progress || 0) || 0) * 100)}%`;
   }
 
-  updateDynamicPalette(model.next_prayer.phase, Number(model.next_prayer.phase_progress || 0));
+  applyPaletteFromModel(model);
   updateJellyClock(formatClock(parseCountdownToSeconds(model.next_prayer.countdown)));
 }
 
@@ -241,52 +212,6 @@ function updateWakeBorder() {
   document.body.classList.toggle('wake-active', Date.now() < wakeActiveUntil);
 }
 
-function stopBaseTicker() {
-  if (baseTickTimer) {
-    clearInterval(baseTickTimer);
-    baseTickTimer = null;
-  }
-  baseRuntime = null;
-}
-
-function startBaseTicker(model) {
-  stopBaseTicker();
-
-  const countdownSeconds = parseCountdownToSeconds(model.next_prayer.countdown);
-  baseRuntime = {
-    endAt: Date.now() + countdownSeconds * 1000,
-    phase: model.next_prayer.phase,
-    phaseTotalSeconds: Math.max(1, Number(model.next_prayer.phase_total_seconds) || 1),
-    awaitingResync: false,
-  };
-
-  patchBaseView(model);
-
-  baseTickTimer = setInterval(() => {
-    if (currentState !== 'base_state' || !baseRuntime) return;
-
-    const now = Date.now();
-    const secondsLeft = Math.max(0, Math.ceil((baseRuntime.endAt - now) / 1000));
-    const elapsedInPhase = Math.max(0, baseRuntime.phaseTotalSeconds - secondsLeft);
-    const phaseProgress = Math.min(1, elapsedInPhase / baseRuntime.phaseTotalSeconds);
-    const formattedCountdown = formatCountdown(secondsLeft);
-
-    const eventTime = document.getElementById('event-time-left');
-    if (eventTime) eventTime.textContent = formattedCountdown;
-
-    const progressBar = document.getElementById('progress-bar');
-    if (progressBar) progressBar.style.width = `${Math.round(phaseProgress * 100)}%`;
-
-    updateDynamicPalette(baseRuntime.phase, phaseProgress);
-    updateJellyClock(formatClock(secondsLeft));
-
-    if (secondsLeft <= 0 && !baseRuntime.awaitingResync) {
-      baseRuntime.awaitingResync = true;
-      refreshState(true);
-    }
-  }, 1000);
-}
-
 function applyViewModel(model, { forceFullRender = false } = {}) {
   const stateChanged = currentState !== model.view;
   currentState = model.view;
@@ -302,16 +227,9 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
       document.body.classList.add('state-transitioning');
       setTimeout(() => document.body.classList.remove('state-transitioning'), 320);
     }
-  } else {
-    patchCurrentView(model);
   }
 
-  if (model.view === 'base_state' && (stateChanged || forceFullRender || !baseTickTimer)) {
-    startBaseTicker(model);
-  }
-  if (model.view !== 'base_state') {
-    stopBaseTicker();
-  }
+  patchCurrentView(model);
 
   if (model.wake_active) {
     wakeActiveUntil = Date.now() + 6000;
@@ -333,7 +251,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 setInterval(updateWakeBorder, 200);
-updateDynamicPalette('day', 0.5);
 refreshState(true);
 
 setInterval(() => {
