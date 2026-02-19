@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import queue
 import re
 import threading
@@ -15,19 +14,13 @@ from typing import Callable
 
 
 @dataclass
-class VoiceCommand:
-    text: str
-    confidence: float = 1.0
-
-
-@dataclass
 class BackendEvent:
     command: str
     payload: dict | None = None
 
 
 class CommandMapper:
-    """Maps fixed Russian phrases to backend commands with optional payload."""
+    """Maps fixed Russian phrases to backend commands."""
 
     def __init__(self) -> None:
         self._aliases = {
@@ -65,18 +58,12 @@ class CommandMapper:
 
     def _extract_score_command(self, normalized: str) -> str | None:
         words = normalized.split()
-        if not words:
-            return None
-
         if "не" in words and "очень" in words:
             return "score_2"
-
-        for token in words:
-            if token == "плохо":
-                return "score_1"
-            if token == "хорошо":
-                return "score_3"
-
+        if "плохо" in words:
+            return "score_1"
+        if "хорошо" in words:
+            return "score_3"
         return None
 
     def to_backend_command(self, text: str) -> str | None:
@@ -106,8 +93,7 @@ class BackendClient:
             with urllib.request.urlopen(req, timeout=2.5) as response:
                 body = response.read().decode("utf-8")
                 return json.loads(body) if body else None
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as error:
-            print(f"[voice] backend request failed {path}: {error}")
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
             return None
 
     def send_wake(self) -> None:
@@ -126,7 +112,7 @@ class BackendClient:
 
 
 class VoiceRecognizer:
-    """Offline-first voice module with wake word + fixed command set."""
+    """Voice module with wake word and fixed command set."""
 
     def __init__(
         self,
@@ -135,8 +121,9 @@ class VoiceRecognizer:
         mapper: CommandMapper | None = None,
         backend: BackendClient | None = None,
         recognizer_fn: Callable[[], str | None] | None = None,
-        model_path: str | None = None,
-        input_device: int | str | None = None,
+        model_path: str = "/home/nq/EPoster/voice/vosk-model-small-ru-0.22",
+        input_device: int = 1,
+        sample_rate: int = 48000,
     ) -> None:
         self.wake_word = wake_word
         self.command_window_seconds = command_window_seconds
@@ -144,136 +131,47 @@ class VoiceRecognizer:
         self.backend = backend or BackendClient()
         self._recognize_once = recognizer_fn or self._recognize_vosk
         self._stop_event = threading.Event()
-        self._model_path = model_path
-        self._vosk_disabled = False
+        self._model_path = Path(model_path).expanduser()
         self._input_device = input_device
-
-    @staticmethod
-    def _is_valid_model_dir(path: Path) -> bool:
-        return (path / "am" / "final.mdl").exists() and (path / "conf" / "model.conf").exists()
-
-    def _resolve_model_path(self) -> Path | None:
-        candidates: list[Path] = []
-        if self._model_path:
-            candidates.append(Path(self._model_path).expanduser())
-        env_path = os.getenv("VOSK_MODEL_PATH")
-        if env_path:
-            candidates.append(Path(env_path).expanduser())
-
-        home = Path.home()
-        candidates.extend(
-            [
-                home / ".cache" / "vosk" / "vosk-model-small-ru-0.22",
-                home / ".cache" / "vosk-model-small-ru-0.22",
-                home / "AppData" / "Local" / "vosk" / "vosk-model-small-ru-0.22",
-            ]
-        )
-
-        for candidate in candidates:
-            resolved = candidate.resolve()
-            if resolved.is_dir() and self._is_valid_model_dir(resolved):
-                return resolved
-        return None
-
-    def _resolve_samplerate(self) -> int:
-        env_value = os.getenv("VOICE_SAMPLERATE")
-        if env_value:
-            try:
-                return int(env_value)
-            except ValueError:
-                pass
-        return 4000
-
-    def _resolve_input_device(self):
-        if self._input_device is not None:
-            return self._input_device
-
-        env_value = os.getenv("VOICE_INPUT_DEVICE")
-        if env_value:
-            try:
-                return int(env_value)
-            except ValueError:
-                return env_value
-
-        # Fixed fallback for known ALSA device reported by user: card 2, device 0.
-        return "plughw:2,0"
+        self._sample_rate = sample_rate
+        self._audio_queue: queue.Queue[bytes] = queue.Queue()
 
     def _recognize_vosk(self) -> str | None:
-        """Recognize speech chunk using vosk + sounddevice if available."""
-        if self._vosk_disabled:
+        try:
+            import sounddevice as sd
+            import vosk
+        except ImportError:
             time.sleep(0.3)
             return None
 
-        try:
-            import sounddevice as sd
-            from vosk import KaldiRecognizer, Model
-        except ImportError:
-            self._vosk_disabled = True
-            print("[voice] install vosk and sounddevice to enable STT")
-            return None
-
         if not hasattr(self, "_vosk_model"):
-            model_dir = self._resolve_model_path()
-            if model_dir is None:
-                self._vosk_disabled = True
-                print(
-                    "[voice] vosk model not found or invalid. "
-                    "Set --model-path or VOSK_MODEL_PATH to a valid model directory"
-                )
-                return None
-            try:
-                self._vosk_model = Model(str(model_dir))
-                print(f"[voice] using vosk model: {model_dir}")
-            except Exception as error:
-                self._vosk_disabled = True
-                print(f"[voice] vosk model init failed: {error}")
-                return None
+            self._vosk_model = vosk.Model(str(self._model_path))
 
-        if not hasattr(self, "_audio_queue"):
-            self._audio_queue = queue.Queue(maxsize=20)
-
-        input_device = self._resolve_input_device()
-        samplerate = self._resolve_samplerate()
-
-        if not hasattr(self, "_logged_audio_config"):
-            print(f"[voice] using input device={input_device}, samplerate={samplerate}")
-            self._logged_audio_config = True
+        recognizer = vosk.KaldiRecognizer(self._vosk_model, self._sample_rate)
 
         def callback(indata, frames, time_info, status):  # noqa: ANN001
             if status:
                 return
-            try:
-                self._audio_queue.put_nowait(bytes(indata))
-            except queue.Full:
-                pass
+            self._audio_queue.put(bytes(indata))
 
-        recognizer = KaldiRecognizer(self._vosk_model, samplerate)
-        try:
-            with sd.RawInputStream(
-                device=input_device,
-                samplerate=samplerate,
-                blocksize=0,
-                dtype="int16",
-                channels=1,
-                callback=callback,
-            ):
-                started = time.monotonic()
-                while time.monotonic() - started < 2.3:
-                    if self._stop_event.is_set():
-                        return None
-                    try:
-                        data = self._audio_queue.get(timeout=0.2)
-                    except queue.Empty:
-                        continue
-                    if recognizer.AcceptWaveform(data):
-                        result = json.loads(recognizer.Result())
-                        text = str(result.get("text", "")).strip()
-                        if text:
-                            return text
-        except sd.PortAudioError as error:
-            print(f"[voice] microphone open failed for device={input_device}, samplerate={samplerate}: {error}")
-            time.sleep(0.5)
-            return None
+        with sd.RawInputStream(
+            samplerate=self._sample_rate,
+            blocksize=8000,
+            device=self._input_device,
+            dtype="int16",
+            channels=1,
+            callback=callback,
+        ):
+            while not self._stop_event.is_set():
+                try:
+                    data = self._audio_queue.get(timeout=0.2)
+                except queue.Empty:
+                    continue
+                if recognizer.AcceptWaveform(data):
+                    result = json.loads(recognizer.Result())
+                    text = str(result.get("text", "")).strip()
+                    if text:
+                        return text
 
         return None
 
@@ -293,8 +191,6 @@ class VoiceRecognizer:
                 continue
 
             normalized = self.mapper.normalize_text(phrase)
-            print(f"[voice] recognized: {phrase}")
-            print(f"[voice] normalized: {normalized}")
 
             if not wake_detected:
                 if self.wake_word in normalized.split():
@@ -318,8 +214,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--backend-url", default="http://127.0.0.1:8000")
     parser.add_argument("--wake-word", default="плакат")
     parser.add_argument("--window", type=float, default=6.0)
-    parser.add_argument("--model-path", default=None)
-    parser.add_argument("--input-device", default=None)
+    parser.add_argument("--model-path", default="/home/nq/EPoster/voice/vosk-model-small-ru-0.22")
+    parser.add_argument("--input-device", type=int, default=1)
+    parser.add_argument("--sample-rate", type=int, default=48000)
     return parser.parse_args()
 
 
@@ -330,7 +227,8 @@ def main() -> None:
         command_window_seconds=args.window,
         backend=BackendClient(args.backend_url),
         model_path=args.model_path,
-        input_device=int(args.input_device) if isinstance(args.input_device, str) and args.input_device.isdigit() else args.input_device,
+        input_device=args.input_device,
+        sample_rate=args.sample_rate,
     )
     try:
         recognizer.run_forever()
