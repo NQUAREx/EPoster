@@ -13,20 +13,6 @@ function textGradient(text) {
   return `<span class="water-text">${text}</span>`;
 }
 
-function computePhaseHue(phase, progress) {
-  const clampedProgress = Math.min(1, Math.max(0, Number(progress) || 0));
-  const minHue = 0;
-  const maxHue = 120;
-  if (phase === 'night') {
-    return Math.round(maxHue - clampedProgress * (maxHue - minHue));
-  }
-  return Math.round(minHue + clampedProgress * (maxHue - minHue));
-}
-
-function updateDynamicHue(phase, progress) {
-  document.body.style.setProperty('--dynamic-hue', String(computePhaseHue(phase, progress)));
-}
-
 function parseCountdownToSeconds(value) {
   const [h, m, s] = String(value || '00:00:00').split(':').map((x) => parseInt(x, 10) || 0);
   return h * 3600 + m * 60 + s;
@@ -40,32 +26,118 @@ function formatCountdown(totalSeconds) {
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
 }
 
-function renderMonthSegments(monthProgress) {
-  const total = 30;
-  const scaled = Number(monthProgress || 0) * total;
-  const completed = Math.floor(scaled);
-  return Array.from({ length: total }, (_, index) => {
-    const part = index + 1;
-    const active = part <= completed ? 'active' : '';
-    return `<span class="segment ${active}" data-segment="${part}"></span>`;
-  }).join('');
+function formatClock(totalSeconds) {
+  const safe = Math.max(0, totalSeconds);
+  const hh = Math.floor(safe / 3600);
+  const mm = Math.floor((safe % 3600) / 60);
+  return `${String(hh).padStart(2, '0')}${String(mm).padStart(2, '0')}`;
+}
+
+function lerpColor(from, to, t) {
+  const clamped = Math.min(1, Math.max(0, Number(t) || 0));
+  const f = from.map((v, i) => Math.round(v + (to[i] - v) * clamped));
+  return `rgb(${f[0]}, ${f[1]}, ${f[2]})`;
+}
+
+function updateDynamicPalette(phase, progress) {
+  const p = Math.min(1, Math.max(0, Number(progress) || 0));
+  const dayBg = lerpColor([43, 10, 10], [22, 7, 28], p);
+  const dayBlob1 = lerpColor([255, 94, 98], [255, 146, 70], p);
+  const dayBlob2 = lerpColor([255, 153, 102], [255, 94, 98], p);
+  const dayBlob3 = lerpColor([241, 39, 17], [196, 56, 122], p);
+
+  const nightBg = lerpColor([5, 11, 20], [14, 7, 32], p);
+  const nightBlob1 = lerpColor([0, 198, 255], [84, 130, 255], p);
+  const nightBlob2 = lerpColor([0, 114, 255], [120, 70, 220], p);
+  const nightBlob3 = lerpColor([31, 28, 44], [4, 26, 56], p);
+
+  const isNight = phase === 'night';
+  const root = document.documentElement;
+  root.style.setProperty('--color-bg', isNight ? nightBg : dayBg);
+  root.style.setProperty('--color-blob1', isNight ? nightBlob1 : dayBlob1);
+  root.style.setProperty('--color-blob2', isNight ? nightBlob2 : dayBlob2);
+  root.style.setProperty('--color-blob3', isNight ? nightBlob3 : dayBlob3);
+}
+
+function updateDigit(id, newValue) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const currentDigit = container.querySelector('.digit.in');
+
+  if (currentDigit && currentDigit.innerText === newValue) return;
+
+  const newDigit = document.createElement('div');
+  newDigit.className = 'digit prepare';
+  newDigit.innerText = newValue;
+  container.appendChild(newDigit);
+
+  void newDigit.offsetWidth;
+
+  if (currentDigit) {
+    currentDigit.classList.remove('in');
+    currentDigit.classList.add('out');
+    setTimeout(() => currentDigit.remove(), 800);
+  }
+
+  newDigit.classList.remove('prepare');
+  newDigit.classList.add('in');
+}
+
+function updateJellyClock(clockDigits) {
+  updateDigit('h1', clockDigits[0]);
+  updateDigit('h2', clockDigits[1]);
+  updateDigit('m1', clockDigits[2]);
+  updateDigit('m2', clockDigits[3]);
 }
 
 function renderBase(model) {
+  const progress = Math.round((Number(model.next_prayer.phase_progress || 0) || 0) * 100);
+  const eventName = `До ${model.next_prayer.next}`;
   return `<section class="base-screen" data-view="base_state">
-      <div class="lava-background" aria-hidden="true"><span class="blob"></span><span class="blob"></span><span class="blob"></span></div>
-      <div class="base-layout">
-        <header class="base-top glass">
-          <div class="base-top-row"><div class="day-title" id="baseDayTitle">${textGradient(`день ${model.day}`)}</div><p id="nextPrayerLabel">${textGradient(`До ${model.next_prayer.next}`)}</p></div>
-          <div class="progress-30" id="monthProgressBar">${renderMonthSegments(model.month_progress)}</div>
-        </header>
-        <div class="base-clock-wrap">
-          <h1 id="countdownClock" class="liquid-clock">${textGradient(model.next_prayer.countdown)}</h1>
-          <p id="prayerTimesLabel">${textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`)}</p>
-        </div>
-        <footer class="base-task-wrap glass"><p class="large-copy" id="todayTaskText">${textGradient(model.today_task)}</p></footer>
+    <div class="lava-background">
+      <div class="blob"></div>
+      <div class="blob"></div>
+      <div class="blob"></div>
+    </div>
+
+    <div class="wake-frame"></div>
+
+    <div class="progress-wrapper">
+      <div class="progress-labels">
+        <span id="event-name">${eventName}</span>
+        <span id="event-time-left">${model.next_prayer.countdown}</span>
       </div>
-    </section>`;
+      <div class="progress-container">
+        <div class="progress-bar" id="progress-bar" style="width:${progress}%"></div>
+      </div>
+    </div>
+
+    <svg class="goo-filter" aria-hidden="true">
+      <defs>
+        <filter id="goo">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur" />
+          <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 25 -10" result="goo" />
+          <feBlend in="SourceGraphic" in2="goo" />
+        </filter>
+      </defs>
+    </svg>
+
+    <div class="clock-container">
+      <div class="clock">
+        <div class="digit-box" id="h1"></div>
+        <div class="digit-box" id="h2"></div>
+        <div class="colon">:</div>
+        <div class="digit-box" id="m1"></div>
+        <div class="digit-box" id="m2"></div>
+      </div>
+    </div>
+
+    <div class="task-container">
+      <div class="task-label">Задание на сегодня · День ${model.day}</div>
+      <div class="task-text" id="daily-task">${model.today_task}</div>
+      <div class="task-meta" id="prayerTimesLabel">Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}</div>
+    </div>
+  </section>`;
 }
 
 function renderTaskInfo(model) {
@@ -105,17 +177,22 @@ function renderState(model) {
 }
 
 function patchBaseView(model) {
-  const dayTitle = document.getElementById('baseDayTitle');
-  const nextPrayerLabel = document.getElementById('nextPrayerLabel');
+  const eventName = document.getElementById('event-name');
+  const eventTime = document.getElementById('event-time-left');
+  const progressBar = document.getElementById('progress-bar');
+  const taskText = document.getElementById('daily-task');
   const prayerTimesLabel = document.getElementById('prayerTimesLabel');
-  const todayTaskText = document.getElementById('todayTaskText');
-  const progressBar = document.getElementById('monthProgressBar');
 
-  if (dayTitle) dayTitle.innerHTML = textGradient(`день ${model.day}`);
-  if (nextPrayerLabel) nextPrayerLabel.innerHTML = textGradient(`До ${model.next_prayer.next}`);
-  if (prayerTimesLabel) prayerTimesLabel.innerHTML = textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`);
-  if (todayTaskText) todayTaskText.innerHTML = textGradient(model.today_task);
-  if (progressBar) progressBar.innerHTML = renderMonthSegments(model.month_progress);
+  if (eventName) eventName.textContent = `До ${model.next_prayer.next}`;
+  if (eventTime) eventTime.textContent = model.next_prayer.countdown;
+  if (taskText) taskText.textContent = model.today_task;
+  if (prayerTimesLabel) prayerTimesLabel.textContent = `Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`;
+  if (progressBar) {
+    progressBar.style.width = `${Math.round((Number(model.next_prayer.phase_progress || 0) || 0) * 100)}%`;
+  }
+
+  updateDynamicPalette(model.next_prayer.phase, Number(model.next_prayer.phase_progress || 0));
+  updateJellyClock(formatClock(parseCountdownToSeconds(model.next_prayer.countdown)));
 }
 
 function patchMapView(model) {
@@ -177,16 +254,13 @@ function startBaseTicker(model) {
 
   const countdownSeconds = parseCountdownToSeconds(model.next_prayer.countdown);
   baseRuntime = {
-    startMonthProgress: Number(model.month_progress || 0),
-    startedAt: Date.now(),
     endAt: Date.now() + countdownSeconds * 1000,
     phase: model.next_prayer.phase,
     phaseTotalSeconds: Math.max(1, Number(model.next_prayer.phase_total_seconds) || 1),
-    lastHueMinuteMark: null,
     awaitingResync: false,
   };
 
-  updateDynamicHue(baseRuntime.phase, Number(model.next_prayer.phase_progress || 0));
+  patchBaseView(model);
 
   baseTickTimer = setInterval(() => {
     if (currentState !== 'base_state' || !baseRuntime) return;
@@ -195,27 +269,16 @@ function startBaseTicker(model) {
     const secondsLeft = Math.max(0, Math.ceil((baseRuntime.endAt - now) / 1000));
     const elapsedInPhase = Math.max(0, baseRuntime.phaseTotalSeconds - secondsLeft);
     const phaseProgress = Math.min(1, elapsedInPhase / baseRuntime.phaseTotalSeconds);
+    const formattedCountdown = formatCountdown(secondsLeft);
 
-    const minuteMark = Math.floor(now / 60000);
-    if (baseRuntime.lastHueMinuteMark !== minuteMark) {
-      baseRuntime.lastHueMinuteMark = minuteMark;
-      updateDynamicHue(baseRuntime.phase, phaseProgress);
-    }
+    const eventTime = document.getElementById('event-time-left');
+    if (eventTime) eventTime.textContent = formattedCountdown;
 
-    const clock = document.getElementById('countdownClock');
-    if (clock) {
-      clock.innerHTML = textGradient(formatCountdown(secondsLeft));
-      clock.classList.remove('tick-bump');
-      void clock.offsetWidth;
-      clock.classList.add('tick-bump');
-    }
+    const progressBar = document.getElementById('progress-bar');
+    if (progressBar) progressBar.style.width = `${Math.round(phaseProgress * 100)}%`;
 
-    const elapsedDayShare = (now - baseRuntime.startedAt) / 1000 / 86400 / 30;
-    const progress = Math.min(1, baseRuntime.startMonthProgress + elapsedDayShare);
-    const progressBar = document.getElementById('monthProgressBar');
-    if (progressBar) {
-      progressBar.innerHTML = renderMonthSegments(progress);
-    }
+    updateDynamicPalette(baseRuntime.phase, phaseProgress);
+    updateJellyClock(formatClock(secondsLeft));
 
     if (secondsLeft <= 0 && !baseRuntime.awaitingResync) {
       baseRuntime.awaitingResync = true;
@@ -255,9 +318,6 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
   }
 
   updateWakeBorder();
-  if (model.view !== 'base_state') {
-    updateDynamicHue('day', 0.5);
-  }
 }
 
 async function refreshState(forceFullRender = false) {
@@ -273,7 +333,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 setInterval(updateWakeBorder, 200);
-updateDynamicHue('day', 0.5);
+updateDynamicPalette('day', 0.5);
 refreshState(true);
 
 setInterval(() => {
