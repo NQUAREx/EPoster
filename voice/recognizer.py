@@ -275,9 +275,7 @@ class VoiceRecognizer:
             time.sleep(0.5)
             return None
 
-        result = json.loads(recognizer.FinalResult())
-        text = str(result.get("text", "")).strip()
-        return text or None
+        return None
 
     def stop(self) -> None:
         self._stop_event.set()
