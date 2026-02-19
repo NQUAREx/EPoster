@@ -136,6 +136,7 @@ class VoiceRecognizer:
         backend: BackendClient | None = None,
         recognizer_fn: Callable[[], str | None] | None = None,
         model_path: str | None = None,
+        input_device: int | str | None = None,
     ) -> None:
         self.wake_word = wake_word
         self.command_window_seconds = command_window_seconds
@@ -145,6 +146,7 @@ class VoiceRecognizer:
         self._stop_event = threading.Event()
         self._model_path = model_path
         self._vosk_disabled = False
+        self._input_device = input_device
 
     @staticmethod
     def _is_valid_model_dir(path: Path) -> bool:
@@ -172,6 +174,29 @@ class VoiceRecognizer:
             if resolved.is_dir() and self._is_valid_model_dir(resolved):
                 return resolved
         return None
+
+    def _resolve_samplerate(self) -> int:
+        env_value = os.getenv("VOICE_SAMPLERATE")
+        if env_value:
+            try:
+                return int(env_value)
+            except ValueError:
+                pass
+        return 4000
+
+    def _resolve_input_device(self):
+        if self._input_device is not None:
+            return self._input_device
+
+        env_value = os.getenv("VOICE_INPUT_DEVICE")
+        if env_value:
+            try:
+                return int(env_value)
+            except ValueError:
+                return env_value
+
+        # Fixed fallback for known ALSA device reported by user: card 2, device 0.
+        return "plughw:2,0"
 
     def _recognize_vosk(self) -> str | None:
         """Recognize speech chunk using vosk + sounddevice if available."""
@@ -207,7 +232,12 @@ class VoiceRecognizer:
         if not hasattr(self, "_audio_queue"):
             self._audio_queue = queue.Queue(maxsize=20)
 
-        samplerate = 16000
+        input_device = self._resolve_input_device()
+        samplerate = self._resolve_samplerate()
+
+        if not hasattr(self, "_logged_audio_config"):
+            print(f"[voice] using input device={input_device}, samplerate={samplerate}")
+            self._logged_audio_config = True
 
         def callback(indata, frames, time_info, status):  # noqa: ANN001
             if status:
@@ -218,26 +248,32 @@ class VoiceRecognizer:
                 pass
 
         recognizer = KaldiRecognizer(self._vosk_model, samplerate)
-        with sd.RawInputStream(
-            samplerate=samplerate,
-            blocksize=4000,
-            dtype="int16",
-            channels=1,
-            callback=callback,
-        ):
-            started = time.monotonic()
-            while time.monotonic() - started < 2.3:
-                if self._stop_event.is_set():
-                    return None
-                try:
-                    data = self._audio_queue.get(timeout=0.2)
-                except queue.Empty:
-                    continue
-                if recognizer.AcceptWaveform(data):
-                    result = json.loads(recognizer.Result())
-                    text = str(result.get("text", "")).strip()
-                    if text:
-                        return text
+        try:
+            with sd.RawInputStream(
+                device=input_device,
+                samplerate=samplerate,
+                blocksize=0,
+                dtype="int16",
+                channels=1,
+                callback=callback,
+            ):
+                started = time.monotonic()
+                while time.monotonic() - started < 2.3:
+                    if self._stop_event.is_set():
+                        return None
+                    try:
+                        data = self._audio_queue.get(timeout=0.2)
+                    except queue.Empty:
+                        continue
+                    if recognizer.AcceptWaveform(data):
+                        result = json.loads(recognizer.Result())
+                        text = str(result.get("text", "")).strip()
+                        if text:
+                            return text
+        except sd.PortAudioError as error:
+            print(f"[voice] microphone open failed for device={input_device}, samplerate={samplerate}: {error}")
+            time.sleep(0.5)
+            return None
 
         result = json.loads(recognizer.FinalResult())
         text = str(result.get("text", "")).strip()
@@ -285,6 +321,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--wake-word", default="плакат")
     parser.add_argument("--window", type=float, default=6.0)
     parser.add_argument("--model-path", default=None)
+    parser.add_argument("--input-device", default=None)
     return parser.parse_args()
 
 
@@ -295,6 +332,7 @@ def main() -> None:
         command_window_seconds=args.window,
         backend=BackendClient(args.backend_url),
         model_path=args.model_path,
+        input_device=int(args.input_device) if isinstance(args.input_device, str) and args.input_device.isdigit() else args.input_device,
     )
     try:
         recognizer.run_forever()

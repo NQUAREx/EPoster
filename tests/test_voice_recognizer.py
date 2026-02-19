@@ -95,3 +95,23 @@ def test_voice_flow_keeps_listening_for_6_seconds_after_command():
         ("command", "open_tasks_map", None),
         ("command", "back", None),
     ]
+
+
+def test_default_audio_config_is_fixed_for_known_microphone(monkeypatch):
+    monkeypatch.delenv("VOICE_INPUT_DEVICE", raising=False)
+    monkeypatch.delenv("VOICE_SAMPLERATE", raising=False)
+
+    recognizer = VoiceRecognizer()
+
+    assert recognizer._resolve_input_device() == "plughw:2,0"
+    assert recognizer._resolve_samplerate() == 4000
+
+
+def test_audio_config_can_be_overridden(monkeypatch):
+    monkeypatch.setenv("VOICE_INPUT_DEVICE", "7")
+    monkeypatch.setenv("VOICE_SAMPLERATE", "8000")
+
+    recognizer = VoiceRecognizer()
+
+    assert recognizer._resolve_input_device() == 7
+    assert recognizer._resolve_samplerate() == 8000
