@@ -15,6 +15,29 @@ class BaseScreenState(BaseState):
         self.tasks = tasks
         self.prayer_times = prayer_times
 
+    @staticmethod
+    def _lerp_color(start: tuple[int, int, int], end: tuple[int, int, int], progress: float) -> str:
+        p = min(1.0, max(0.0, progress))
+        r = round(start[0] + (end[0] - start[0]) * p)
+        g = round(start[1] + (end[1] - start[1]) * p)
+        b = round(start[2] + (end[2] - start[2]) * p)
+        return f"rgb({r}, {g}, {b})"
+
+    def _phase_palette(self, phase: str, progress: float) -> dict[str, str]:
+        day_palette = {
+            "bg": self._lerp_color((43, 10, 10), (22, 7, 28), progress),
+            "blob1": self._lerp_color((255, 94, 98), (255, 146, 70), progress),
+            "blob2": self._lerp_color((255, 153, 102), (255, 94, 98), progress),
+            "blob3": self._lerp_color((241, 39, 17), (196, 56, 122), progress),
+        }
+        night_palette = {
+            "bg": self._lerp_color((5, 11, 20), (14, 7, 32), progress),
+            "blob1": self._lerp_color((0, 198, 255), (84, 130, 255), progress),
+            "blob2": self._lerp_color((0, 114, 255), (120, 70, 220), progress),
+            "blob3": self._lerp_color((31, 28, 44), (4, 26, 56), progress),
+        }
+        return night_palette if phase == "night" else day_palette
+
     def _times(self) -> dict[str, Any]:
         now = datetime.now()
         date_key = now.strftime("%Y-%m-%d")
@@ -44,24 +67,32 @@ class BaseScreenState(BaseState):
         delta = max(0, int((target - now).total_seconds()))
         total = max(1, int((end - start).total_seconds()))
         progress = min(1.0, max(0.0, (now - start).total_seconds() / total))
-        day_fraction = (now.hour * 3600 + now.minute * 60 + now.second) / 86400
         return {
             "next": next_name,
             "countdown": f"{delta // 3600:02d}:{(delta % 3600) // 60:02d}:{delta % 60:02d}",
             "phase": phase,
             "phase_progress": progress,
             "phase_total_seconds": total,
-            "day_fraction": day_fraction,
             "suhoor": data.fajr,
             "iftar": data.maghrib,
+            "palette": self._phase_palette(phase, progress),
         }
+
+    @staticmethod
+    def _ramadan_elapsed_days() -> float:
+        now = datetime.now()
+        ramadan_start = datetime(now.year, 2, 18, 0, 0, 0)
+        elapsed_days = (now - ramadan_start).total_seconds() / 86400
+        return min(30.0, max(0.0, elapsed_days))
 
     def show(self) -> dict[str, Any]:
         times = self._times()
+        ramadan_elapsed_days = self._ramadan_elapsed_days()
         return {
             "view": self.name,
             "day": self.session.current_day,
-            "month_progress": ((self.session.current_day - 1) + times["day_fraction"]) / 30,
+            "ramadan_elapsed_days": ramadan_elapsed_days,
+            "ramadan_progress_percent": (ramadan_elapsed_days / 30.0) * 100.0,
             "today_task": self.tasks[self.session.current_day - 1].text,
             "next_prayer": times,
         }

@@ -1,9 +1,7 @@
 const stateView = document.getElementById('stateView');
 
 let wakeActiveUntil = 0;
-let baseTickTimer = null;
 let currentState = '';
-let baseRuntime = null;
 
 function asGlass(content) {
   return `<div class="glass">${content}</div>`;
@@ -13,48 +11,103 @@ function textGradient(text) {
   return `<span class="water-text">${text}</span>`;
 }
 
-function computePhaseHue(phase, progress) {
-  const clampedProgress = Math.min(1, Math.max(0, Number(progress) || 0));
-  const minHue = 0;
-  const maxHue = 120;
-  if (phase === 'night') {
-    return Math.round(maxHue - clampedProgress * (maxHue - minHue));
-  }
-  return Math.round(minHue + clampedProgress * (maxHue - minHue));
-}
-
-function updateDynamicHue(phase, progress) {
-  document.body.style.setProperty('--dynamic-hue', String(computePhaseHue(phase, progress)));
-}
-
 function parseCountdownToSeconds(value) {
   const [h, m, s] = String(value || '00:00:00').split(':').map((x) => parseInt(x, 10) || 0);
   return h * 3600 + m * 60 + s;
 }
 
-function formatCountdown(totalSeconds) {
+function formatClock(totalSeconds) {
   const safe = Math.max(0, totalSeconds);
   const hh = Math.floor(safe / 3600);
   const mm = Math.floor((safe % 3600) / 60);
-  const ss = safe % 60;
-  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+  return `${String(hh).padStart(2, '0')}${String(mm).padStart(2, '0')}`;
 }
 
-function renderMonthSegments(monthProgress) {
-  const total = 30;
-  const scaled = Number(monthProgress || 0) * total;
-  const completed = Math.floor(scaled);
-  return Array.from({ length: total }, (_, index) => {
-    const part = index + 1;
-    const active = part <= completed ? 'active' : '';
-    return `<span class="segment ${active}" data-segment="${part}"></span>`;
-  }).join('');
+function applyPaletteFromModel(model) {
+  const palette = model?.next_prayer?.palette;
+  if (!palette) return;
+  const root = document.documentElement;
+  root.style.setProperty('--color-bg', String(palette.bg || ''));
+  root.style.setProperty('--color-blob1', String(palette.blob1 || ''));
+  root.style.setProperty('--color-blob2', String(palette.blob2 || ''));
+  root.style.setProperty('--color-blob3', String(palette.blob3 || ''));
+}
+
+function updateDigit(id, newValue) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const currentDigit = container.querySelector('.digit.in');
+
+  if (currentDigit && currentDigit.innerText === newValue) return;
+
+  const newDigit = document.createElement('div');
+  newDigit.className = 'digit prepare';
+  newDigit.innerText = newValue;
+  container.appendChild(newDigit);
+
+  void newDigit.offsetWidth;
+
+  if (currentDigit) {
+    currentDigit.classList.remove('in');
+    currentDigit.classList.add('out');
+    setTimeout(() => currentDigit.remove(), 800);
+  }
+
+  newDigit.classList.remove('prepare');
+  newDigit.classList.add('in');
+}
+
+function updateJellyClock(clockDigits) {
+  updateDigit('h1', clockDigits[0]);
+  updateDigit('h2', clockDigits[1]);
+  updateDigit('m1', clockDigits[2]);
+  updateDigit('m2', clockDigits[3]);
 }
 
 function renderBase(model) {
+  const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
   return `<section class="base-screen" data-view="base_state">
-      ${asGlass(`<div class="base-layout"><div class="base-top"><div class="day-title" id="baseDayTitle">${textGradient(`день ${model.day}`)}</div><div class="progress-30" id="monthProgressBar">${renderMonthSegments(model.month_progress)}</div></div><div class="base-clock-wrap"><p id="nextPrayerLabel">${textGradient(`До ${model.next_prayer.next}`)}</p><h1 id="countdownClock" class="liquid-clock">${textGradient(model.next_prayer.countdown)}</h1><p id="prayerTimesLabel">${textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`)}</p></div><div class="base-task-wrap"><p class="large-copy" id="todayTaskText">${textGradient(model.today_task)}</p></div></div>`)}
-    </section>`;
+    <div class="lava-background">
+      <div class="blob"></div>
+      <div class="blob"></div>
+      <div class="blob"></div>
+    </div>
+
+    <div class="wake-frame"></div>
+
+    <div class="progress-wrapper">
+      <div class="progress-title">Рамадан</div>
+      <div class="progress-container">
+        <div class="progress-bar" id="progress-bar" style="width:${progressPercent}%"></div>
+      </div>
+    </div>
+
+    <svg class="goo-filter" aria-hidden="true">
+      <defs>
+        <filter id="goo">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur" />
+          <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 25 -10" result="goo" />
+          <feBlend in="SourceGraphic" in2="goo" />
+        </filter>
+      </defs>
+    </svg>
+
+    <div class="clock-container">
+      <div class="next-prayer-label" id="nextPrayerLabel">До ${model.next_prayer.next}</div>
+      <div class="clock" aria-label="countdown-clock">
+        <div class="digit-box" id="h1"></div>
+        <div class="digit-box" id="h2"></div>
+        <div class="colon">:</div>
+        <div class="digit-box" id="m1"></div>
+        <div class="digit-box" id="m2"></div>
+      </div>
+    </div>
+
+    <div class="task-container">
+      <div class="task-label">Задание на сегодня · День ${model.day}</div>
+      <div class="task-text" id="daily-task">${model.today_task}</div>
+    </div>
+  </section>`;
 }
 
 function renderTaskInfo(model) {
@@ -94,17 +147,19 @@ function renderState(model) {
 }
 
 function patchBaseView(model) {
-  const dayTitle = document.getElementById('baseDayTitle');
   const nextPrayerLabel = document.getElementById('nextPrayerLabel');
-  const prayerTimesLabel = document.getElementById('prayerTimesLabel');
-  const todayTaskText = document.getElementById('todayTaskText');
-  const progressBar = document.getElementById('monthProgressBar');
+  const progressBar = document.getElementById('progress-bar');
+  const taskText = document.getElementById('daily-task');
 
-  if (dayTitle) dayTitle.innerHTML = textGradient(`день ${model.day}`);
-  if (nextPrayerLabel) nextPrayerLabel.innerHTML = textGradient(`До ${model.next_prayer.next}`);
-  if (prayerTimesLabel) prayerTimesLabel.innerHTML = textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`);
-  if (todayTaskText) todayTaskText.innerHTML = textGradient(model.today_task);
-  if (progressBar) progressBar.innerHTML = renderMonthSegments(model.month_progress);
+  if (nextPrayerLabel) nextPrayerLabel.textContent = `До ${model.next_prayer.next}`;
+  if (taskText) taskText.textContent = model.today_task;
+  if (progressBar) {
+    const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
+    progressBar.style.width = `${progressPercent}%`;
+  }
+
+  applyPaletteFromModel(model);
+  updateJellyClock(formatClock(parseCountdownToSeconds(model.next_prayer.countdown)));
 }
 
 function patchMapView(model) {
@@ -153,66 +208,6 @@ function updateWakeBorder() {
   document.body.classList.toggle('wake-active', Date.now() < wakeActiveUntil);
 }
 
-function stopBaseTicker() {
-  if (baseTickTimer) {
-    clearInterval(baseTickTimer);
-    baseTickTimer = null;
-  }
-  baseRuntime = null;
-}
-
-function startBaseTicker(model) {
-  stopBaseTicker();
-
-  const countdownSeconds = parseCountdownToSeconds(model.next_prayer.countdown);
-  baseRuntime = {
-    startMonthProgress: Number(model.month_progress || 0),
-    startedAt: Date.now(),
-    endAt: Date.now() + countdownSeconds * 1000,
-    phase: model.next_prayer.phase,
-    phaseTotalSeconds: Math.max(1, Number(model.next_prayer.phase_total_seconds) || 1),
-    lastHueMinuteMark: null,
-    awaitingResync: false,
-  };
-
-  updateDynamicHue(baseRuntime.phase, Number(model.next_prayer.phase_progress || 0));
-
-  baseTickTimer = setInterval(() => {
-    if (currentState !== 'base_state' || !baseRuntime) return;
-
-    const now = Date.now();
-    const secondsLeft = Math.max(0, Math.ceil((baseRuntime.endAt - now) / 1000));
-    const elapsedInPhase = Math.max(0, baseRuntime.phaseTotalSeconds - secondsLeft);
-    const phaseProgress = Math.min(1, elapsedInPhase / baseRuntime.phaseTotalSeconds);
-
-    const minuteMark = Math.floor(now / 60000);
-    if (baseRuntime.lastHueMinuteMark !== minuteMark) {
-      baseRuntime.lastHueMinuteMark = minuteMark;
-      updateDynamicHue(baseRuntime.phase, phaseProgress);
-    }
-
-    const clock = document.getElementById('countdownClock');
-    if (clock) {
-      clock.innerHTML = textGradient(formatCountdown(secondsLeft));
-      clock.classList.remove('tick-bump');
-      void clock.offsetWidth;
-      clock.classList.add('tick-bump');
-    }
-
-    const elapsedDayShare = (now - baseRuntime.startedAt) / 1000 / 86400 / 30;
-    const progress = Math.min(1, baseRuntime.startMonthProgress + elapsedDayShare);
-    const progressBar = document.getElementById('monthProgressBar');
-    if (progressBar) {
-      progressBar.innerHTML = renderMonthSegments(progress);
-    }
-
-    if (secondsLeft <= 0 && !baseRuntime.awaitingResync) {
-      baseRuntime.awaitingResync = true;
-      refreshState(true);
-    }
-  }, 1000);
-}
-
 function applyViewModel(model, { forceFullRender = false } = {}) {
   const stateChanged = currentState !== model.view;
   currentState = model.view;
@@ -228,25 +223,15 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
       document.body.classList.add('state-transitioning');
       setTimeout(() => document.body.classList.remove('state-transitioning'), 320);
     }
-  } else {
-    patchCurrentView(model);
   }
 
-  if (model.view === 'base_state' && (stateChanged || forceFullRender || !baseTickTimer)) {
-    startBaseTicker(model);
-  }
-  if (model.view !== 'base_state') {
-    stopBaseTicker();
-  }
+  patchCurrentView(model);
 
   if (model.wake_active) {
     wakeActiveUntil = Date.now() + 6000;
   }
 
   updateWakeBorder();
-  if (model.view !== 'base_state') {
-    updateDynamicHue('day', 0.5);
-  }
 }
 
 async function refreshState(forceFullRender = false) {
@@ -262,7 +247,6 @@ document.addEventListener('visibilitychange', () => {
 });
 
 setInterval(updateWakeBorder, 200);
-updateDynamicHue('day', 0.5);
 refreshState(true);
 
 setInterval(() => {
