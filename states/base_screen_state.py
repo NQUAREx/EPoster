@@ -79,19 +79,20 @@ class BaseScreenState(BaseState):
         }
 
     @staticmethod
-    def _ramadan_progress() -> float:
+    def _ramadan_elapsed_days() -> float:
         now = datetime.now()
         ramadan_start = datetime(now.year, 2, 18, 0, 0, 0)
-        ramadan_total_seconds = 30 * 24 * 3600
-        elapsed_seconds = (now - ramadan_start).total_seconds()
-        return min(1.0, max(0.0, elapsed_seconds / ramadan_total_seconds))
+        elapsed_days = (now - ramadan_start).total_seconds() / 86400
+        return min(30.0, max(0.0, elapsed_days))
 
     def show(self) -> dict[str, Any]:
         times = self._times()
+        ramadan_elapsed_days = self._ramadan_elapsed_days()
         return {
             "view": self.name,
             "day": self.session.current_day,
-            "ramadan_progress": self._ramadan_progress(),
+            "ramadan_elapsed_days": ramadan_elapsed_days,
+            "ramadan_progress_percent": (ramadan_elapsed_days / 30.0) * 100.0,
             "today_task": self.tasks[self.session.current_day - 1].text,
             "next_prayer": times,
         }

@@ -65,8 +65,7 @@ function updateJellyClock(clockDigits) {
 }
 
 function renderBase(model) {
-  const progress = Math.round((Number(model.ramadan_progress || 0) || 0) * 100);
-  const eventName = `До ${model.next_prayer.next}`;
+  const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
   return `<section class="base-screen" data-view="base_state">
     <div class="lava-background">
       <div class="blob"></div>
@@ -77,12 +76,9 @@ function renderBase(model) {
     <div class="wake-frame"></div>
 
     <div class="progress-wrapper">
-      <div class="progress-labels">
-        <span id="event-name">${eventName}</span>
-        <span id="event-time-left">${model.next_prayer.countdown}</span>
-      </div>
+      <div class="progress-title">Рамадан</div>
       <div class="progress-container">
-        <div class="progress-bar" id="progress-bar" style="width:${progress}%"></div>
+        <div class="progress-bar" id="progress-bar" style="width:${progressPercent}%"></div>
       </div>
     </div>
 
@@ -97,6 +93,7 @@ function renderBase(model) {
     </svg>
 
     <div class="clock-container">
+      <div class="next-prayer-label" id="nextPrayerLabel">До ${model.next_prayer.next}</div>
       <div class="clock" aria-label="countdown-clock">
         <div class="digit-box" id="h1"></div>
         <div class="digit-box" id="h2"></div>
@@ -150,16 +147,15 @@ function renderState(model) {
 }
 
 function patchBaseView(model) {
-  const eventName = document.getElementById('event-name');
-  const eventTime = document.getElementById('event-time-left');
+  const nextPrayerLabel = document.getElementById('nextPrayerLabel');
   const progressBar = document.getElementById('progress-bar');
   const taskText = document.getElementById('daily-task');
 
-  if (eventName) eventName.textContent = `До ${model.next_prayer.next}`;
-  if (eventTime) eventTime.textContent = model.next_prayer.countdown;
+  if (nextPrayerLabel) nextPrayerLabel.textContent = `До ${model.next_prayer.next}`;
   if (taskText) taskText.textContent = model.today_task;
   if (progressBar) {
-    progressBar.style.width = `${Math.round((Number(model.ramadan_progress || 0) || 0) * 100)}%`;
+    const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
+    progressBar.style.width = `${progressPercent}%`;
   }
 
   applyPaletteFromModel(model);

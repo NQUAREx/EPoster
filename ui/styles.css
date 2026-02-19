@@ -123,15 +123,13 @@ body.wake-active .wake-frame {
   z-index: 10;
 }
 
-.progress-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: clamp(14px, 1.5vw, 24px);
-  font-weight: 800;
+.progress-title {
+  font-size: clamp(18px, 2vw, 30px);
+  font-weight: 900;
   margin-bottom: 12px;
-  padding: 0 10px;
+  text-align: center;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   text-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
@@ -163,10 +161,20 @@ body.wake-active .wake-frame {
 .clock-container {
   flex-grow: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   filter: url(#goo);
   z-index: 10;
+}
+
+.next-prayer-label {
+  font-size: clamp(14px, 1.3vw, 22px);
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 4px 10px rgba(0, 0, 0, 0.24);
 }
 
 .clock {
