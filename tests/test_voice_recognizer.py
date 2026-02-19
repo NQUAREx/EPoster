@@ -103,7 +103,7 @@ def test_samplerate_candidates_prioritize_device_default():
     assert 16000 in candidates
 
 
-def test_pick_supported_samplerate_uses_first_valid():
+def test_pick_supported_samplerate_returns_supported_in_order():
     checked = []
 
     def fake_check_input_settings(*, device, samplerate, channels, dtype):
@@ -111,11 +111,11 @@ def test_pick_supported_samplerate_uses_first_valid():
         if samplerate != 4000:
             raise ValueError("unsupported")
 
-    chosen = VoiceRecognizer._pick_supported_samplerate(
+    supported = VoiceRecognizer._pick_supported_samplerate(
         check_input_settings=fake_check_input_settings,
         default_samplerate=16000,
         device=2,
     )
 
-    assert chosen == 4000
+    assert supported == [4000]
     assert checked[:3] == [16000, 8000, 4000]

@@ -195,8 +195,9 @@ class VoiceRecognizer:
         check_input_settings: Callable[..., None],
         default_samplerate: float | int | None,
         device: int | str | None,
-    ) -> int:
+    ) -> list[int]:
         candidates = cls._samplerate_candidates(default_samplerate)
+        supported: list[int] = []
         for samplerate in candidates:
             try:
                 check_input_settings(
@@ -205,9 +206,12 @@ class VoiceRecognizer:
                     channels=1,
                     dtype="int16",
                 )
-                return samplerate
+                supported.append(samplerate)
             except Exception:
                 continue
+
+        if supported:
+            return supported
 
         target = f"device={device}" if device is not None else "default input device"
         tried = ", ".join(str(item) for item in candidates)
@@ -262,15 +266,11 @@ class VoiceRecognizer:
 
         input_device = self._resolve_input_device()
         device_info = sd.query_devices(input_device, "input") if input_device is not None else sd.query_devices(kind="input")
-        samplerate = self._pick_supported_samplerate(
+        supported_samplerates = self._pick_supported_samplerate(
             check_input_settings=sd.check_input_settings,
             default_samplerate=device_info.get("default_samplerate"),
             device=input_device,
         )
-        if input_device is not None:
-            print(f"[voice] input device={input_device}, samplerate={samplerate}")
-        else:
-            print(f"[voice] input samplerate={samplerate}")
 
         def callback(indata, frames, time_info, status):  # noqa: ANN001
             if status:
@@ -280,32 +280,46 @@ class VoiceRecognizer:
             except queue.Full:
                 pass
 
-        recognizer = KaldiRecognizer(self._vosk_model, samplerate)
-        with sd.RawInputStream(
-            device=input_device,
-            samplerate=samplerate,
-            blocksize=4000,
-            dtype="int16",
-            channels=1,
-            callback=callback,
-        ):
-            started = time.monotonic()
-            while time.monotonic() - started < 2.3:
-                if self._stop_event.is_set():
-                    return None
-                try:
-                    data = self._audio_queue.get(timeout=0.2)
-                except queue.Empty:
-                    continue
-                if recognizer.AcceptWaveform(data):
-                    result = json.loads(recognizer.Result())
-                    text = str(result.get("text", "")).strip()
-                    if text:
-                        return text
+        for samplerate in supported_samplerates:
+            if input_device is not None:
+                print(f"[voice] trying input device={input_device}, samplerate={samplerate}")
+            else:
+                print(f"[voice] trying input samplerate={samplerate}")
 
-        result = json.loads(recognizer.FinalResult())
-        text = str(result.get("text", "")).strip()
-        return text or None
+            recognizer = KaldiRecognizer(self._vosk_model, samplerate)
+            try:
+                with sd.RawInputStream(
+                    device=input_device,
+                    samplerate=samplerate,
+                    blocksize=0,
+                    dtype="int16",
+                    channels=1,
+                    callback=callback,
+                ):
+                    started = time.monotonic()
+                    while time.monotonic() - started < 2.3:
+                        if self._stop_event.is_set():
+                            return None
+                        try:
+                            data = self._audio_queue.get(timeout=0.2)
+                        except queue.Empty:
+                            continue
+                        if recognizer.AcceptWaveform(data):
+                            result = json.loads(recognizer.Result())
+                            text = str(result.get("text", "")).strip()
+                            if text:
+                                return text
+            except sd.PortAudioError as error:
+                if "Invalid sample rate" in str(error):
+                    continue
+                raise
+
+            result = json.loads(recognizer.FinalResult())
+            text = str(result.get("text", "")).strip()
+            if text:
+                return text
+
+        return None
 
     def stop(self) -> None:
         self._stop_event.set()
