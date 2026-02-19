@@ -63,16 +63,54 @@ body.wake-active::after {
   align-content: stretch;
   justify-items: center;
   padding: clamp(12px, 1.8vh, 20px) clamp(16px, 2vw, 28px);
+  position: relative;
+  overflow: hidden;
 }
 
-.base-screen .glass {
-  display: block;
-  height: 100%;
-  width: min(100%, 1240px);
-  padding: clamp(12px, 1.8vh, 22px) clamp(18px, 2vw, 28px);
+.lava-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  animation: floatBlob 20s infinite alternate ease-in-out;
+}
+
+.blob:nth-child(1) {
+  width: 58vw;
+  height: 58vw;
+  top: -16%;
+  left: -14%;
+  background: hsla(calc(var(--dynamic-hue) + 15), 95%, 52%, 0.5);
+}
+
+.blob:nth-child(2) {
+  width: 50vw;
+  height: 50vw;
+  bottom: -20%;
+  right: -12%;
+  background: hsla(calc(var(--dynamic-hue) + 35), 90%, 58%, 0.46);
+  animation-duration: 24s;
+}
+
+.blob:nth-child(3) {
+  width: 48vw;
+  height: 48vw;
+  bottom: 8%;
+  left: 20%;
+  background: hsla(calc(var(--dynamic-hue) - 12), 90%, 44%, 0.42);
+  animation-duration: 28s;
 }
 
 .base-layout {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1240px);
   height: 100%;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -83,6 +121,18 @@ body.wake-active::after {
 .base-task-wrap {
   display: grid;
   gap: clamp(4px, 0.8vh, 10px);
+}
+
+.base-top-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.base-top .day-title,
+.base-top #nextPrayerLabel {
+  margin: 0;
 }
 
 .base-clock-wrap {
@@ -113,11 +163,11 @@ body.wake-active::after {
   text-overflow: ellipsis;
 }
 .glass {
-  background: rgba(220, 235, 255, 0.17);
+  background: rgba(220, 235, 255, 0.12);
   border: 1px solid rgba(216, 236, 255, 0.3);
   border-radius: 36px;
-  padding: 22px;
-  backdrop-filter: blur(12px) saturate(140%);
+  padding: clamp(14px, 1.8vh, 24px) clamp(18px, 2vw, 28px);
+  backdrop-filter: blur(16px) saturate(140%);
   width: 100%;
   text-align: center;
   animation: riseIn .42s ease;
@@ -161,6 +211,12 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
   border: 1px solid rgba(210, 235, 255, 0.34);
   box-shadow: inset 0 0 28px rgba(179, 221, 255, 0.22), 0 8px 26px rgba(21, 54, 95, 0.22);
   overflow: hidden;
+}
+
+@keyframes floatBlob {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(10%, 14%, 0) scale(1.12); }
+  100% { transform: translate3d(-16%, 8%, 0) scale(0.9); }
 }
 .liquid-clock.tick-bump { animation: tickBump .25s ease; }
 .grid {

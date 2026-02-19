@@ -53,7 +53,18 @@ function renderMonthSegments(monthProgress) {
 
 function renderBase(model) {
   return `<section class="base-screen" data-view="base_state">
-      ${asGlass(`<div class="base-layout"><div class="base-top"><div class="day-title" id="baseDayTitle">${textGradient(`день ${model.day}`)}</div><div class="progress-30" id="monthProgressBar">${renderMonthSegments(model.month_progress)}</div></div><div class="base-clock-wrap"><p id="nextPrayerLabel">${textGradient(`До ${model.next_prayer.next}`)}</p><h1 id="countdownClock" class="liquid-clock">${textGradient(model.next_prayer.countdown)}</h1><p id="prayerTimesLabel">${textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`)}</p></div><div class="base-task-wrap"><p class="large-copy" id="todayTaskText">${textGradient(model.today_task)}</p></div></div>`)}
+      <div class="lava-background" aria-hidden="true"><span class="blob"></span><span class="blob"></span><span class="blob"></span></div>
+      <div class="base-layout">
+        <header class="base-top glass">
+          <div class="base-top-row"><div class="day-title" id="baseDayTitle">${textGradient(`день ${model.day}`)}</div><p id="nextPrayerLabel">${textGradient(`До ${model.next_prayer.next}`)}</p></div>
+          <div class="progress-30" id="monthProgressBar">${renderMonthSegments(model.month_progress)}</div>
+        </header>
+        <div class="base-clock-wrap">
+          <h1 id="countdownClock" class="liquid-clock">${textGradient(model.next_prayer.countdown)}</h1>
+          <p id="prayerTimesLabel">${textGradient(`Сухур ${model.next_prayer.suhoor} · Ифтар ${model.next_prayer.iftar}`)}</p>
+        </div>
+        <footer class="base-task-wrap glass"><p class="large-copy" id="todayTaskText">${textGradient(model.today_task)}</p></footer>
+      </div>
     </section>`;
 }
 
