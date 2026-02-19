@@ -230,6 +230,18 @@ class VoiceRecognizer:
         except ValueError:
             return env_value
 
+
+    def _order_samplerates(self, supported_samplerates: list[int]) -> list[int]:
+        if not hasattr(self, "_working_samplerate"):
+            self._working_samplerate = None
+
+        if self._working_samplerate in supported_samplerates:
+            return [self._working_samplerate] + [
+                item for item in supported_samplerates if item != self._working_samplerate
+            ]
+
+        return supported_samplerates
+
     def _recognize_vosk(self) -> str | None:
         """Recognize speech chunk using vosk + sounddevice if available."""
         if self._vosk_disabled:
@@ -271,6 +283,10 @@ class VoiceRecognizer:
             default_samplerate=device_info.get("default_samplerate"),
             device=input_device,
         )
+        ordered_samplerates = self._order_samplerates(supported_samplerates)
+
+        if not hasattr(self, "_logged_samplerate_attempts"):
+            self._logged_samplerate_attempts = set()
 
         def callback(indata, frames, time_info, status):  # noqa: ANN001
             if status:
@@ -280,11 +296,13 @@ class VoiceRecognizer:
             except queue.Full:
                 pass
 
-        for samplerate in supported_samplerates:
-            if input_device is not None:
-                print(f"[voice] trying input device={input_device}, samplerate={samplerate}")
-            else:
-                print(f"[voice] trying input samplerate={samplerate}")
+        for samplerate in ordered_samplerates:
+            if samplerate not in self._logged_samplerate_attempts:
+                if input_device is not None:
+                    print(f"[voice] trying input device={input_device}, samplerate={samplerate}")
+                else:
+                    print(f"[voice] trying input samplerate={samplerate}")
+                self._logged_samplerate_attempts.add(samplerate)
 
             recognizer = KaldiRecognizer(self._vosk_model, samplerate)
             try:
@@ -308,12 +326,16 @@ class VoiceRecognizer:
                             result = json.loads(recognizer.Result())
                             text = str(result.get("text", "")).strip()
                             if text:
+                                self._working_samplerate = samplerate
                                 return text
             except sd.PortAudioError as error:
                 if "Invalid sample rate" in str(error):
+                    if getattr(self, "_working_samplerate", None) == samplerate:
+                        self._working_samplerate = None
                     continue
                 raise
 
+            self._working_samplerate = samplerate
             result = json.loads(recognizer.FinalResult())
             text = str(result.get("text", "")).strip()
             if text:
