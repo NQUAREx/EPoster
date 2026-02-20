@@ -34,37 +34,32 @@ class AppController:
         self._wake_active_until = 0.0
         self._sync_ramadan_day()
 
+
+    @staticmethod
+    def _real_ramadan_day(today: date) -> int:
+        ramadan_start = date(today.year, 2, 18)
+        elapsed_days = (today - ramadan_start).days
+        return min(30, max(1, elapsed_days + 1))
+
     def _sync_ramadan_day(self) -> None:
         today = date.today()
         today_str = today.isoformat()
-        saved_date = self.settings.ramadan_day_updated_on
+        real_ramadan_day = self._real_ramadan_day(today)
 
-        if not saved_date:
-            self.settings.ramadan_day_updated_on = today_str
+        settings_changed = False
+        if self.settings.ramadan_day != real_ramadan_day:
+            self.settings.ramadan_day = real_ramadan_day
             settings_changed = True
-        else:
-            settings_changed = False
-            if saved_date != today_str:
-                try:
-                    previous = date.fromisoformat(saved_date)
-                    days_passed = max(0, (today - previous).days)
-                except ValueError:
-                    days_passed = 0
-                self.settings.ramadan_day = min(30, max(1, self.settings.ramadan_day + days_passed))
-                self.settings.ramadan_day_updated_on = today_str
-                settings_changed = True
-
-        current_day = min(30, max(1, int(self.settings.ramadan_day)))
-        if self.settings.ramadan_day != current_day:
-            self.settings.ramadan_day = current_day
+        if self.settings.ramadan_day_updated_on != today_str:
+            self.settings.ramadan_day_updated_on = today_str
             settings_changed = True
 
         session_changed = False
-        if self.session.current_day != current_day:
-            self.session.current_day = current_day
+        if self.session.current_day != real_ramadan_day:
+            self.session.current_day = real_ramadan_day
             session_changed = True
         if self.session.selected_day < 1 or self.session.selected_day > 30:
-            self.session.selected_day = current_day
+            self.session.selected_day = self.session.first_open_task_day()
             session_changed = True
 
         if settings_changed:

@@ -91,23 +91,28 @@ class BaseScreenState(BaseState):
     def show(self) -> dict[str, Any]:
         times = self._times()
         ramadan_elapsed_days = self._ramadan_elapsed_days()
+        base_task_day = self.session.base_task_day()
         return {
             "view": self.name,
             "day": self.session.current_day,
             "ramadan_elapsed_days": ramadan_elapsed_days,
             "ramadan_progress_percent": (ramadan_elapsed_days / 30.0) * 100.0,
-            "today_task": self.tasks[self.session.current_day - 1].text,
+            "today_task": self.tasks[base_task_day - 1].text,
+            "task_day": base_task_day,
             "next_prayer": times,
         }
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
         if command == "open_task_info":
-            self.session.selected_day = self.session.current_day
+            self.session.selected_day = self.session.base_task_day()
             return "task_info_state"
         if command == "open_tasks_map":
-            self.session.selected_day = self.session.current_day
             return "tasks_map_state"
         if command == "open_day_review":
+            review_day = self.session.base_task_day()
+            if self.session.days[review_day].closed:
+                return None
+            self.session.selected_day = review_day
             return "day_review_state"
         if command == "open_eid":
             return "eid_state"
