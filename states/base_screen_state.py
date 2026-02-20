@@ -24,19 +24,22 @@ class BaseScreenState(BaseState):
         return f"rgb({r}, {g}, {b})"
 
     def _phase_palette(self, phase: str, progress: float) -> dict[str, str]:
-        day_palette = {
-            "bg": self._lerp_color((43, 10, 10), (22, 7, 28), progress),
-            "blob1": self._lerp_color((255, 94, 98), (255, 146, 70), progress),
-            "blob2": self._lerp_color((255, 153, 102), (255, 94, 98), progress),
-            "blob3": self._lerp_color((241, 39, 17), (196, 56, 122), progress),
+        # Требуемая схема:
+        # day (от сухура до ифтара): красный -> зеленый
+        # night (от ифтара до сухура): зеленый -> красный
+        red_to_green = {
+            "bg": self._lerp_color((43, 10, 10), (10, 43, 18), progress),
+            "blob1": self._lerp_color((255, 94, 98), (102, 255, 160), progress),
+            "blob2": self._lerp_color((241, 39, 17), (20, 201, 112), progress),
+            "blob3": self._lerp_color((255, 153, 102), (91, 224, 127), progress),
         }
-        night_palette = {
-            "bg": self._lerp_color((5, 11, 20), (14, 7, 32), progress),
-            "blob1": self._lerp_color((0, 198, 255), (84, 130, 255), progress),
-            "blob2": self._lerp_color((0, 114, 255), (120, 70, 220), progress),
-            "blob3": self._lerp_color((31, 28, 44), (4, 26, 56), progress),
+        green_to_red = {
+            "bg": self._lerp_color((10, 43, 18), (43, 10, 10), progress),
+            "blob1": self._lerp_color((102, 255, 160), (255, 94, 98), progress),
+            "blob2": self._lerp_color((20, 201, 112), (241, 39, 17), progress),
+            "blob3": self._lerp_color((91, 224, 127), (255, 153, 102), progress),
         }
-        return night_palette if phase == "night" else day_palette
+        return green_to_red if phase == "night" else red_to_green
 
     def _times(self) -> dict[str, Any]:
         now = datetime.now()

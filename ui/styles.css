@@ -3,12 +3,12 @@
   --color-blob1: #ff5e62;
   --color-blob2: #ff9966;
   --color-blob3: #f12711;
-  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(244, 244, 244, 0.16);
   --glass-border: rgba(255, 255, 255, 0.2);
-  --text-color: #ffffff;
+  --text-color: #f4f4f4;
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; font-family: "Nunito", "Arial Black", "Arial Rounded MT Bold", sans-serif; }
 
 body {
   margin: 0;
@@ -16,6 +16,7 @@ body {
   min-height: 100vh;
   overflow: hidden;
   font-family: "Nunito", "Arial Black", "Arial Rounded MT Bold", sans-serif;
+  font-weight: 900;
   color: var(--text-color);
   background-color: #0f1022;
   transition: background-color 2s ease, filter 0.4s ease;
@@ -124,6 +125,7 @@ body.wake-active .wake-frame {
 }
 
 .progress-title {
+  color: var(--text-color);
   font-size: clamp(18px, 2vw, 30px);
   font-weight: 900;
   margin-bottom: 12px;
@@ -137,10 +139,10 @@ body.wake-active .wake-frame {
   height: 18px;
   background: var(--glass-bg);
   border-radius: 30px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(244, 244, 244, 0.18);
   backdrop-filter: blur(10px);
   border: 1px solid var(--glass-border);
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
 }
 
 .progress-bar {
@@ -170,6 +172,7 @@ body.wake-active .wake-frame {
 }
 
 .next-prayer-label {
+  color: var(--text-color);
   font-size: clamp(14px, 1.3vw, 22px);
   font-weight: 900;
   letter-spacing: 2px;
@@ -178,11 +181,10 @@ body.wake-active .wake-frame {
 }
 
 .clock {
-  display: flex;
-  font-size: 26vw;
+  display: flex;font-size: 26vw;
   line-height: 1;
   letter-spacing: -1vw;
-  text-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 10px 40px rgba(0,0,0,1);
 }
 
 .digit-box {
@@ -228,6 +230,7 @@ body.wake-active .wake-frame {
 }
 
 .task-container {
+  color: var(--text-color);
   margin: 0 auto 50px;
   width: 85%;
   max-width: 900px;
@@ -243,6 +246,7 @@ body.wake-active .wake-frame {
 }
 
 .task-label {
+  color: var(--text-color);
   font-size: clamp(12px, 1.2vw, 18px);
   text-transform: uppercase;
   letter-spacing: 4px;
@@ -252,6 +256,7 @@ body.wake-active .wake-frame {
 }
 
 .task-text {
+  color: var(--text-color);
   font-size: clamp(20px, 2.8vw, 46px);
   font-weight: 900;
   line-height: 1.3;
@@ -277,11 +282,7 @@ body.wake-active .wake-frame {
 }
 
 .water-text {
-  background: linear-gradient(to right, #f32170, #ff6b08, #cf23cf, #eedd44);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-color);
   text-shadow: 0 0 16px rgba(17, 10, 46, 0.45), 0 2px 6px rgba(12, 7, 35, 0.42);
 }
 
