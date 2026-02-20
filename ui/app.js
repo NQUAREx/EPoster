@@ -3,6 +3,9 @@ const stateView = document.getElementById('stateView');
 let wakeActiveUntil = 0;
 let currentState = '';
 let refreshInFlight = null;
+let stateSocket = null;
+let reconnectTimer = null;
+let baseCountdownSeconds = null;
 const baseViewCache = {
   nextPrayerLabel: null,
   progressBar: null,
@@ -180,7 +183,8 @@ function patchBaseView(model) {
   }
 
   applyPaletteFromModel(model);
-  updateJellyClock(formatClock(parseCountdownToSeconds(model.next_prayer.countdown)));
+  baseCountdownSeconds = parseCountdownToSeconds(model.next_prayer.countdown);
+  updateJellyClock(formatClock(baseCountdownSeconds));
 }
 
 function patchMapView(model) {
@@ -279,15 +283,58 @@ async function refreshState(forceFullRender = false) {
   }
 }
 
+function scheduleSocketReconnect() {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectStateSocket();
+  }, 1500);
+}
+
+function connectStateSocket() {
+  if (stateSocket && (stateSocket.readyState === WebSocket.OPEN || stateSocket.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  stateSocket = new WebSocket(`${protocol}://${window.location.host}/ws/state`);
+
+  stateSocket.addEventListener('message', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      applyViewModel(data.view_model);
+    } catch (_) {}
+  });
+
+  stateSocket.addEventListener('close', () => {
+    stateSocket = null;
+    scheduleSocketReconnect();
+  });
+
+  stateSocket.addEventListener('error', () => {
+    stateSocket?.close();
+  });
+}
+
+function tickBaseCountdown() {
+  if (currentState !== 'base_state' || baseCountdownSeconds == null) {
+    return;
+  }
+  baseCountdownSeconds = Math.max(0, baseCountdownSeconds - 1);
+  updateJellyClock(formatClock(baseCountdownSeconds));
+  if (baseCountdownSeconds === 0) {
+    refreshState().catch(() => {});
+  }
+}
+
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     refreshState();
+    connectStateSocket();
   }
 });
 
 setInterval(updateWakeBorder, 200);
 refreshState(true);
-
-setInterval(() => {
-  refreshState().catch(() => {});
-}, 1000);
+connectStateSocket();
+setInterval(tickBaseCountdown, 1000);
