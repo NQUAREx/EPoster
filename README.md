@@ -44,7 +44,7 @@
 - `open_eid`
 - `back`
 
-## Запуск на Linux (включая WSL)
+## Запуск на Linux (production и dev)
 
 1. Установите Python 3.10+.
 2. В корне проекта:
@@ -53,19 +53,34 @@
 python -m venv .venv
 source .venv/bin/activate
 pip install -U pip
-pip install fastapi uvicorn pytest httpx
+pip install fastapi uvicorn gunicorn pytest httpx
 ```
 
-3. Запуск API + UI:
+### Dev-режим (локально)
 
 ```bash
 python web_app.py
 ```
 
-4. Откройте браузер:
+или эквивалентно:
 
-- В Linux: `http://127.0.0.1:8000`
-- В WSL через Windows браузер: `http://localhost:8000`
+```bash
+uvicorn web_app:app --host 0.0.0.0 --port 8000
+```
+
+### Production (рекомендуется для Raspberry Pi 24/7)
+
+```bash
+gunicorn -k uvicorn.workers.UvicornWorker -w 1 -b 0.0.0.0:8000 web_app:app
+```
+
+- `debug` и `reload` отключены по умолчанию.
+- Для systemd используйте пример `deploy/eposter.service`.
+
+Откройте браузер:
+
+- Linux: `http://127.0.0.1:8000`
+- WSL через Windows браузер: `http://localhost:8000`
 
 
 ## Голосовой модуль (wake-word + фиксированные команды)
