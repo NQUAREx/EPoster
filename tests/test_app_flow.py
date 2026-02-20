@@ -69,6 +69,26 @@ def test_map_unlocks_tasks_by_last_completed_day(isolated_app):
     assert status_by_day[7] == "locked"
 
 
+def test_map_view_contains_task_text_from_tasks_json(tmp_path, monkeypatch):
+    source_data = REPO_ROOT / "data"
+    shutil.copytree(source_data, tmp_path / "data")
+    monkeypatch.setenv("EPOSTER_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.chdir(tmp_path)
+
+    tasks_file = tmp_path / "data" / "tasks.json"
+    tasks_payload = json.loads(tasks_file.read_text(encoding="utf-8"))
+    custom_text = "ТЕСТ: текст задания в карте"
+    tasks_payload[1]["text"] = custom_text
+    tasks_file.write_text(json.dumps(tasks_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    app = AppController()
+    app.dispatch("open_tasks_map")
+
+    circles = app.render()["circles"]
+    day_two = next(item for item in circles if item["day"] == 2)
+    assert day_two["task_text"] == custom_text
+
+
 def test_open_day_review_skips_completed_task_and_uses_first_open(isolated_app):
     app = isolated_app
     app.session.days[1].closed = True
