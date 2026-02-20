@@ -1,64 +1,33 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
 
+from api.routes import build_router
 from app_controller import AppController
-from command_router import CommandEvent
+from services.app_service import AppService
+from services.realtime import StateBroadcaster
 
 
-class CommandRequest(BaseModel):
-    command: str
-    payload: dict | None = None
-    source: str = "manual"
-    wake_word_detected: bool = False
-
-
-class WakeRequest(BaseModel):
-    source: str = "voice"
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    controller = AppController()
+    broadcaster = StateBroadcaster()
+    app.state.app_service = AppService(controller, broadcaster)
+    app.state.broadcaster = broadcaster
+    try:
+        yield
+    finally:
+        await app.state.app_service.shutdown()
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="EPoster API")
-    controller = AppController()
     ui_dir = Path(__file__).resolve().parent / "ui"
-
-    @app.get("/")
-    def index() -> FileResponse:
-        return FileResponse(ui_dir / "index.html")
-
-    @app.get("/api/state")
-    def get_state() -> dict:
-        ui_payload = controller.render()
-        return {"state": ui_payload["view"], "view_model": ui_payload}
-
-    @app.post("/api/wake")
-    def post_wake(request: WakeRequest) -> dict:
-        controller.mark_wake_detected()
-        ui_payload = controller.render()
-        ui_payload["command_source"] = request.source
-        return {"state": ui_payload["view"], "view_model": ui_payload}
-
-    @app.post("/api/command")
-    def post_command(request: CommandRequest) -> dict:
-        command = request.command.strip()
-        if not command:
-            raise HTTPException(status_code=400, detail="Поле 'command' обязательно")
-
-        safe_payload = request.payload if isinstance(request.payload, dict) else None
-        event = CommandEvent(
-            command=command,
-            payload=safe_payload,
-            source=request.source,
-            wake_word_detected=request.wake_word_detected,
-        )
-        ui_payload = controller.dispatch_event(event)
-        return {"state": ui_payload["view"], "view_model": ui_payload}
-
+    app = FastAPI(title="EPoster API", debug=False, lifespan=lifespan)
+    app.include_router(build_router(ui_dir))
     app.mount("/ui", StaticFiles(directory=str(ui_dir)), name="ui")
     return app
 
