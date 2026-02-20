@@ -47,10 +47,20 @@ def _build_review_order(children: list[str]) -> list[str]:
 
 
 def load_children() -> list[str]:
-    children = list(DEFAULT_CHILDREN)
     data_dir = _data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
-    with _children_file().open("w", encoding="utf-8") as file:
+    children_file = _children_file()
+
+    if children_file.exists():
+        with children_file.open("r", encoding="utf-8") as file:
+            payload = json.load(file)
+        if isinstance(payload, list):
+            normalized = [name.strip() for name in payload if isinstance(name, str) and name.strip()]
+            if normalized:
+                return normalized
+
+    children = list(DEFAULT_CHILDREN)
+    with children_file.open("w", encoding="utf-8") as file:
         json.dump(children, file, ensure_ascii=False, indent=2)
     return children
 

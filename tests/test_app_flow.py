@@ -126,3 +126,51 @@ def test_children_list_is_strict_and_has_no_extra_names(isolated_app):
     view = app.render()
     assert view["view"] == "day_review_state"
     assert view["child"] in app.session.children
+
+
+def test_render_does_not_write_session_without_changes(isolated_app, monkeypatch):
+    save_calls = 0
+
+    def fake_save_session(_):
+        nonlocal save_calls
+        save_calls += 1
+
+    monkeypatch.setattr("app_controller.save_session", fake_save_session)
+
+    isolated_app.render()
+    isolated_app.render()
+
+    assert save_calls == 0
+
+
+def test_render_does_not_reload_tasks_when_file_unchanged(isolated_app, monkeypatch):
+    load_calls = 0
+
+    def fake_load_tasks():
+        nonlocal load_calls
+        load_calls += 1
+        return isolated_app.tasks
+
+    monkeypatch.setattr("app_controller.load_tasks", fake_load_tasks)
+
+    isolated_app.render()
+    isolated_app.render()
+    isolated_app.render()
+
+    assert load_calls == 0
+
+
+def test_existing_children_file_is_not_overwritten(tmp_path, monkeypatch):
+    source_data = REPO_ROOT / "data"
+    shutil.copytree(source_data, tmp_path / "data")
+    monkeypatch.setenv("EPOSTER_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.chdir(tmp_path)
+
+    children_file = tmp_path / "data" / "children.json"
+    expected_children = ["Алия", "Ильяс"]
+    children_file.write_text(json.dumps(expected_children, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    app = AppController()
+
+    assert app.session.children == ["Камила", "Самир", "Амалия", "Сулейман", "Айя"]
+    assert json.loads(children_file.read_text(encoding="utf-8")) == expected_children
