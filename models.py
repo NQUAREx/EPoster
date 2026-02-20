@@ -125,3 +125,34 @@ class Session:
 
     def total_score_all(self) -> int:
         return sum(self.total_score(child) for child in self.children)
+
+    def last_completed_day(self) -> int:
+        completed = [day_num for day_num, day in self.days.items() if day.closed]
+        return max(completed, default=0)
+
+    def max_unlocked_day(self) -> int:
+        return min(30, max(1, self.last_completed_day() + 2))
+
+    def is_task_locked(self, day_num: int) -> bool:
+        return day_num > self.max_unlocked_day()
+
+    def open_task_days(self) -> list[int]:
+        return [day for day in range(1, 31) if not self.is_task_locked(day) and not self.days[day].closed]
+
+    def first_open_task_day(self) -> int:
+        open_days = self.open_task_days()
+        return open_days[0] if open_days else 1
+
+    def last_open_task_day(self) -> int:
+        open_days = self.open_task_days()
+        return open_days[-1] if open_days else 1
+
+    def base_task_day(self) -> int:
+        selected_day = min(30, max(1, int(self.selected_day or 1)))
+        selected = self.days[selected_day]
+
+        if self.is_task_locked(selected_day):
+            return self.last_open_task_day()
+        if selected.closed:
+            return self.first_open_task_day()
+        return selected_day

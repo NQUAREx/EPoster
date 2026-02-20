@@ -16,7 +16,7 @@ class DayReviewState(BaseState):
         self.completed = False
 
     def _ensure_random_order(self) -> None:
-        day_data = self.session.days[self.session.current_day]
+        day_data = self.session.days[self.session.selected_day]
         if not day_data.review_order:
             day_data.review_order = list(self.session.children)
             random.shuffle(day_data.review_order)
@@ -24,21 +24,21 @@ class DayReviewState(BaseState):
 
     def _current_child(self) -> str | None:
         self._ensure_random_order()
-        day_data = self.session.days[self.session.current_day]
+        day_data = self.session.days[self.session.selected_day]
         if day_data.review_index >= len(day_data.review_order):
             return None
         return day_data.review_order[day_data.review_index]
 
 
     def _remaining_children(self) -> int:
-        day_data = self.session.days[self.session.current_day]
+        day_data = self.session.days[self.session.selected_day]
         return max(0, len(day_data.review_order) - day_data.review_index)
 
     def show(self) -> dict[str, Any]:
         return {
             "view": self.name,
-            "day": self.session.current_day,
-            "task_text": self.tasks[self.session.current_day - 1].text,
+            "day": self.session.selected_day,
+            "task_text": self.tasks[self.session.selected_day - 1].text,
             "child": self._current_child(),
             "completed": self.completed,
             "score_options": [
@@ -60,7 +60,7 @@ class DayReviewState(BaseState):
         if score not in {1, 2, 3}:
             return None
 
-        day_data = self.session.days[self.session.current_day]
+        day_data = self.session.days[self.session.selected_day]
         child = self._current_child()
         if child is None:
             return "base_state"
@@ -73,6 +73,5 @@ class DayReviewState(BaseState):
             day_data.review_index = 0
             day_data.review_order = []
             self.completed = True
-            self.session.selected_day = self.session.current_day
             return "base_state"
         return None

@@ -18,9 +18,9 @@ class TasksMapState(BaseState):
         day = self.session.days[day_number]
         if day.closed:
             return "completed"
-        if day.viewed or day_number <= self.session.current_day + 1:
-            return "open"
-        return "locked"
+        if self.session.is_task_locked(day_number):
+            return "locked"
+        return "open"
 
     def show(self) -> dict[str, Any]:
         return {
@@ -50,7 +50,7 @@ class TasksMapState(BaseState):
             return None
         if command in {"ok", "open_selected_day"}:
             selected_data = self.session.days[self.session.selected_day]
-            if self.session.selected_day > self.session.current_day + 2:
+            if self.session.is_task_locked(self.session.selected_day):
                 self.warning = "Задание открыть нельзя!"
                 return None
             self.warning = ""
