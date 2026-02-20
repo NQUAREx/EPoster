@@ -62,6 +62,8 @@ pip install fastapi uvicorn gunicorn pytest httpx
 python web_app.py
 ```
 
+> `web_app.py` содержит прямой entrypoint (`if __name__ == "__main__"`) и запускает Uvicorn без autoreload.
+
 или эквивалентно:
 
 ```bash
