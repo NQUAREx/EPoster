@@ -101,6 +101,25 @@ def test_ramadan_day_rolls_over_at_midnight(tmp_path, monkeypatch):
     assert app.session.current_day == 8
 
 
+
+
+def test_base_view_task_text_comes_from_tasks_json(tmp_path, monkeypatch):
+    source_data = REPO_ROOT / "data"
+    shutil.copytree(source_data, tmp_path / "data")
+    monkeypatch.setenv("EPOSTER_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.chdir(tmp_path)
+
+    tasks_file = tmp_path / "data" / "tasks.json"
+    tasks_payload = json.loads(tasks_file.read_text(encoding="utf-8"))
+    custom_text = "ТЕСТ: задание загружено из tasks.json"
+    tasks_payload[0]["text"] = custom_text
+    tasks_file.write_text(json.dumps(tasks_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    app = AppController()
+    payload = app.render()
+    assert payload["view"] == "base_state"
+    assert payload["today_task"] == custom_text
+
 def test_children_list_is_strict_and_has_no_extra_names(isolated_app):
     app = isolated_app
     assert app.session.children == ["Камила", "Самир", "Амалия", "Сулейман", "Айя"]
