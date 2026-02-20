@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from datetime import date
+import json
+import os
 import time
+from pathlib import Path
 
 from command_router import CommandEvent, CommandRouter
 from state_manager import StateManager
@@ -32,7 +35,47 @@ class AppController:
         self.session = session
         self.state_manager = StateManager(session, self.tasks, self.settings, self.prayer_times)
         self._wake_active_until = 0.0
+        self._tasks_mtime = self._safe_mtime(self._runtime_data_file("tasks.json"))
+        self._prayer_times_mtime = self._safe_mtime(self._runtime_data_file("prayer_times_2026.json"))
+        self._session_snapshot = self._snapshot_session()
+        self._settings_snapshot = self._snapshot_settings()
         self._sync_ramadan_day()
+
+    @staticmethod
+    def _safe_mtime(path: Path) -> float | None:
+        try:
+            return path.stat().st_mtime
+        except OSError:
+            return None
+
+    @staticmethod
+    def _json_dump(payload: dict) -> str:
+        return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+    @staticmethod
+    def _runtime_data_file(name: str) -> Path:
+        data_dir = Path(os.getenv("EPOSTER_DATA_DIR", str(Path(__file__).resolve().parent / "data"))).resolve()
+        return data_dir / name
+
+    def _snapshot_session(self) -> str:
+        return self._json_dump(self.session.to_dict())
+
+    def _snapshot_settings(self) -> str:
+        return self._json_dump(self.settings.to_dict())
+
+    def _save_session_if_changed(self) -> None:
+        snapshot = self._snapshot_session()
+        if snapshot == self._session_snapshot:
+            return
+        save_session(self.session)
+        self._session_snapshot = snapshot
+
+    def _save_settings_if_changed(self) -> None:
+        snapshot = self._snapshot_settings()
+        if snapshot == self._settings_snapshot:
+            return
+        save_settings(self.settings)
+        self._settings_snapshot = snapshot
 
 
     @staticmethod
@@ -63,14 +106,29 @@ class AppController:
             session_changed = True
 
         if settings_changed:
-            save_settings(self.settings)
+            self._save_settings_if_changed()
         if session_changed:
-            save_session(self.session)
+            self._save_session_if_changed()
 
     def _reload_runtime_data(self) -> None:
-        self.tasks = load_tasks()
-        self.prayer_times = load_prayer_times()
-        self.state_manager.refresh_data(self.tasks, self.prayer_times)
+        tasks_path = self._runtime_data_file("tasks.json")
+        prayer_times_path = self._runtime_data_file("prayer_times_2026.json")
+
+        tasks_mtime = self._safe_mtime(tasks_path)
+        prayer_times_mtime = self._safe_mtime(prayer_times_path)
+
+        should_refresh_tasks = tasks_mtime != self._tasks_mtime
+        should_refresh_prayer_times = prayer_times_mtime != self._prayer_times_mtime
+
+        if should_refresh_tasks:
+            self.tasks = load_tasks()
+            self._tasks_mtime = tasks_mtime
+        if should_refresh_prayer_times:
+            self.prayer_times = load_prayer_times()
+            self._prayer_times_mtime = prayer_times_mtime
+
+        if should_refresh_tasks or should_refresh_prayer_times:
+            self.state_manager.refresh_data(self.tasks, self.prayer_times)
 
     def _wake_is_active(self) -> bool:
         return time.monotonic() < self._wake_active_until
@@ -83,7 +141,7 @@ class AppController:
         self._sync_ramadan_day()
         ui_payload = self.state_manager.show()
         ui_payload["wake_active"] = self._wake_is_active()
-        save_session(self.session)
+        self._save_session_if_changed()
         return ui_payload
 
     def dispatch(self, command: str, payload: dict | None = None) -> dict:
@@ -93,8 +151,8 @@ class AppController:
         ui_payload = self.state_manager.handle_command(event.command, event.payload)
         ui_payload["command_source"] = event.source
         ui_payload["wake_active"] = event.wake_word_detected
-        save_session(self.session)
-        save_settings(self.settings)
+        self._save_session_if_changed()
+        self._save_settings_if_changed()
         return ui_payload
 
     def dispatch_event(self, event: CommandEvent) -> dict:
@@ -107,6 +165,6 @@ class AppController:
         ui_payload = self.state_manager.handle_command(normalized.command, normalized.payload)
         ui_payload["command_source"] = normalized.source
         ui_payload["wake_active"] = self._wake_is_active()
-        save_session(self.session)
-        save_settings(self.settings)
+        self._save_session_if_changed()
+        self._save_settings_if_changed()
         return ui_payload

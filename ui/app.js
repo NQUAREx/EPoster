@@ -2,6 +2,15 @@ const stateView = document.getElementById('stateView');
 
 let wakeActiveUntil = 0;
 let currentState = '';
+let refreshInFlight = null;
+const baseViewCache = {
+  nextPrayerLabel: null,
+  progressBar: null,
+  taskText: null,
+  lastTaskText: '',
+  lastNextPrayerText: '',
+  lastProgressPercent: null,
+};
 
 function asGlass(content) {
   return `<div class="glass">${content}</div>`;
@@ -147,15 +156,27 @@ function renderState(model) {
 }
 
 function patchBaseView(model) {
-  const nextPrayerLabel = document.getElementById('nextPrayerLabel');
-  const progressBar = document.getElementById('progress-bar');
-  const taskText = document.getElementById('daily-task');
+  baseViewCache.nextPrayerLabel = baseViewCache.nextPrayerLabel || document.getElementById('nextPrayerLabel');
+  baseViewCache.progressBar = baseViewCache.progressBar || document.getElementById('progress-bar');
+  baseViewCache.taskText = baseViewCache.taskText || document.getElementById('daily-task');
 
-  if (nextPrayerLabel) nextPrayerLabel.textContent = `До ${model.next_prayer.next}`;
-  if (taskText) taskText.textContent = model.today_task;
-  if (progressBar) {
+  const nextPrayerText = `До ${model.next_prayer.next}`;
+  if (baseViewCache.nextPrayerLabel && baseViewCache.lastNextPrayerText !== nextPrayerText) {
+    baseViewCache.nextPrayerLabel.textContent = nextPrayerText;
+    baseViewCache.lastNextPrayerText = nextPrayerText;
+  }
+
+  if (baseViewCache.taskText && baseViewCache.lastTaskText !== model.today_task) {
+    baseViewCache.taskText.textContent = model.today_task;
+    baseViewCache.lastTaskText = model.today_task;
+  }
+
+  if (baseViewCache.progressBar) {
     const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
-    progressBar.style.width = `${progressPercent}%`;
+    if (baseViewCache.lastProgressPercent !== progressPercent) {
+      baseViewCache.progressBar.style.width = `${progressPercent}%`;
+      baseViewCache.lastProgressPercent = progressPercent;
+    }
   }
 
   applyPaletteFromModel(model);
@@ -215,6 +236,12 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
 
   if (forceFullRender || stateChanged || !stateView.firstElementChild) {
     stateView.innerHTML = renderState(model);
+    baseViewCache.nextPrayerLabel = null;
+    baseViewCache.progressBar = null;
+    baseViewCache.taskText = null;
+    baseViewCache.lastTaskText = '';
+    baseViewCache.lastNextPrayerText = '';
+    baseViewCache.lastProgressPercent = null;
     const section = stateView.querySelector('section');
     if (section) {
       section.classList.add('state-enter');
@@ -235,9 +262,21 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
 }
 
 async function refreshState(forceFullRender = false) {
-  const response = await fetch('/api/state');
-  const data = await response.json();
-  applyViewModel(data.view_model, { forceFullRender });
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = (async () => {
+    const response = await fetch('/api/state');
+    const data = await response.json();
+    applyViewModel(data.view_model, { forceFullRender });
+  })();
+
+  try {
+    await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
 }
 
 document.addEventListener('visibilitychange', () => {
