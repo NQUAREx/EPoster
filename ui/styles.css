@@ -308,8 +308,9 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
   width: 100vw;
   height: 100vh;
   z-index: 1;
-  backdrop-filter: blur(20px) brightness(0.6);
-  -webkit-backdrop-filter: blur(20px) brightness(0.6);
+  background-color: rgba(24, 8, 8, 0.55);
+  backdrop-filter: blur(12px) brightness(0.7);
+  -webkit-backdrop-filter: blur(12px) brightness(0.7);
   background-image: url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJub2lzZUZpbHRlciI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuODUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2VGaWx0ZXIpIiBvcGFjaXR5PSIwLjE1Ii8+PC9zdmc+");
 }
 
@@ -344,6 +345,16 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 .card:nth-child(even) { animation-direction: alternate-reverse; animation-duration: 9s; }
 .card:nth-child(3n) { animation-duration: 11s; }
 
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.02));
+  pointer-events: none;
+}
+
+
 .pin {
   position: absolute;
   top: 6%;
@@ -364,7 +375,7 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 }
 
 .card-text {
-  font-size: 0.7vw;
+  font-size: clamp(12px, 0.85vw, 18px);
   font-family: sans-serif;
   font-weight: bold;
   opacity: 0.8;

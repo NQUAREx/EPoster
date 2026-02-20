@@ -23,6 +23,15 @@ function textGradient(text) {
   return `<span class="water-text">${text}</span>`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function parseCountdownToSeconds(value) {
   const [h, m, s] = String(value || '00:00:00').split(':').map((x) => parseInt(x, 10) || 0);
   return h * 3600 + m * 60 + s;
@@ -133,7 +142,7 @@ function renderMap(model) {
   const lockSvg = '<svg class="lock-icon" viewBox="0 0 24 24"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M8 10V7a4 4 0 118 0v3h1a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2-3a2 2 0 114 0v3h-4V7z" clip-rule="evenodd"/></svg>';
   const checkSvg = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>';
   const circles = model.circles.map((circle) => {
-    const openText = String(circle.task_text || '');
+    const openText = escapeHtml(circle.task_text || '');
     const cardText = circle.status === 'open' ? `<div class="card-text">${openText}</div>` : '';
     const lockedContent = `${lockSvg}<div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>`;
     const body = circle.status === 'completed'
@@ -216,7 +225,7 @@ function patchMapView(model) {
       continue;
     }
 
-    const openText = String(circle.task_text || '');
+    const openText = escapeHtml(circle.task_text || '');
     container.innerHTML = `<div class="card-text">${openText}</div>`;
   }
 
