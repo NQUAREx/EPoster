@@ -133,7 +133,8 @@ function renderMap(model) {
   const lockSvg = '<svg class="lock-icon" viewBox="0 0 24 24"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M8 10V7a4 4 0 118 0v3h1a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2-3a2 2 0 114 0v3h-4V7z" clip-rule="evenodd"/></svg>';
   const checkSvg = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>';
   const circles = model.circles.map((circle) => {
-    const cardText = circle.status === 'open' ? '<div class="card-text">Доступно для открытия</div>' : '';
+    const openText = String(circle.task_text || '');
+    const cardText = circle.status === 'open' ? `<div class="card-text">${openText}</div>` : '';
     const lockedContent = `${lockSvg}<div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>`;
     const body = circle.status === 'completed'
       ? checkSvg
@@ -215,7 +216,8 @@ function patchMapView(model) {
       continue;
     }
 
-    container.innerHTML = '<div class="card-text">Доступно для открытия</div>';
+    const openText = String(circle.task_text || '');
+    container.innerHTML = `<div class="card-text">${openText}</div>`;
   }
 
   const warningNode = document.getElementById('mapWarning');
