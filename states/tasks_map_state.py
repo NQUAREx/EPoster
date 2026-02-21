@@ -23,6 +23,7 @@ class TasksMapState(BaseState):
         return "open"
 
     def show(self) -> dict[str, Any]:
+        task_text_by_day = {task.day: task.text for task in self.tasks}
         return {
             "view": self.name,
             "current_day": self.session.current_day,
@@ -34,6 +35,7 @@ class TasksMapState(BaseState):
                     "status": self._status(day),
                     "selected": day == self.session.selected_day,
                     "viewed": self.session.days[day].viewed,
+                    "task_text": task_text_by_day.get(day, ""),
                 }
                 for day in range(1, 31)
             ],
