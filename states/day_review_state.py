@@ -39,6 +39,7 @@ class DayReviewState(BaseState):
             "view": self.name,
             "day": self.session.selected_day,
             "task_text": self.tasks[self.session.selected_day - 1].text,
+            "task_type": self.tasks[self.session.selected_day - 1].type,
             "child": self._current_child(),
             "completed": self.completed,
             "score_options": [
