@@ -21,6 +21,7 @@ class TaskInfoState(BaseState):
             "view": self.name,
             "day": day_num,
             "task_text": self.tasks[day_num - 1].text,
+            "task_type": self.tasks[day_num - 1].type,
             "closed": day.closed,
             "scores_line": [
                 {"child": child, "emoji": self._emoji(score)}
