@@ -64,7 +64,8 @@ body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
   overflow: hidden;
 }
 
-.lava-background {
+.lava-background,
+.background-fix {
   position: absolute;
   top: 0;
   left: 0;
@@ -72,6 +73,11 @@ body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
   height: 100vh;
   z-index: 0;
   overflow: hidden;
+}
+
+.background-fix {
+  background: radial-gradient(circle at top left, #3d0e0e, transparent),
+    radial-gradient(circle at bottom right, #2b0a0a, transparent);
 }
 
 .blob {
@@ -304,37 +310,37 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 .chalkboard-overlay {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 1;
   pointer-events: none;
   background-image: url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJub2lzZUZpbHRlciI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuODUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2VGaWx0ZXIpIiBvcGFjaXR5PSIwLjA4Ii8+PC9zdmc+");
-  background-color: rgba(0, 0, 0, 0.35);
+  background-color: rgba(0, 0, 0, 0.4);
 }
 
 .tasks-grid {
   position: relative;
-  z-index: 4;
+  z-index: 10;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-template-rows: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(5, 1fr);
   gap: 12px;
-  width: 100%;
-  height: 100%;
-  padding: 22px;
+  width: 100vw;
+  height: 100vh;
+  padding: 20px;
 }
 
 .task-card {
   position: relative;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 8px;
-  animation: cardBreath 4s ease-in-out infinite alternate;
-  transition: transform 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+  padding: 5px;
+  animation: gentleFloat 4s ease-in-out infinite alternate;
+  transition: transform 0.3s ease, background 0.3s;
 }
 
 .pin {
@@ -348,9 +354,9 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 }
 
 .day-number {
-  font-size: clamp(28px, 2.2vw, 42px);
-  font-weight: 950;
-  margin-top: 8px;
+  font-size: 2.2rem;
+  font-weight: 900;
+  margin-top: 10px;
 }
 
 .card-content {
@@ -361,9 +367,9 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 }
 
 .card-text {
-  font-size: clamp(10px, 0.72vw, 14px);
-  opacity: 0.74;
-  margin: 4px 8px;
+  font-size: 0.65rem;
+  opacity: 0.7;
+  margin: 5px 10px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -376,11 +382,12 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 .task-card.completed .card-text { display: none; }
 
 .task-card.selected {
-  transform: scale(1.14);
-  z-index: 10;
+  transform: scale(1.2) !important;
+  z-index: 100;
   border: 2px solid #fff;
-  background: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.25);
   box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+  animation: activeSelection 0.8s ease-in-out infinite alternate;
 }
 
 .check-icon {
@@ -393,7 +400,8 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 .lock-icon {
   width: 30px;
   fill: #fff;
-  opacity: 0.56;
+  margin-top: 5px;
+  opacity: 0.5;
 }
 
 .skeleton-line {
@@ -445,9 +453,14 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 }
 
 
-@keyframes cardBreath {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+@keyframes gentleFloat {
+  from { transform: translateY(0px) rotate(0deg); }
+  to { transform: translateY(-5px) rotate(1deg); }
+}
+
+@keyframes activeSelection {
+  from { border-radius: 20px 40px 20px 40px; }
+  to { border-radius: 40px 20px 40px 20px; }
 }
 
 
