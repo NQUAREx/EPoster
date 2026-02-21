@@ -98,6 +98,7 @@ class BaseScreenState(BaseState):
             "ramadan_elapsed_days": ramadan_elapsed_days,
             "ramadan_progress_percent": (ramadan_elapsed_days / 30.0) * 100.0,
             "today_task": self.tasks[base_task_day - 1].text,
+            "today_task_type": self.tasks[base_task_day - 1].type,
             "task_day": base_task_day,
             "next_prayer": times,
         }

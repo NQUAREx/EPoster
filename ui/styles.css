@@ -237,15 +237,36 @@ body.wake-active .wake-frame {
   transform: translateY(-2vw);
 }
 
+
+.task-type-hard {
+  --task-accent-border: rgba(255, 92, 92, 0.92);
+  --task-accent-glass: rgba(255, 70, 70, 0.16);
+}
+
+.task-type-literary {
+  --task-accent-border: rgba(77, 230, 132, 0.92);
+  --task-accent-glass: rgba(60, 205, 110, 0.16);
+}
+
+.task-type-social {
+  --task-accent-border: rgba(86, 174, 255, 0.92);
+  --task-accent-glass: rgba(64, 149, 255, 0.16);
+}
+
+.task-type-fun {
+  --task-accent-border: rgba(255, 221, 79, 0.95);
+  --task-accent-glass: rgba(255, 213, 64, 0.2);
+}
+
 .task-container {
   color: var(--text-color);
   margin: 0 auto 50px;
   width: 85%;
   max-width: 900px;
-  background: var(--glass-bg);
+  background: var(--task-accent-glass, var(--glass-bg));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--task-accent-border, var(--glass-border));
   border-radius: 40px;
   padding: 35px 50px;
   text-align: center;
@@ -289,6 +310,13 @@ body.wake-active .wake-frame {
   animation: riseIn .42s ease;
 }
 
+.task-glass {
+  border: 1px solid var(--task-accent-border, rgba(216, 236, 255, 0.3));
+  background: var(--task-accent-glass, rgba(220, 235, 255, 0.12));
+  border-radius: 28px;
+  padding: clamp(12px, 1.4vh, 20px) clamp(12px, 1.2vw, 20px);
+}
+
 .water-text {
   color: var(--text-color);
   text-shadow: 0 0 16px rgba(17, 10, 46, 0.45), 0 2px 6px rgba(12, 7, 35, 0.42);
@@ -325,8 +353,8 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 .task-card {
   position: relative;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--task-accent-border, rgba(255, 255, 255, 0.14));
+  background: var(--task-accent-glass, rgba(255, 255, 255, 0.1));
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -24,6 +24,16 @@ function textGradient(text) {
   return `<span class="water-text">${text}</span>`;
 }
 
+
+function taskTypeClass(taskType) {
+  const normalized = String(taskType || '').trim().toLowerCase();
+  if (normalized === 'сложное') return 'task-type-hard';
+  if (normalized === 'литературный') return 'task-type-literary';
+  if (normalized === 'общественный') return 'task-type-social';
+  if (normalized === 'развлекательный') return 'task-type-fun';
+  return '';
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -125,7 +135,7 @@ function renderBase(model) {
       </div>
     </div>
 
-    <div class="task-container">
+    <div class="task-container ${taskTypeClass(model.today_task_type)}">
       <div class="task-label">Задание на сегодня · День ${model.day}</div>
       <div class="task-text" id="daily-task">${model.today_task}</div>
     </div>
@@ -136,7 +146,7 @@ function renderTaskInfo(model) {
   const scores = model.closed
     ? `<div class="scores-line">${model.scores_line.map((item) => `<span>${item.child}: <span class="emoji-plain">${item.emoji}</span></span>`).join(' · ')}</div>`
     : '';
-  return `<section class="task-info-screen" data-view="task_info_state">${asGlass(`<h1>${textGradient(`Задание дня ${model.day}`)}</h1><p class="large-copy">${textGradient(model.task_text)}</p>${scores}`)}</section>`;
+  return `<section class="task-info-screen" data-view="task_info_state">${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h1>${textGradient(`Задание дня ${model.day}`)}</h1><p class="large-copy">${textGradient(model.task_text)}</p>${scores}</div>`)}</section>`;
 }
 
 function renderMap(model) {
@@ -146,13 +156,14 @@ function renderMap(model) {
     const lock = '<svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path d="M18 10V7c0-3.3-2.7-6-6-6S6 3.7 6 7v3H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1zm-6-7c2.2 0 4 1.8 4 4v3H8V7c0-2.2 1.8-4 4-4z"/></svg>';
     const check = '<svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     let content = `<div class="card-text">${safeText}</div>`;
+    const typeClass = taskTypeClass(circle.task_type);
     if (circle.status === 'locked') {
       content = `${lock}<div class="skeleton-line"></div><div class="skeleton-line"></div>`;
     }
     if (circle.status === 'completed') {
       content = check;
     }
-    return `<article data-day="${circle.day}" class="task-card ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin" aria-hidden="true"></span><div class="day-number">${circle.day}</div><div class="card-content">${content}</div></article>`;
+    return `<article data-day="${circle.day}" class="task-card ${typeClass} ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin" aria-hidden="true"></span><div class="day-number">${circle.day}</div><div class="card-content">${content}</div></article>`;
   }).join('');
   const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
   return `<section class="map-screen" data-view="tasks_map_state"><div class="lava-background"><div class="blob"></div><div class="blob"></div><div class="blob"></div></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
@@ -162,7 +173,7 @@ function renderReview(model) {
   const done = model.completed ? `<h1>${textGradient('День завершен!')}</h1>` : '';
   const options = model.score_options.map((s) => `<div class="score">${s.emoji}<small>${textGradient(s.label)}</small></div>`).join('');
   const childName = model.child == null ? '-' : model.child;
-  return `<section class="review-screen" data-view="day_review_state">${asGlass(`<h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${childName}`)}</h1><div class="score-row">${options}</div>${done}`)}</section>`;
+  return `<section class="review-screen" data-view="day_review_state">${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${childName}`)}</h1><div class="score-row">${options}</div>${done}</div>`)}</section>`;
 }
 
 function renderEid(model) {
@@ -194,6 +205,15 @@ function patchBaseView(model) {
     baseViewCache.lastTaskText = model.today_task;
   }
 
+  const taskContainer = stateView.querySelector('.task-container');
+  if (taskContainer) {
+    taskContainer.classList.remove('task-type-hard', 'task-type-literary', 'task-type-social', 'task-type-fun');
+    const currentTypeClass = taskTypeClass(model.today_task_type);
+    if (currentTypeClass) {
+      taskContainer.classList.add(currentTypeClass);
+    }
+  }
+
   if (baseViewCache.progressBar) {
     const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
     if (baseViewCache.lastProgressPercent !== progressPercent) {
@@ -216,6 +236,12 @@ function patchMapView(model) {
     node.classList.toggle('open', circle.status === 'open');
     node.classList.toggle('locked', circle.status === 'locked');
     node.classList.toggle('selected', Boolean(circle.selected));
+
+    node.classList.remove('task-type-hard', 'task-type-literary', 'task-type-social', 'task-type-fun');
+    const currentTypeClass = taskTypeClass(circle.task_type);
+    if (currentTypeClass) {
+      node.classList.add(currentTypeClass);
+    }
 
     const contentNode = node.querySelector('.card-content');
     if (contentNode) {
