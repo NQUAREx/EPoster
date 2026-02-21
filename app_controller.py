@@ -5,6 +5,7 @@ import json
 import time
 
 from command_router import CommandEvent, CommandRouter
+from hardware.ambilight import AmbilightConfig, AmbilightController
 from state_manager import StateManager
 from storage import (
     create_session,
@@ -33,6 +34,15 @@ class AppController:
         self.session = session
         self.state_manager = StateManager(session, self.tasks, self.settings, self.prayer_times)
         self._wake_active_until = 0.0
+        self._ambilight = AmbilightController(
+            AmbilightConfig(
+                enabled=self.settings.ambilight_enabled,
+                gpio_pin=self.settings.ambilight_gpio_pin,
+                led_count=self.settings.ambilight_led_count,
+                brightness=self.settings.ambilight_brightness,
+                color_order=self.settings.ambilight_order,
+            )
+        )
         self._session_snapshot = self._snapshot_session()
         self._settings_snapshot = self._snapshot_settings()
         self._sync_ramadan_day()
@@ -115,6 +125,12 @@ class AppController:
         self._save_session_if_changed()
         self._save_settings_if_changed()
         return ui_payload
+
+    def apply_ambilight_frame(self, edge_colors: dict, viewport: dict | None = None) -> int:
+        return self._ambilight.apply_frame(edge_colors=edge_colors, viewport=viewport)
+
+    def shutdown(self) -> None:
+        self._ambilight.shutdown()
 
     def dispatch_event(self, event: CommandEvent) -> dict:
         self._sync_ramadan_day()

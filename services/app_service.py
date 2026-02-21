@@ -38,5 +38,10 @@ class AppService:
         await self._broadcaster.publish(response)
         return response
 
+
+    async def apply_ambilight_frame(self, edge_colors: dict, viewport: dict | None = None) -> int:
+        async with self._lock:
+            return await asyncio.to_thread(self._controller.apply_ambilight_frame, edge_colors, viewport)
+
     async def shutdown(self) -> None:
-        return
+        await asyncio.to_thread(self._controller.shutdown)

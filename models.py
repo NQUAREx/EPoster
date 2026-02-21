@@ -33,9 +33,20 @@ class AppSettings:
     children: List[str] = field(default_factory=list)
     ramadan_day: int = 1
     ramadan_day_updated_on: str = ""
+    ambilight_enabled: bool = True
+    ambilight_gpio_pin: int = 18
+    ambilight_led_count: int = 120
+    ambilight_brightness: int = 96
+    ambilight_order: str = "GRB"
 
     @staticmethod
     def from_dict(data: dict) -> "AppSettings":
+        def parse_int(value: object, default: int) -> int:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return default
+
         raw_day = data.get("ramadan_day", 1)
         try:
             ramadan_day = int(raw_day)
@@ -58,6 +69,11 @@ class AppSettings:
             children=[name.strip() for name in data.get("children", []) if isinstance(name, str) and name.strip()],
             ramadan_day=ramadan_day,
             ramadan_day_updated_on=updated_on,
+            ambilight_enabled=bool(data.get("ambilight_enabled", True)),
+            ambilight_gpio_pin=max(10, parse_int(data.get("ambilight_gpio_pin", 18), 18)),
+            ambilight_led_count=max(12, parse_int(data.get("ambilight_led_count", 120), 120)),
+            ambilight_brightness=min(255, max(0, parse_int(data.get("ambilight_brightness", 96), 96))),
+            ambilight_order=str(data.get("ambilight_order", "GRB") or "GRB").upper(),
         )
 
     def to_dict(self) -> dict:

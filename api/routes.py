@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
-from api.schemas import CommandRequest, WakeRequest
+from api.schemas import AmbilightFrameRequest, CommandRequest, WakeRequest
 from command_router import CommandEvent
 
 
@@ -38,6 +38,19 @@ def build_router(ui_dir: Path) -> APIRouter:
             wake_word_detected=payload.wake_word_detected,
         )
         return await request.app.state.app_service.dispatch_event(event)
+
+
+    @router.post("/api/ambilight/frame")
+    async def post_ambilight_frame(payload: AmbilightFrameRequest, request: Request) -> dict:
+        edge_colors = {
+            "top": payload.top,
+            "right": payload.right,
+            "bottom": payload.bottom,
+            "left": payload.left,
+        }
+        viewport = payload.viewport.model_dump()
+        led_count = await request.app.state.app_service.apply_ambilight_frame(edge_colors=edge_colors, viewport=viewport)
+        return {"ok": True, "led_count": led_count}
 
     @router.websocket("/ws/state")
     async def state_ws(websocket: WebSocket) -> None:

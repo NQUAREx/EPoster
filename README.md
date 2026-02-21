@@ -130,6 +130,21 @@ python -m voice.recognizer --backend-url http://127.0.0.1:8000 --wake-word пл�
 
 > Если `vosk/sounddevice` не установлены, модуль не будет распознавать аудио (завершит цикл без распознанных фраз).
 
+## Ambilight (WS2812B через GPIO)
+
+Добавлен модуль `hardware/ambilight.py` для адресной ленты WS2812B:
+
+- управление через `rpi_ws281x` (с безопасным fallback, если библиотека недоступна);
+- начало адресации в правом нижнем углу, далее по часовой стрелке;
+- автоматическое распределение LED по сторонам экрана с учетом текущего разрешения;
+- фронтенд отправляет edge-сэмплы цвета в `POST /api/ambilight/frame`;
+- длина и GPIO настраиваются через `data/settings.json`:
+  - `ambilight_enabled`
+  - `ambilight_gpio_pin`
+  - `ambilight_led_count`
+  - `ambilight_brightness`
+  - `ambilight_order`
+
 ## Тесты
 
 ```bash
