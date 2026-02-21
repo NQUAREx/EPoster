@@ -3,6 +3,10 @@ const stateView = document.getElementById('stateView');
 let wakeActiveUntil = 0;
 let currentState = '';
 let refreshInFlight = null;
+let stateSocket = null;
+let reconnectTimer = null;
+let baseCountdownSeconds = null;
+let wsConnected = false;
 const baseViewCache = {
   nextPrayerLabel: null,
   progressBar: null,
@@ -127,7 +131,8 @@ function renderTaskInfo(model) {
 }
 
 function renderMap(model) {
-  const circles = model.circles.map((circle) => {
+  const circlesData = Array.isArray(model.circles) ? model.circles : [];
+  const circles = circlesData.map((circle) => {
     const icon = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
     const lock = circle.status === 'locked' && !circle.viewed ? '<span class="lock-overlay">🔒</span>' : '';
     return `<div class="note-wrap"><div data-day="${circle.day}" class="task-note ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin-head" aria-hidden="true"></span><span class="note-icon">${icon}</span>${lock}</div></div>`;
@@ -180,7 +185,8 @@ function patchBaseView(model) {
   }
 
   applyPaletteFromModel(model);
-  updateJellyClock(formatClock(parseCountdownToSeconds(model.next_prayer.countdown)));
+  baseCountdownSeconds = parseCountdownToSeconds(model.next_prayer.countdown);
+  updateJellyClock(formatClock(baseCountdownSeconds));
 }
 
 function patchMapView(model) {
@@ -279,15 +285,76 @@ async function refreshState(forceFullRender = false) {
   }
 }
 
+function scheduleSocketReconnect() {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectStateSocket();
+  }, 1500);
+}
+
+function connectStateSocket() {
+  if (stateSocket && (stateSocket.readyState === WebSocket.OPEN || stateSocket.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  stateSocket = new WebSocket(`${protocol}://${window.location.host}/ws/state`);
+
+  stateSocket.addEventListener('open', () => {
+    wsConnected = true;
+  });
+
+  stateSocket.addEventListener('message', (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (!data?.view_model) {
+        refreshState().catch(() => {});
+        return;
+      }
+      applyViewModel(data.view_model);
+    } catch (_) {
+      refreshState().catch(() => {});
+    }
+  });
+
+  stateSocket.addEventListener('close', () => {
+    wsConnected = false;
+    stateSocket = null;
+    scheduleSocketReconnect();
+  });
+
+  stateSocket.addEventListener('error', () => {
+    wsConnected = false;
+    stateSocket?.close();
+  });
+}
+
+function fallbackRefreshTick() {
+  if (wsConnected) return;
+  refreshState().catch(() => {});
+}
+
+function tickBaseCountdown() {
+  if (currentState !== 'base_state' || baseCountdownSeconds == null) {
+    return;
+  }
+  baseCountdownSeconds = Math.max(0, baseCountdownSeconds - 1);
+  updateJellyClock(formatClock(baseCountdownSeconds));
+  if (baseCountdownSeconds === 0) {
+    refreshState().catch(() => {});
+  }
+}
+
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     refreshState();
+    connectStateSocket();
   }
 });
 
 setInterval(updateWakeBorder, 200);
 refreshState(true);
-
-setInterval(() => {
-  refreshState().catch(() => {});
-}, 1000);
+connectStateSocket();
+setInterval(tickBaseCountdown, 1000);
+setInterval(fallbackRefreshTick, 3000);

@@ -62,3 +62,16 @@ def test_wake_state_persists_for_polling(client):
     state_response = client.get("/api/state")
     assert state_response.status_code == 200
     assert state_response.json()["view_model"]["wake_active"] is True
+
+
+def test_websocket_pushes_state_updates(client):
+    with client.websocket_connect("/ws/state") as ws:
+        initial_payload = ws.receive_json()
+        assert initial_payload["state"] == "base_state"
+
+        command_response = client.post("/api/command", json={"command": "open_tasks_map"})
+        assert command_response.status_code == 200
+
+        pushed_payload = ws.receive_json()
+        assert pushed_payload["state"] == "tasks_map_state"
+        assert len(pushed_payload["view_model"]["circles"]) == 30
