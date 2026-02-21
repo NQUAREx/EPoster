@@ -44,7 +44,7 @@ class DayReviewState(BaseState):
             "completed": self.completed,
             "score_options": [
                 {"score": 1, "emoji": "☹️", "label": "Плохо"},
-                {"score": 2, "emoji": "🙂", "label": "Средне"},
+                {"score": 2, "emoji": "🙂", "label": "Не очень"},
                 {"score": 3, "emoji": "😄", "label": "Хорошо"},
             ],
         }
