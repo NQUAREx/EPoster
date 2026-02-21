@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from threading import Lock
 from typing import Iterable
+
+from hardware.lights import LightController, StripConfig
 
 
 @dataclass(frozen=True)
@@ -14,70 +15,18 @@ class AmbilightConfig:
     color_order: str = "GRB"
 
 
-class _Ws2812Driver:
-    def __init__(self, config: AmbilightConfig) -> None:
-        self._config = config
-        self._pixels = None
-        self._lock = Lock()
-        self._active = False
-        self._setup_driver()
-
-    def _setup_driver(self) -> None:
-        if not self._config.enabled:
-            return
-        try:
-            from rpi_ws281x import PixelStrip, ws  # type: ignore
-
-            pixel_order = {
-                "RGB": ws.WS2811_STRIP_RGB,
-                "RBG": ws.WS2811_STRIP_RBG,
-                "GRB": ws.WS2811_STRIP_GRB,
-                "GBR": ws.WS2811_STRIP_GBR,
-                "BRG": ws.WS2811_STRIP_BRG,
-                "BGR": ws.WS2811_STRIP_BGR,
-            }.get(self._config.color_order, ws.WS2811_STRIP_GRB)
-
-            self._pixels = PixelStrip(
-                self._config.led_count,
-                self._config.gpio_pin,
-                800_000,
-                10,
-                False,
-                self._config.brightness,
-                0,
-                pixel_order,
-            )
-            self._pixels.begin()
-            self._active = True
-        except Exception:
-            self._pixels = None
-            self._active = False
-
-    @staticmethod
-    def _to_color_int(rgb: tuple[int, int, int]) -> int:
-        return (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]
-
-    def show(self, colors: list[tuple[int, int, int]]) -> None:
-        if not self._active or self._pixels is None:
-            return
-        with self._lock:
-            for index, rgb in enumerate(colors[: self._config.led_count]):
-                self._pixels.setPixelColor(index, self._to_color_int(rgb))
-            self._pixels.show()
-
-    def off(self) -> None:
-        if not self._active or self._pixels is None:
-            return
-        with self._lock:
-            for index in range(self._config.led_count):
-                self._pixels.setPixelColor(index, 0)
-            self._pixels.show()
-
-
 class AmbilightController:
     def __init__(self, config: AmbilightConfig) -> None:
         self._config = config
-        self._driver = _Ws2812Driver(config)
+        self._driver = LightController(
+            StripConfig(
+                enabled=config.enabled,
+                gpio_pin=config.gpio_pin,
+                led_count=config.led_count,
+                brightness=config.brightness,
+                color_order=config.color_order,
+            )
+        )
 
     @staticmethod
     def _safe_rgb(value: Iterable[int]) -> tuple[int, int, int]:
@@ -130,15 +79,17 @@ class AmbilightController:
         left = self._nearest_palette([self._safe_rgb(v) for v in edge_colors.get("left", [])], left_count)
         bottom = self._nearest_palette([self._safe_rgb(v) for v in edge_colors.get("bottom", [])], bottom_count)
 
-        # Start in lower-right corner and move clockwise.
         return right + top + left + bottom
 
     def apply_frame(self, edge_colors: dict, viewport: dict | None = None) -> int:
         if not self._config.enabled:
+            print("[AMBI_LIGHT] frame skipped: ambilight disabled in config")
             return 0
         strip = self._build_led_strip(edge_colors=edge_colors, viewport=viewport)
         self._driver.show(strip)
+        print(f"[AMBI_LIGHT] frame accepted: total_leds={len(strip)}")
         return len(strip)
 
     def shutdown(self) -> None:
+        print("[AMBI_LIGHT] shutdown requested")
         self._driver.off()
