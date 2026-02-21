@@ -1,41 +1,94 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from threading import Lock
 
 
-@dataclass
-class LightState:
-    mode: str = "idle"
-    brightness: int = 50
-    color: str = "white"
+@dataclass(frozen=True)
+class StripConfig:
+    enabled: bool = True
+    gpio_pin: int = 18
+    led_count: int = 120
+    brightness: int = 96
+    color_order: str = "GRB"
 
 
 class LightController:
-    """Stub light controller: logs and prints accepted commands."""
+    """WS2812/NeoPixel controller based on board + neopixel libraries."""
 
-    def __init__(self):
-        self.state = LightState()
-        self.command_log: list[str] = []
+    _ORDER_MAP = {
+        "RGB": "RGB",
+        "RBG": "RBG",
+        "GRB": "GRB",
+        "GBR": "GBR",
+        "BRG": "BRG",
+        "BGR": "BGR",
+    }
 
-    def _accept(self, command: str) -> None:
-        self.command_log.append(command)
-        print(f"[LIGHT_STUB] {command}")
+    def __init__(self, config: StripConfig) -> None:
+        self._config = config
+        self._lock = Lock()
+        self._pixels = None
+        self._active = False
+        self._setup_driver()
 
-    def set_idle(self) -> None:
-        self.state.mode = "idle"
-        self.state.color = "white"
-        self._accept("set_idle")
+    @staticmethod
+    def _resolve_pin(board_module, gpio_pin: int):
+        if gpio_pin == 18 and hasattr(board_module, "D18"):
+            return board_module.D18
+        pin_name = f"D{gpio_pin}"
+        return getattr(board_module, pin_name, None)
 
-    def set_review(self) -> None:
-        self.state.mode = "review"
-        self.state.color = "blue"
-        self._accept("set_review")
+    @staticmethod
+    def _brightness_to_float(value: int) -> float:
+        safe_value = min(255, max(0, int(value)))
+        return safe_value / 255.0
 
-    def set_celebration(self) -> None:
-        self.state.mode = "celebration"
-        self.state.color = "gold"
-        self._accept("set_celebration")
+    def _setup_driver(self) -> None:
+        if not self._config.enabled:
+            return
 
-    def set_brightness(self, value: int) -> None:
-        self.state.brightness = max(0, min(100, int(value)))
-        self._accept(f"set_brightness:{self.state.brightness}")
+        try:
+            import board  # type: ignore
+            import neopixel  # type: ignore
+
+            pin = self._resolve_pin(board, self._config.gpio_pin)
+            if pin is None:
+                return
+
+            order_name = self._ORDER_MAP.get(self._config.color_order, "GRB")
+            pixel_order = getattr(neopixel, order_name, neopixel.GRB)
+
+            self._pixels = neopixel.NeoPixel(
+                pin,
+                self._config.led_count,
+                brightness=self._brightness_to_float(self._config.brightness),
+                auto_write=False,
+                pixel_order=pixel_order,
+            )
+            self._active = True
+        except Exception:
+            self._pixels = None
+            self._active = False
+
+    def show(self, colors: list[tuple[int, int, int]]) -> None:
+        if not self._active or self._pixels is None:
+            return
+
+        with self._lock:
+            limit = min(self._config.led_count, len(colors))
+            for index in range(limit):
+                self._pixels[index] = colors[index]
+
+            for index in range(limit, self._config.led_count):
+                self._pixels[index] = (0, 0, 0)
+
+            self._pixels.show()
+
+    def off(self) -> None:
+        if not self._active or self._pixels is None:
+            return
+
+        with self._lock:
+            self._pixels.fill((0, 0, 0))
+            self._pixels.show()
