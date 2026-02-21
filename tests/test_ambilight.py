@@ -29,3 +29,12 @@ def test_disabled_ambilight_ignores_frames():
     controller = AmbilightController(AmbilightConfig(enabled=False, led_count=60))
     led_count = controller.apply_frame(edge_colors={"top": [], "right": [], "bottom": [], "left": []}, viewport=None)
     assert led_count == 0
+
+
+def test_tone_mapping_darkens_but_preserves_color_bias():
+    source = (200, 90, 40)
+    mapped = AmbilightController._apply_ambilight_tone_mapping(source)
+    assert mapped[0] < source[0]
+    assert mapped[1] < source[1]
+    assert mapped[2] < source[2]
+    assert mapped[0] > mapped[1] > mapped[2]

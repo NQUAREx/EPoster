@@ -396,17 +396,34 @@ function parseCssColorToRgb(colorValue) {
   const source = String(colorValue || '').trim();
   const rgbaMatch = source.match(/rgba?\(([^)]+)\)/i);
   if (rgbaMatch) {
-    const [r, g, b] = rgbaMatch[1].split(',').slice(0, 3).map((v) => Math.max(0, Math.min(255, parseInt(v.trim(), 10) || 0)));
-    return [r, g, b];
+    const parts = rgbaMatch[1].split(',').map((v) => v.trim());
+    const [r, g, b] = parts.slice(0, 3).map((v) => Math.max(0, Math.min(255, parseInt(v, 10) || 0)));
+    const alpha = Math.max(0, Math.min(1, parseFloat(parts[3] || '1') || 0));
+    return [r, g, b, alpha];
   }
   const hex = source.startsWith('#') ? source.slice(1) : '';
   if (hex.length === 3) {
-    return hex.split('').map((c) => parseInt(`${c}${c}`, 16));
+    return [...hex.split('').map((c) => parseInt(`${c}${c}`, 16)), 1];
   }
   if (hex.length === 6) {
-    return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+    return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16), 1];
   }
-  return [0, 0, 0];
+  return [0, 0, 0, 0];
+}
+
+function resolveVisualColor(element) {
+  let node = element;
+  while (node && node !== document.documentElement) {
+    const style = window.getComputedStyle(node);
+    const [r, g, b, alpha] = parseCssColorToRgb(style.backgroundColor);
+    if (alpha > 0.04) {
+      return [r, g, b];
+    }
+    node = node.parentElement;
+  }
+
+  const [bodyR, bodyG, bodyB] = parseCssColorToRgb(window.getComputedStyle(document.body).backgroundColor);
+  return [bodyR, bodyG, bodyB];
 }
 
 function samplePixelColorAt(x, y) {
@@ -414,11 +431,7 @@ function samplePixelColorAt(x, y) {
   const clampedY = Math.max(0, Math.min(window.innerHeight - 1, Math.round(y)));
   const element = document.elementFromPoint(clampedX, clampedY);
   if (!element) return [0, 0, 0];
-  const style = window.getComputedStyle(element);
-  const bg = parseCssColorToRgb(style.backgroundColor);
-  const text = parseCssColorToRgb(style.color);
-  const luminance = (bg[0] + bg[1] + bg[2]) / 3;
-  return luminance < 30 ? text : bg;
+  return resolveVisualColor(element);
 }
 
 function collectEdgeColors(samplesPerEdge = 18) {
@@ -493,4 +506,4 @@ refreshState(true);
 connectStateSocket();
 setInterval(tickBaseCountdown, 1000);
 setInterval(fallbackRefreshTick, 3000);
-setInterval(pushAmbilightFrame, 350);
+setInterval(pushAmbilightFrame, 220);
