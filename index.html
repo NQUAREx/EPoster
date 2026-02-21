@@ -3,353 +3,187 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EPoster Smart Display</title>
+  <title>EPoster - Linux Kiosk Map</title>
   
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap" rel="stylesheet">
-
   <style>
     :root {
-      /* Тема по умолчанию: Горячая Лава (до Ифтара) */
-      --color-bg: #2b0a0a;
-      --color-blob1: #ff5e62;
-      --color-blob2: #ff9966;
-      --color-blob3: #f12711;
-      
-      --glass-bg: rgba(255, 255, 255, 0.1);
-      --glass-border: rgba(255, 255, 255, 0.2);
+      /* Темный фон доски, чтобы не зависеть от тяжелых эффектов */
+      --color-bg: #1a0505;
+      --color-accent: #ff5e62;
+      --glass-border: rgba(255, 255, 255, 0.15);
       --text-color: #ffffff;
+      
+      --card-open-bg: rgba(255, 255, 255, 0.1);
+      --card-locked-bg: rgba(50, 50, 50, 0.6);
+      --card-completed-bg: rgba(46, 204, 113, 0.7);
     }
 
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
 
     body, html {
       margin: 0; padding: 0;
       width: 100vw; height: 100vh;
       overflow: hidden;
-      font-family: 'Nunito', sans-serif;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       color: var(--text-color);
       background-color: var(--color-bg);
+    }
+
+    /* Облегченный фон: градиент вместо блюра */
+    .background-fix {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle at top left, #3d0e0e, transparent),
+                  radial-gradient(circle at bottom right, #2b0a0a, transparent);
+      z-index: 0;
+    }
+
+    /* Текстура доски без backdrop-filter */
+    .chalkboard-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 1;
+      background-image: url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJub2lzZUZpbHRlciI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuODUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2VGaWx0ZXIpIiBvcGFjaXR5PSIwLjA4Ii8+PC9zdmc+");
+      background-color: rgba(0, 0, 0, 0.4); /* Замена блюру */
+    }
+
+    .tasks-grid {
+      position: relative;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      gap: 12px;
+      width: 100vw;
+      height: 100vh;
+      padding: 20px;
+    }
+
+    /* Оптимизированная желейная карточка */
+    .card {
+      position: relative;
+      background: var(--card-open-bg);
+      border: 1px solid var(--glass-border);
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      transition: background-color 2s ease;
-    }
-
-    /* ФОН: ПЛАВАЮЩАЯ ЛАВА */
-    .lava-background {
-      position: absolute;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 0;
-      overflow: hidden;
-    }
-    .blob {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(80px); /* Сильное размытие для слияния цветов */
-      opacity: 0.8;
-      animation: float 20s infinite alternate cubic-bezier(0.4, 0.0, 0.2, 1);
-      transition: background 2s ease;
-    }
-    .blob:nth-child(1) {
-      width: 60vw; height: 60vw;
-      background: var(--color-blob1);
-      top: -10%; left: -10%;
-      animation-duration: 25s;
-    }
-    .blob:nth-child(2) {
-      width: 50vw; height: 50vw;
-      background: var(--color-blob2);
-      bottom: -20%; right: -10%;
-      animation-duration: 22s;
-      animation-delay: -5s;
-    }
-    .blob:nth-child(3) {
-      width: 55vw; height: 55vw;
-      background: var(--color-blob3);
-      bottom: 20%; left: 20%;
-      animation-duration: 28s;
-      animation-delay: -10s;
-    }
-
-    @keyframes float {
-      0% { transform: translate(0, 0) scale(1); }
-      50% { transform: translate(10%, 20%) scale(1.2); }
-      100% { transform: translate(-20%, 10%) scale(0.9); }
-    }
-
-    /* РАМКА WAKE СЛОВА (СИНЯЯ ПУЛЬСАЦИЯ) */
-    .wake-frame {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      pointer-events: none;
-      box-shadow: inset 0 0 0px 0px rgba(0, 150, 255, 0);
-      transition: box-shadow 0.3s ease;
-      z-index: 9999; /* Поверх всего */
-    }
-    body.wake-active .wake-frame {
-      animation: pulseBlue 1.5s infinite;
-    }
-    @keyframes pulseBlue {
-      0% { box-shadow: inset 0 0 30px 10px rgba(0, 150, 255, 0.6); }
-      50% { box-shadow: inset 0 0 100px 40px rgba(0, 190, 255, 0.9); }
-      100% { box-shadow: inset 0 0 30px 10px rgba(0, 150, 255, 0.6); }
-    }
-
-    /* ВЕРХ: ПРОГРЕСС БАР (GLASSMORPHISM) */
-    .progress-wrapper {
-      width: 90%;
-      max-width: 1200px;
-      margin: 40px auto 0;
-      z-index: 10;
-    }
-    .progress-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 1.5vw;
-      font-weight: 800;
-      margin-bottom: 12px;
-      padding: 0 10px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      text-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    }
-    .progress-container {
-      height: 18px;
-      background: var(--glass-bg);
-      border-radius: 30px;
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--glass-border);
-      overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-    }
-    .progress-bar {
-      height: 100%;
-      width: 0%; /* Меняется через JS */
-      background: #fff;
-      border-radius: 30px;
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
-      transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* ЦЕНТР: ЖЕЛЕЙНЫЕ ЧАСЫ */
-    .clock-container {
-      flex-grow: 1;
-      display: flex;
       align-items: center;
       justify-content: center;
-      filter: url(#goo); /* Главная магия перетекания */
-      z-index: 10;
-    }
-    .clock {
-      display: flex;font-size: 26vw;
-      line-height: 1;
-      letter-spacing: -1vw;
-      text-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    }
-    .digit-box {
-      position: relative;
-      width: 15vw;
-      height: 26vw;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .digit {
-      position: absolute;
-      transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.8s ease, filter 0.8s ease;
-      will-change: transform, opacity, filter;
-    }
-    .digit.in {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0px);
-    }
-    .digit.out {
-      opacity: 0;
-      transform: translateY(-80%) scale(0.6);
-      filter: blur(12px);
-    }
-    .digit.prepare {
-      opacity: 0;
-      transform: translateY(80%) scale(0.6);
-      filter: blur(12px);
-    }
-    .colon {
-      width: 6vw;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      animation: pulseColon 2s infinite;
-      transform: translateY(-2vw);
-    }
-    @keyframes pulseColon {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    /* НИЗ: БЛОК С ЗАДАНИЕМ */
-    .task-container {
-      margin: 0 auto 50px;
-      width: 85%;
-      max-width: 900px;
-      background: var(--glass-bg);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--glass-border);
-      border-radius: 40px;
-      padding: 35px 50px;
       text-align: center;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-      z-index: 10;
+      padding: 5px;
+      border-radius: 20px; /* Упрощенный радиус для Linux */
+      transition: transform 0.3s ease, background 0.3s;
+      /* Легкая анимация без пересчета геометрии */
+      animation: gentleFloat 4s ease-in-out infinite alternate;
     }
-    .task-label {
-      font-size: 1.2vw;
-      text-transform: uppercase;
-      letter-spacing: 4px;
+
+    @keyframes gentleFloat {
+      from { transform: translateY(0px) rotate(0deg); }
+      to { transform: translateY(-5px) rotate(1deg); }
+    }
+
+    .pin {
+      position: absolute;
+      top: 10px;
+      width: 12px; height: 12px;
+      background: #ff4757;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      z-index: 2;
+    }
+
+    .day-number {
+      font-size: 2.2rem;
+      font-weight: 900;
+      margin-top: 10px;
+    }
+
+    .card-text {
+      font-size: 0.65rem;
       opacity: 0.7;
-      margin-bottom: 15px;
-      font-weight: 900;
+      margin: 5px 10px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
-    .task-text {
-      font-size: 2.8vw;
-      font-weight: 900;
-      line-height: 1.3;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+
+    /* Состояния */
+    .card.locked { background: var(--card-locked-bg); opacity: 0.6; }
+    .card.locked .lock-icon { width: 30px; fill: white; margin-top: 5px; opacity: 0.5; }
+
+    .card.completed { background: var(--card-completed-bg); }
+    .card.completed .check-icon { width: 50px; stroke: white; fill: none; stroke-width: 3; }
+    .card.completed .day-number, .card.completed .card-text { display: none; }
+
+    /* Курсор (Selected) - максимально выразительный для киоска */
+    .card.selected {
+      transform: scale(1.2) !important;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.25);
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 30px rgba(255,255,255,0.3);
+      animation: activeSelection 0.8s ease-in-out infinite alternate;
     }
+
+    @keyframes activeSelection {
+        from { border-radius: 20px 40px 20px 40px; }
+        to { border-radius: 40px 20px 40px 20px; }
+    }
+
+    .skeleton-line { height: 4px; background: rgba(255,255,255,0.1); margin: 3px auto; border-radius: 2px; width: 60%; }
   </style>
 </head>
 <body>
 
-  <div class="lava-background">
-    <div class="blob"></div>
-    <div class="blob"></div>
-    <div class="blob"></div>
-  </div>
-
-  <div class="wake-frame"></div>
-
-  <div class="progress-wrapper">
-    <div class="progress-labels">
-      <span id="event-name">До Ифтара</span>
-      <span id="event-time-left">00:00:00</span>
-    </div>
-    <div class="progress-container">
-      <div class="progress-bar" id="progress-bar"></div>
-    </div>
-  </div>
-
-  <svg style="width:0;height:0;position:absolute;">
-    <defs>
-      <filter id="goo">
-        <feGaussianBlur in="SourceGraphic" stdDeviation="15" result="blur" />
-        <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 25 -10" result="goo" />
-        <feBlend in="SourceGraphic" in2="goo" />
-      </filter>
-    </defs>
-  </svg>
-
-  <div class="clock-container">
-    <div class="clock">
-      <div class="digit-box" id="h1"></div>
-      <div class="digit-box" id="h2"></div>
-      <div class="colon">:</div>
-      <div class="digit-box" id="m1"></div>
-      <div class="digit-box" id="m2"></div>
-    </div>
-  </div>
-
-  <div class="task-container">
-    <div class="task-label">Задание на сегодня</div>
-    <div class="task-text" id="daily-task">Прочитать 5 страниц Корана и сделать дуа за близких.</div>
-  </div>
+  <div class="background-fix"></div>
+  <div class="chalkboard-overlay"></div>
+  <div class="tasks-grid" id="tasks-grid"></div>
 
   <script>
-    // === ЛОГИКА ЖЕЛЕЙНЫХ ЧАСОВ ===
-    function updateDigit(id, newValue) {
-      const container = document.getElementById(id);
-      const currentDigit = container.querySelector('.digit.in');
+    var grid = document.getElementById('tasks-grid');
+    var cards = [];
+    var lockSVG = '<svg class="lock-icon" viewBox="0 0 24 24"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path d="M18 10V7c0-3.3-2.7-6-6-6S6 3.7 6 7v3H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1zm-6-7c2.2 0 4 1.8 4 4v3H8V7c0-2.2 1.8-4 4-4z"/></svg>';
+    var checkSVG = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    function init() {
+      for (var i = 1; i <= 30; i++) {
+        var c = document.createElement('div');
+        c.className = 'card';
+        c.innerHTML = '<div class="pin"></div><div class="day-number">'+i+'</div><div class="cont"></div>';
+        grid.appendChild(c);
+        cards.push(c);
+      }
+    }
+
+    function setDayState(day, state, text) {
+      var card = cards[day-1];
+      var cont = card.querySelector('.cont');
+      card.classList.remove('locked', 'completed', 'open');
+      card.classList.add(state);
       
-      if (currentDigit && currentDigit.innerText === newValue) return;
-
-      const newDigit = document.createElement('div');
-      newDigit.className = 'digit prepare';
-      newDigit.innerText = newValue;
-      container.appendChild(newDigit);
-
-      // Trigger reflow
-      void newDigit.offsetWidth;
-
-      if (currentDigit) {
-        currentDigit.classList.remove('in');
-        currentDigit.classList.add('out');
-        setTimeout(() => currentDigit.remove(), 800);
+      if(state === 'locked') {
+        cont.innerHTML = lockSVG + '<div class="skeleton-line"></div><div class="skeleton-line"></div>';
+      } else if(state === 'completed') {
+        cont.innerHTML = checkSVG;
+      } else {
+        cont.innerHTML = '<div class="card-text">' + (text || '') + '</div>';
       }
-
-      newDigit.classList.remove('prepare');
-      newDigit.classList.add('in');
     }
 
-    function updateClock() {
-      const now = new Date();
-      const h = String(now.getHours()).padStart(2, '0');
-      const m = String(now.getMinutes()).padStart(2, '0');
-
-      updateDigit('h1', h[0]);
-      updateDigit('h2', h[1]);
-      updateDigit('m1', m[0]);
-      updateDigit('m2', m[1]);
+    function setCursor(day) {
+      cards.forEach(function(c){ c.classList.remove('selected'); });
+      cards[day-1].classList.add('selected');
     }
 
-    setInterval(updateClock, 1000);
-    updateClock();
-
-    // === API ДЛЯ ИНТЕГРАЦИИ В ТВОЙ ПРОЕКТ НА PYTHON ===
+    init();
     
-    // 1. Вызов рамки при Wake-слове
-    function triggerWakeWord(durationMs = 3000) {
-      document.body.classList.add('wake-active');
-      setTimeout(() => {
-        document.body.classList.remove('wake-active');
-      }, durationMs);
+    // Тестовое заполнение
+    for(var i=1; i<=30; i++) {
+      if(i < 10) setDayState(i, 'completed');
+      else if(i === 10) setDayState(i, 'open', 'Тестовое задание для линукс киоска');
+      else setDayState(i, 'locked');
     }
-
-    // 2. Смена темы (Ифтар/Сухур)
-    function setTheme(themeMode) {
-      const root = document.documentElement;
-      if (themeMode === 'iftar') {
-        // Горячая Лава (Оранжевый/Красный)
-        root.style.setProperty('--color-bg', '#2b0a0a');
-        root.style.setProperty('--color-blob1', '#ff5e62');
-        root.style.setProperty('--color-blob2', '#ff9966');
-        root.style.setProperty('--color-blob3', '#f12711');
-      } else if (themeMode === 'suhur') {
-        // Холодная Аврора (Синий/Фиолетовый/Изумрудный)
-        root.style.setProperty('--color-bg', '#050b14');
-        root.style.setProperty('--color-blob1', '#00c6ff');
-        root.style.setProperty('--color-blob2', '#0072ff');
-        root.style.setProperty('--color-blob3', '#1f1c2c');
-      }
-    }
-
-    // 3. Обновление прогресса и текста
-    function updateDashboard(eventName, timeLeftStr, progressPercent, taskText) {
-      document.getElementById('event-name').innerText = eventName;
-      document.getElementById('event-time-left').innerText = timeLeftStr;
-      document.getElementById('progress-bar').style.width = progressPercent + '%';
-      if(taskText) document.getElementById('daily-task').innerText = taskText;
-    }
-
-    // --- ДЕМОНСТРАЦИЯ (Удали этот блок при интеграции в проект) ---
-    // Эмуляция работы прогресс бара:
-    let demoProgress = 0;
-    setInterval(() => {
-        demoProgress = (demoProgress + 5) % 100;
-        updateDashboard('До Ифтара', '02:45:10', demoProgress);
-    }, 5000);
-
-    // Эмуляция реакции на Wake-слово раз в 10 секунд
-    setInterval(() => triggerWakeWord(2000), 10000);
-    // -------------------------------------------------------------
+    setCursor(10);
   </script>
 </body>
 </html>

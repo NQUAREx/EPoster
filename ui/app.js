@@ -24,6 +24,15 @@ function textGradient(text) {
   return `<span class="water-text">${text}</span>`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function parseCountdownToSeconds(value) {
   const [h, m, s] = String(value || '00:00:00').split(':').map((x) => parseInt(x, 10) || 0);
   return h * 3600 + m * 60 + s;
@@ -37,7 +46,7 @@ function formatClock(totalSeconds) {
 }
 
 function applyPaletteFromModel(model) {
-  const palette = model?.next_prayer?.palette;
+  const palette = model && model.next_prayer ? model.next_prayer.palette : null;
   if (!palette) return;
   const root = document.documentElement;
   root.style.setProperty('--color-bg', String(palette.bg || ''));
@@ -137,14 +146,15 @@ function renderMap(model) {
     const lock = circle.status === 'locked' && !circle.viewed ? '<span class="lock-overlay">🔒</span>' : '';
     return `<div class="note-wrap"><div data-day="${circle.day}" class="task-note ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin-head" aria-hidden="true"></span><span class="note-icon">${icon}</span>${lock}</div></div>`;
   }).join('');
-  const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
-  return `<section class="map-screen" data-view="tasks_map_state">${asGlass(`<div class="paper-board"><div class="grid">${circles}</div>${warning}</div>`)}</section>`;
+  const warning = model.warning ? `<div class="map-warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="map-warning" id="mapWarning"></div>';
+  return `<section class="map-screen" data-view="tasks_map_state"><div class="lava-background"><div class="blob"></div><div class="blob"></div><div class="blob"></div></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
 }
 
 function renderReview(model) {
   const done = model.completed ? `<h1>${textGradient('День завершен!')}</h1>` : '';
   const options = model.score_options.map((s) => `<div class="score">${s.emoji}<small>${textGradient(s.label)}</small></div>`).join('');
-  return `<section class="review-screen" data-view="day_review_state">${asGlass(`<h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${model.child ?? '-'}`)}</h1><div class="score-row">${options}</div>${done}`)}</section>`;
+  const childName = model.child == null ? '-' : model.child;
+  return `<section class="review-screen" data-view="day_review_state">${asGlass(`<h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${childName}`)}</h1><div class="score-row">${options}</div>${done}`)}</section>`;
 }
 
 function renderEid(model) {
@@ -191,7 +201,7 @@ function patchBaseView(model) {
 
 function patchMapView(model) {
   for (const circle of model.circles) {
-    const node = stateView.querySelector(`.task-note[data-day="${circle.day}"]`);
+    const node = stateView.querySelector(`.card[data-day="${circle.day}"]`);
     if (!node) continue;
 
     node.classList.toggle('completed', circle.status === 'completed');
@@ -199,17 +209,21 @@ function patchMapView(model) {
     node.classList.toggle('locked', circle.status === 'locked');
     node.classList.toggle('selected', Boolean(circle.selected));
 
-    const iconNode = node.querySelector('.note-icon');
-    if (iconNode) iconNode.textContent = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
+    const container = node.querySelector('.content-container');
+    if (!container) continue;
 
-    const existingLock = node.querySelector('.lock-overlay');
-    const shouldLock = circle.status === 'locked' && !circle.viewed;
-    if (shouldLock && !existingLock) {
-      node.insertAdjacentHTML('beforeend', '<span class="lock-overlay">🔒</span>');
+    if (circle.status === 'completed') {
+      container.innerHTML = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>';
+      continue;
     }
-    if (!shouldLock && existingLock) {
-      existingLock.remove();
+
+    if (circle.status === 'locked') {
+      container.innerHTML = '<svg class="lock-icon" viewBox="0 0 24 24"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M8 10V7a4 4 0 118 0v3h1a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2-3a2 2 0 114 0v3h-4V7z" clip-rule="evenodd"/></svg><div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>';
+      continue;
     }
+
+    const openText = escapeHtml(circle.task_text || '');
+    container.innerHTML = `<div class="card-text">${openText}</div>`;
   }
 
   const warningNode = document.getElementById('mapWarning');
@@ -221,7 +235,8 @@ function patchMapView(model) {
 function patchReviewView(model) {
   const childText = document.getElementById('reviewChildText');
   if (childText) {
-    childText.innerHTML = textGradient(`Отвечает: ${model.child ?? '-'}`);
+    const childName = model.child == null ? '-' : model.child;
+    childText.innerHTML = textGradient(`Отвечает: ${childName}`);
   }
 }
 
