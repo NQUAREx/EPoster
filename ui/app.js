@@ -139,6 +139,8 @@ function renderTaskInfo(model) {
 }
 
 function renderMap(model) {
+  const lockSvg = '<svg class="lock-icon" viewBox="0 0 24 24"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M8 10V7a4 4 0 118 0v3h1a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2-3a2 2 0 114 0v3h-4V7z" clip-rule="evenodd"/></svg>';
+  const checkSvg = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>';
   const circles = model.circles.map((circle) => {
     const openText = escapeHtml(circle.task_text || '');
     const icon = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
@@ -146,8 +148,8 @@ function renderMap(model) {
     const textLine = circle.status === 'open' ? `<span class="note-task-text">${openText}</span>` : '';
     return `<div class="note-wrap"><div data-day="${circle.day}" class="task-note ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin-head" aria-hidden="true"></span><span class="note-icon">${icon}</span>${textLine}${lock}</div></div>`;
   }).join('');
-  const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
-  return `<section class="map-screen" data-view="tasks_map_state">${asGlass(`<div class="paper-board"><div class="grid">${circles}</div>${warning}</div>`)}</section>`;
+  const warning = model.warning ? `<div class="map-warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="map-warning" id="mapWarning"></div>';
+  return `<section class="map-screen" data-view="tasks_map_state"><div class="lava-background"><div class="blob"></div><div class="blob"></div><div class="blob"></div></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
 }
 
 function renderReview(model) {
@@ -200,7 +202,7 @@ function patchBaseView(model) {
 
 function patchMapView(model) {
   for (const circle of model.circles) {
-    const node = stateView.querySelector(`.task-note[data-day="${circle.day}"]`);
+    const node = stateView.querySelector(`.card[data-day="${circle.day}"]`);
     if (!node) continue;
 
     node.classList.toggle('completed', circle.status === 'completed');
@@ -226,14 +228,18 @@ function patchMapView(model) {
       existingText.remove();
     }
 
-    const existingLock = node.querySelector('.lock-overlay');
-    const shouldLock = circle.status === 'locked' && !circle.viewed;
-    if (shouldLock && !existingLock) {
-      node.insertAdjacentHTML('beforeend', '<span class="lock-overlay">🔒</span>');
+    if (circle.status === 'completed') {
+      container.innerHTML = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>';
+      continue;
     }
-    if (!shouldLock && existingLock) {
-      existingLock.remove();
+
+    if (circle.status === 'locked') {
+      container.innerHTML = '<svg class="lock-icon" viewBox="0 0 24 24"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M8 10V7a4 4 0 118 0v3h1a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2-3a2 2 0 114 0v3h-4V7z" clip-rule="evenodd"/></svg><div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>';
+      continue;
     }
+
+    const openText = escapeHtml(circle.task_text || '');
+    container.innerHTML = `<div class="card-text">${openText}</div>`;
   }
 
   const warningNode = document.getElementById('mapWarning');
