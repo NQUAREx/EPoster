@@ -164,7 +164,8 @@ function renderMap(model) {
     if (isCompleted) {
       content = check;
     }
-    return `<article data-day="${circle.day}" class="task-card ${isLocked ? 'locked' : circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin" aria-hidden="true"></span><div class="day-number">${circle.day}</div><div class="card-content">${content}</div></article>`;
+    const typeClass = taskTypeClass(circle.task_type);
+    return `<article data-day="${circle.day}" class="task-card ${typeClass} ${isLocked ? 'locked' : circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin" aria-hidden="true"></span><div class="day-number">${circle.day}</div><div class="card-content">${content}</div></article>`;
   }).join('');
   const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
   return `<section class="map-screen" data-view="tasks_map_state"><div class="background-fix"></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
