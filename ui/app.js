@@ -153,20 +153,21 @@ function renderMap(model) {
   const circlesData = Array.isArray(model.circles) ? model.circles : [];
   const circles = circlesData.map((circle) => {
     const safeText = escapeHtml(circle.task_text || '');
+    const isLocked = circle.status === 'locked' || circle.status === 'closed';
+    const isCompleted = circle.status === 'completed';
     const lock = '<svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path d="M18 10V7c0-3.3-2.7-6-6-6S6 3.7 6 7v3H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1zm-6-7c2.2 0 4 1.8 4 4v3H8V7c0-2.2 1.8-4 4-4z"/></svg>';
     const check = '<svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     let content = `<div class="card-text">${safeText}</div>`;
-    const typeClass = taskTypeClass(circle.task_type);
-    if (circle.status === 'locked') {
+    if (isLocked) {
       content = `${lock}<div class="skeleton-line"></div><div class="skeleton-line"></div>`;
     }
-    if (circle.status === 'completed') {
+    if (isCompleted) {
       content = check;
     }
-    return `<article data-day="${circle.day}" class="task-card ${typeClass} ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin" aria-hidden="true"></span><div class="day-number">${circle.day}</div><div class="card-content">${content}</div></article>`;
+    return `<article data-day="${circle.day}" class="task-card ${isLocked ? 'locked' : circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin" aria-hidden="true"></span><div class="day-number">${circle.day}</div><div class="card-content">${content}</div></article>`;
   }).join('');
   const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
-  return `<section class="map-screen" data-view="tasks_map_state"><div class="lava-background"><div class="blob"></div><div class="blob"></div><div class="blob"></div></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
+  return `<section class="map-screen" data-view="tasks_map_state"><div class="background-fix"></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
 }
 
 function renderReview(model) {
@@ -232,9 +233,12 @@ function patchMapView(model) {
     const node = stateView.querySelector(`.task-card[data-day="${circle.day}"]`);
     if (!node) continue;
 
-    node.classList.toggle('completed', circle.status === 'completed');
+    const isLocked = circle.status === 'locked' || circle.status === 'closed';
+    const isCompleted = circle.status === 'completed';
+
+    node.classList.toggle('completed', isCompleted);
     node.classList.toggle('open', circle.status === 'open');
-    node.classList.toggle('locked', circle.status === 'locked');
+    node.classList.toggle('locked', isLocked);
     node.classList.toggle('selected', Boolean(circle.selected));
 
     node.classList.remove('task-type-hard', 'task-type-literary', 'task-type-social', 'task-type-fun');
@@ -246,9 +250,9 @@ function patchMapView(model) {
     const contentNode = node.querySelector('.card-content');
     if (contentNode) {
       const safeText = escapeHtml(circle.task_text || '');
-      if (circle.status === 'completed') {
+      if (isCompleted) {
         contentNode.innerHTML = '<svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      } else if (circle.status === 'locked') {
+      } else if (isLocked) {
         contentNode.innerHTML = '<svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path d="M18 10V7c0-3.3-2.7-6-6-6S6 3.7 6 7v3H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1zm-6-7c2.2 0 4 1.8 4 4v3H8V7c0-2.2 1.8-4 4-4z"/></svg><div class="skeleton-line"></div><div class="skeleton-line"></div>';
       } else {
         contentNode.innerHTML = `<div class="card-text">${safeText}</div>`;
