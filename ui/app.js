@@ -6,6 +6,7 @@ let refreshInFlight = null;
 let stateSocket = null;
 let reconnectTimer = null;
 let baseCountdownSeconds = null;
+let wsConnected = false;
 const baseViewCache = {
   nextPrayerLabel: null,
   progressBar: null,
@@ -139,16 +140,11 @@ function renderTaskInfo(model) {
 }
 
 function renderMap(model) {
-  const lockSvg = '<svg class="lock-icon" viewBox="0 0 24 24"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M8 10V7a4 4 0 118 0v3h1a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2-3a2 2 0 114 0v3h-4V7z" clip-rule="evenodd"/></svg>';
-  const checkSvg = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>';
-  const circles = model.circles.map((circle) => {
-    const openText = escapeHtml(circle.task_text || '');
-    const cardText = circle.status === 'open' ? `<div class="card-text">${openText}</div>` : '';
-    const lockedContent = `${lockSvg}<div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>`;
-    const body = circle.status === 'completed'
-      ? checkSvg
-      : (circle.status === 'locked' ? lockedContent : cardText);
-    return `<div data-day="${circle.day}" class="card ${circle.status} ${circle.selected ? 'selected' : ''}"><div class="pin"></div><div class="day-number">${circle.day}</div><div class="content-container">${body}</div></div>`;
+  const circlesData = Array.isArray(model.circles) ? model.circles : [];
+  const circles = circlesData.map((circle) => {
+    const icon = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
+    const lock = circle.status === 'locked' && !circle.viewed ? '<span class="lock-overlay">🔒</span>' : '';
+    return `<div class="note-wrap"><div data-day="${circle.day}" class="task-note ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin-head" aria-hidden="true"></span><span class="note-icon">${icon}</span>${lock}</div></div>`;
   }).join('');
   const warning = model.warning ? `<div class="map-warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="map-warning" id="mapWarning"></div>';
   return `<section class="map-screen" data-view="tasks_map_state"><div class="lava-background"><div class="blob"></div><div class="blob"></div><div class="blob"></div></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
@@ -320,23 +316,38 @@ function connectStateSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
   stateSocket = new WebSocket(`${protocol}://${window.location.host}/ws/state`);
 
+  stateSocket.addEventListener('open', () => {
+    wsConnected = true;
+  });
+
   stateSocket.addEventListener('message', (event) => {
     try {
       const data = JSON.parse(event.data);
+      if (!data?.view_model) {
+        refreshState().catch(() => {});
+        return;
+      }
       applyViewModel(data.view_model);
-    } catch (_) {}
+    } catch (_) {
+      refreshState().catch(() => {});
+    }
   });
 
   stateSocket.addEventListener('close', () => {
+    wsConnected = false;
     stateSocket = null;
     scheduleSocketReconnect();
   });
 
   stateSocket.addEventListener('error', () => {
-    if (stateSocket) {
-      stateSocket.close();
-    }
+    wsConnected = false;
+    stateSocket?.close();
   });
+}
+
+function fallbackRefreshTick() {
+  if (wsConnected) return;
+  refreshState().catch(() => {});
 }
 
 function tickBaseCountdown() {
@@ -361,3 +372,4 @@ setInterval(updateWakeBorder, 200);
 refreshState(true);
 connectStateSocket();
 setInterval(tickBaseCountdown, 1000);
+setInterval(fallbackRefreshTick, 3000);
