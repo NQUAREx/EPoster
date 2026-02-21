@@ -75,3 +75,19 @@ def test_websocket_pushes_state_updates(client):
         pushed_payload = ws.receive_json()
         assert pushed_payload["state"] == "tasks_map_state"
         assert len(pushed_payload["view_model"]["circles"]) == 30
+
+
+def test_ambilight_frame_endpoint(client):
+    response = client.post(
+        "/api/ambilight/frame",
+        json={
+            "top": [[12, 34, 56]],
+            "right": [[1, 2, 3]],
+            "bottom": [[9, 9, 9]],
+            "left": [[5, 6, 7]],
+            "viewport": {"width": 1280, "height": 720},
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert response.json()["led_count"] > 0

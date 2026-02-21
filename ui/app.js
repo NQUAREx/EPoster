@@ -379,6 +379,82 @@ function connectStateSocket() {
   });
 }
 
+
+let ambilightInFlight = false;
+
+function parseCssColorToRgb(colorValue) {
+  const source = String(colorValue || '').trim();
+  const rgbaMatch = source.match(/rgba?\(([^)]+)\)/i);
+  if (rgbaMatch) {
+    const [r, g, b] = rgbaMatch[1].split(',').slice(0, 3).map((v) => Math.max(0, Math.min(255, parseInt(v.trim(), 10) || 0)));
+    return [r, g, b];
+  }
+  const hex = source.startsWith('#') ? source.slice(1) : '';
+  if (hex.length === 3) {
+    return hex.split('').map((c) => parseInt(`${c}${c}`, 16));
+  }
+  if (hex.length === 6) {
+    return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+  }
+  return [0, 0, 0];
+}
+
+function samplePixelColorAt(x, y) {
+  const clampedX = Math.max(0, Math.min(window.innerWidth - 1, Math.round(x)));
+  const clampedY = Math.max(0, Math.min(window.innerHeight - 1, Math.round(y)));
+  const element = document.elementFromPoint(clampedX, clampedY);
+  if (!element) return [0, 0, 0];
+  const style = window.getComputedStyle(element);
+  const bg = parseCssColorToRgb(style.backgroundColor);
+  const text = parseCssColorToRgb(style.color);
+  const luminance = (bg[0] + bg[1] + bg[2]) / 3;
+  return luminance < 30 ? text : bg;
+}
+
+function collectEdgeColors(samplesPerEdge = 18) {
+  const width = Math.max(1, window.innerWidth);
+  const height = Math.max(1, window.innerHeight);
+  const edgePadding = 6;
+
+  const top = [];
+  const right = [];
+  const bottom = [];
+  const left = [];
+
+  for (let i = 0; i < samplesPerEdge; i += 1) {
+    const t = samplesPerEdge === 1 ? 0 : i / (samplesPerEdge - 1);
+    const x = t * (width - 1);
+    const y = t * (height - 1);
+
+    top.push(samplePixelColorAt(x, edgePadding));
+    right.push(samplePixelColorAt(width - edgePadding, y));
+    bottom.push(samplePixelColorAt(x, height - edgePadding));
+    left.push(samplePixelColorAt(edgePadding, y));
+  }
+
+  return { top, right, bottom, left, viewport: { width, height } };
+}
+
+async function pushAmbilightFrame() {
+  if (ambilightInFlight || document.hidden) {
+    return;
+  }
+
+  ambilightInFlight = true;
+  try {
+    const payload = collectEdgeColors(16);
+    await fetch('/api/ambilight/frame', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (_) {
+    // Ambilight is best-effort and should never break UI rendering.
+  } finally {
+    ambilightInFlight = false;
+  }
+}
+
 function fallbackRefreshTick() {
   if (wsConnected) return;
   refreshState().catch(() => {});
@@ -407,3 +483,4 @@ refreshState(true);
 connectStateSocket();
 setInterval(tickBaseCountdown, 1000);
 setInterval(fallbackRefreshTick, 3000);
+setInterval(pushAmbilightFrame, 350);
