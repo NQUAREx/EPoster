@@ -143,10 +143,12 @@ function renderMap(model) {
   const checkSvg = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>';
   const circles = model.circles.map((circle) => {
     const openText = escapeHtml(circle.task_text || '');
-    const icon = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
-    const lock = circle.status === 'locked' && !circle.viewed ? '<span class="lock-overlay">🔒</span>' : '';
-    const textLine = circle.status === 'open' ? `<span class="note-task-text">${openText}</span>` : '';
-    return `<div class="note-wrap"><div data-day="${circle.day}" class="task-note ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin-head" aria-hidden="true"></span><span class="note-icon">${icon}</span>${textLine}${lock}</div></div>`;
+    const cardText = circle.status === 'open' ? `<div class="card-text">${openText}</div>` : '';
+    const lockedContent = `${lockSvg}<div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>`;
+    const body = circle.status === 'completed'
+      ? checkSvg
+      : (circle.status === 'locked' ? lockedContent : cardText);
+    return `<div data-day="${circle.day}" class="card ${circle.status} ${circle.selected ? 'selected' : ''}"><div class="pin"></div><div class="day-number">${circle.day}</div><div class="content-container">${body}</div></div>`;
   }).join('');
   const warning = model.warning ? `<div class="map-warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="map-warning" id="mapWarning"></div>';
   return `<section class="map-screen" data-view="tasks_map_state"><div class="lava-background"><div class="blob"></div><div class="blob"></div><div class="blob"></div></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
@@ -210,23 +212,8 @@ function patchMapView(model) {
     node.classList.toggle('locked', circle.status === 'locked');
     node.classList.toggle('selected', Boolean(circle.selected));
 
-    const iconNode = node.querySelector('.note-icon');
-    if (iconNode) {
-      iconNode.textContent = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
-    }
-
-    const existingText = node.querySelector('.note-task-text');
-    const shouldShowText = circle.status === 'open';
-    if (shouldShowText) {
-      const value = String(circle.task_text || '');
-      if (existingText) {
-        existingText.textContent = value;
-      } else {
-        node.insertAdjacentHTML('beforeend', `<span class="note-task-text">${escapeHtml(value)}</span>`);
-      }
-    } else if (existingText) {
-      existingText.remove();
-    }
+    const container = node.querySelector('.content-container');
+    if (!container) continue;
 
     if (circle.status === 'completed') {
       container.innerHTML = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>';
