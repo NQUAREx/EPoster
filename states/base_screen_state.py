@@ -29,15 +29,15 @@ class BaseScreenState(BaseState):
         # night (от ифтара до сухура): зеленый -> красный
         red_to_green = {
             "bg": self._lerp_color((43, 10, 10), (10, 43, 18), progress),
-            "blob1": self._lerp_color((255, 94, 98), (102, 255, 160), progress),
-            "blob2": self._lerp_color((241, 39, 17), (20, 201, 112), progress),
-            "blob3": self._lerp_color((255, 153, 102), (91, 224, 127), progress),
+            "blob1": self._lerp_color((255, 98, 102), (86, 246, 150), progress),
+            "blob2": self._lerp_color((232, 34, 24), (18, 178, 104), progress),
+            "blob3": self._lerp_color((255, 164, 110), (116, 232, 140), progress),
         }
         green_to_red = {
             "bg": self._lerp_color((10, 43, 18), (43, 10, 10), progress),
-            "blob1": self._lerp_color((102, 255, 160), (255, 94, 98), progress),
-            "blob2": self._lerp_color((20, 201, 112), (241, 39, 17), progress),
-            "blob3": self._lerp_color((91, 224, 127), (255, 153, 102), progress),
+            "blob1": self._lerp_color((86, 246, 150), (255, 98, 102), progress),
+            "blob2": self._lerp_color((18, 178, 104), (232, 34, 24), progress),
+            "blob3": self._lerp_color((116, 232, 140), (255, 164, 110), progress),
         }
         return green_to_red if phase == "night" else red_to_green
 
