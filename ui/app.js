@@ -142,13 +142,20 @@ function renderTaskInfo(model) {
 function renderMap(model) {
   const circlesData = Array.isArray(model.circles) ? model.circles : [];
   const circles = circlesData.map((circle) => {
-    const openText = escapeHtml(circle.task_text || `День ${circle.day}`);
-    const icon = circle.status === 'completed' ? '✓' : openText;
-    const lock = circle.status === 'locked' && !circle.viewed ? '<span class="lock-overlay">🔒</span>' : '';
-    return `<div class="note-wrap"><div data-day="${circle.day}" class="task-note ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin-head" aria-hidden="true"></span><span class="note-icon">${icon}</span>${lock}</div></div>`;
+    const safeText = escapeHtml(circle.task_text || '');
+    const lock = '<svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path d="M18 10V7c0-3.3-2.7-6-6-6S6 3.7 6 7v3H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1zm-6-7c2.2 0 4 1.8 4 4v3H8V7c0-2.2 1.8-4 4-4z"/></svg>';
+    const check = '<svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    let content = `<div class="card-text">${safeText}</div>`;
+    if (circle.status === 'locked') {
+      content = `${lock}<div class="skeleton-line"></div><div class="skeleton-line"></div>`;
+    }
+    if (circle.status === 'completed') {
+      content = check;
+    }
+    return `<article data-day="${circle.day}" class="task-card ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin" aria-hidden="true"></span><div class="day-number">${circle.day}</div><div class="card-content">${content}</div></article>`;
   }).join('');
   const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
-  return `<section class="map-screen" data-view="tasks_map_state"><div class="lava-background"><div class="blob"></div><div class="blob"></div><div class="blob"></div></div><div class="wake-frame"></div>${asGlass(`<div class="paper-board"><div class="grid">${circles}</div>${warning}</div>`)}</section>`;
+  return `<section class="map-screen" data-view="tasks_map_state"><div class="lava-background"><div class="blob"></div><div class="blob"></div><div class="blob"></div></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
 }
 
 function renderReview(model) {
@@ -202,7 +209,7 @@ function patchBaseView(model) {
 
 function patchMapView(model) {
   for (const circle of model.circles) {
-    const node = stateView.querySelector(`.task-note[data-day="${circle.day}"]`);
+    const node = stateView.querySelector(`.task-card[data-day="${circle.day}"]`);
     if (!node) continue;
 
     node.classList.toggle('completed', circle.status === 'completed');
@@ -210,18 +217,16 @@ function patchMapView(model) {
     node.classList.toggle('locked', circle.status === 'locked');
     node.classList.toggle('selected', Boolean(circle.selected));
 
-    const iconNode = node.querySelector('.note-icon');
-    if (iconNode) {
-      iconNode.textContent = circle.status === 'completed' ? '✓' : (circle.task_text || `День ${circle.day}`);
-    }
-
-    const existingLock = node.querySelector('.lock-overlay');
-    const shouldLock = circle.status === 'locked' && !circle.viewed;
-    if (shouldLock && !existingLock) {
-      node.insertAdjacentHTML('beforeend', '<span class="lock-overlay">🔒</span>');
-    }
-    if (!shouldLock && existingLock) {
-      existingLock.remove();
+    const contentNode = node.querySelector('.card-content');
+    if (contentNode) {
+      const safeText = escapeHtml(circle.task_text || '');
+      if (circle.status === 'completed') {
+        contentNode.innerHTML = '<svg class="check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      } else if (circle.status === 'locked') {
+        contentNode.innerHTML = '<svg class="lock-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path d="M18 10V7c0-3.3-2.7-6-6-6S6 3.7 6 7v3H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-8c0-1.1-.9-2-2-2h-1zm-6-7c2.2 0 4 1.8 4 4v3H8V7c0-2.2 1.8-4 4-4z"/></svg><div class="skeleton-line"></div><div class="skeleton-line"></div>';
+      } else {
+        contentNode.innerHTML = `<div class="card-text">${safeText}</div>`;
+      }
     }
   }
 
