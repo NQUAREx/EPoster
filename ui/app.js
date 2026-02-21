@@ -45,7 +45,7 @@ function formatClock(totalSeconds) {
 }
 
 function applyPaletteFromModel(model) {
-  const palette = model?.next_prayer?.palette;
+  const palette = model && model.next_prayer ? model.next_prayer.palette : null;
   if (!palette) return;
   const root = document.documentElement;
   root.style.setProperty('--color-bg', String(palette.bg || ''));
@@ -157,7 +157,8 @@ function renderMap(model) {
 function renderReview(model) {
   const done = model.completed ? `<h1>${textGradient('День завершен!')}</h1>` : '';
   const options = model.score_options.map((s) => `<div class="score">${s.emoji}<small>${textGradient(s.label)}</small></div>`).join('');
-  return `<section class="review-screen" data-view="day_review_state">${asGlass(`<h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${model.child ?? '-'}`)}</h1><div class="score-row">${options}</div>${done}`)}</section>`;
+  const childName = model.child == null ? '-' : model.child;
+  return `<section class="review-screen" data-view="day_review_state">${asGlass(`<h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${childName}`)}</h1><div class="score-row">${options}</div>${done}`)}</section>`;
 }
 
 function renderEid(model) {
@@ -238,7 +239,8 @@ function patchMapView(model) {
 function patchReviewView(model) {
   const childText = document.getElementById('reviewChildText');
   if (childText) {
-    childText.innerHTML = textGradient(`Отвечает: ${model.child ?? '-'}`);
+    const childName = model.child == null ? '-' : model.child;
+    childText.innerHTML = textGradient(`Отвечает: ${childName}`);
   }
 }
 
@@ -331,7 +333,9 @@ function connectStateSocket() {
   });
 
   stateSocket.addEventListener('error', () => {
-    stateSocket?.close();
+    if (stateSocket) {
+      stateSocket.close();
+    }
   });
 }
 
