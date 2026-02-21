@@ -23,6 +23,15 @@ function textGradient(text) {
   return `<span class="water-text">${text}</span>`;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function parseCountdownToSeconds(value) {
   const [h, m, s] = String(value || '00:00:00').split(':').map((x) => parseInt(x, 10) || 0);
   return h * 3600 + m * 60 + s;
@@ -131,9 +140,11 @@ function renderTaskInfo(model) {
 
 function renderMap(model) {
   const circles = model.circles.map((circle) => {
+    const openText = escapeHtml(circle.task_text || '');
     const icon = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
     const lock = circle.status === 'locked' && !circle.viewed ? '<span class="lock-overlay">🔒</span>' : '';
-    return `<div class="note-wrap"><div data-day="${circle.day}" class="task-note ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin-head" aria-hidden="true"></span><span class="note-icon">${icon}</span>${lock}</div></div>`;
+    const textLine = circle.status === 'open' ? `<span class="note-task-text">${openText}</span>` : '';
+    return `<div class="note-wrap"><div data-day="${circle.day}" class="task-note ${circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin-head" aria-hidden="true"></span><span class="note-icon">${icon}</span>${textLine}${lock}</div></div>`;
   }).join('');
   const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
   return `<section class="map-screen" data-view="tasks_map_state">${asGlass(`<div class="paper-board"><div class="grid">${circles}</div>${warning}</div>`)}</section>`;
@@ -198,7 +209,22 @@ function patchMapView(model) {
     node.classList.toggle('selected', Boolean(circle.selected));
 
     const iconNode = node.querySelector('.note-icon');
-    if (iconNode) iconNode.textContent = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
+    if (iconNode) {
+      iconNode.textContent = circle.status === 'completed' ? '✓' : `День ${circle.day}`;
+    }
+
+    const existingText = node.querySelector('.note-task-text');
+    const shouldShowText = circle.status === 'open';
+    if (shouldShowText) {
+      const value = String(circle.task_text || '');
+      if (existingText) {
+        existingText.textContent = value;
+      } else {
+        node.insertAdjacentHTML('beforeend', `<span class="note-task-text">${escapeHtml(value)}</span>`);
+      }
+    } else if (existingText) {
+      existingText.remove();
+    }
 
     const existingLock = node.querySelector('.lock-overlay');
     const shouldLock = circle.status === 'locked' && !circle.viewed;
