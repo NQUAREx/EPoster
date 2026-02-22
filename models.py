@@ -38,6 +38,7 @@ class AppSettings:
     ambilight_led_count: int = 120
     ambilight_brightness: int = 96
     ambilight_order: str = "GRB"
+    ambilight_color_profile_file: str = "ambilight_color_profile.json"
 
     @staticmethod
     def from_dict(data: dict) -> "AppSettings":
@@ -74,6 +75,10 @@ class AppSettings:
             ambilight_led_count=max(12, parse_int(data.get("ambilight_led_count", 120), 120)),
             ambilight_brightness=min(255, max(0, parse_int(data.get("ambilight_brightness", 96), 96))),
             ambilight_order=str(data.get("ambilight_order", "GRB") or "GRB").upper(),
+            ambilight_color_profile_file=str(
+                data.get("ambilight_color_profile_file", "ambilight_color_profile.json")
+                or "ambilight_color_profile.json"
+            ),
         )
 
     def to_dict(self) -> dict:
