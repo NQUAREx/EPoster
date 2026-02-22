@@ -12,7 +12,13 @@
   --text-color: #f4f4f4;
 }
 
-* { box-sizing: border-box; font-family: "Nunito", "Arial Black", "Arial Rounded MT Bold", sans-serif; cursor: none !important; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  font-family: "Nunito", "Arial Black", "Arial Rounded MT Bold", sans-serif;
+  cursor: none !important;
+}
 
 body {
   margin: 0;
