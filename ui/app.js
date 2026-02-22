@@ -181,6 +181,22 @@ function renderTaskInfo(model) {
   return `<section class="task-info-screen" data-view="task_info_state">${asWakeFrame()}${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h1>${textGradient(`Задание дня ${model.day}`)}</h1><p class="large-copy">${textGradient(model.task_text)}</p>${scores}</div>`)}</section>`;
 }
 
+
+function renderCalibration(model) {
+  const color = model.screen_color_css || 'rgb(0, 0, 0)';
+  const step = Number(model.step || 1);
+  const total = Number(model.total_steps || 1);
+  return `<section class="calibration-screen" data-view="calibration_state" style="--calibration-color:${color}">
+    <div class="calibration-color"></div>
+    <div class="calibration-panel">
+      <h1>${escapeHtml(model.title || 'Калибровка')}</h1>
+      <p>Шаг ${step} / ${total}</p>
+      <p>${escapeHtml(model.hint || '')}</p>
+      <p>Цвет: ${escapeHtml(color)}</p>
+    </div>
+  </section>`;
+}
+
 function renderMap(model) {
   const circlesData = Array.isArray(model.circles) ? model.circles : [];
   const circles = circlesData.map((circle) => {
@@ -235,6 +251,7 @@ function renderState(model) {
   if (model.view === 'task_info_state') return renderTaskInfo(model);
   if (model.view === 'tasks_map_state') return renderMap(model);
   if (model.view === 'day_review_state') return renderReview(model);
+  if (model.view === 'calibration_state') return renderCalibration(model);
   if (model.view === 'eid_state') return renderEid(model);
   return `<section class="state-enter">${asGlass(`<h1>${textGradient('Неизвестный state')}</h1>`)}</section>`;
 }

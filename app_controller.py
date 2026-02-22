@@ -6,15 +6,19 @@ import time
 
 from command_router import CommandEvent, CommandRouter
 from hardware.ambilight import AmbilightConfig, AmbilightController
+from hardware.color_profile import ColorConverter
 from hardware.cursor import move_cursor_to_bottom_right
 from state_manager import StateManager
+from services.ambilight_calibration import AmbilightCalibration
 from storage import (
     create_session,
     load_children,
+    load_color_profile,
     load_prayer_times,
     load_session,
     load_settings,
     load_tasks,
+    save_color_profile,
     save_session,
     save_settings,
 )
@@ -35,6 +39,7 @@ class AppController:
         self.session = session
         self.state_manager = StateManager(session, self.tasks, self.settings, self.prayer_times)
         self._wake_active_until = 0.0
+        self._calibration = AmbilightCalibration()
         self._ambilight = self._create_ambilight_controller()
         self._session_snapshot = self._snapshot_session()
         self._settings_snapshot = self._snapshot_settings()
@@ -42,6 +47,7 @@ class AppController:
         self._init_cursor_position()
 
     def _create_ambilight_controller(self) -> AmbilightController:
+        profile = load_color_profile(self.settings.ambilight_color_profile_file)
         config = AmbilightConfig(
             enabled=self.settings.ambilight_enabled,
             gpio_pin=self.settings.ambilight_gpio_pin,
@@ -50,7 +56,7 @@ class AppController:
             color_order=self.settings.ambilight_order,
         )
         try:
-            return AmbilightController(config)
+            return AmbilightController(config, converter=ColorConverter(profile))
         except Exception:
             safe_config = AmbilightConfig(
                 enabled=False,
@@ -59,7 +65,7 @@ class AppController:
                 brightness=config.brightness,
                 color_order=config.color_order,
             )
-            return AmbilightController(safe_config)
+            return AmbilightController(safe_config, converter=ColorConverter(profile))
 
     @staticmethod
     def _init_cursor_position() -> None:
@@ -132,7 +138,10 @@ class AppController:
 
     def render(self) -> dict:
         self._sync_ramadan_day()
-        ui_payload = self.state_manager.show()
+        if self._calibration.active:
+            ui_payload = self._calibration.view_model()
+        else:
+            ui_payload = self.state_manager.show()
         ui_payload["wake_active"] = self._wake_is_active()
         self._save_session_if_changed()
         return ui_payload
@@ -154,13 +163,52 @@ class AppController:
         }
 
     def apply_ambilight_frame(self, edge_colors: dict, viewport: dict | None = None) -> int:
+        if self._calibration.active:
+            return 0
         return self._ambilight.apply_frame(edge_colors=edge_colors, viewport=viewport)
+
+    def calibration_start(self) -> dict:
+        step = self._calibration.start()
+        self._ambilight.show_calibration_color(step.screen_rgb)
+        return self._calibration.view_model()
+
+    def calibration_submit(self, observed_rgb: tuple[int, int, int]) -> dict:
+        next_step = self._calibration.submit_observed(observed_rgb)
+        if next_step is None:
+            return {"ok": True, "finished": True, "can_save": self._calibration.can_finish()}
+        self._ambilight.show_calibration_color(next_step.screen_rgb)
+        model = self._calibration.view_model()
+        model["ok"] = True
+        model["finished"] = False
+        return model
+
+    def calibration_finish(self) -> dict:
+        if not self._calibration.can_finish():
+            return {"ok": False, "error": "Недостаточно калибровочных точек"}
+        profile = self._calibration.build_profile()
+        save_color_profile(self.settings.ambilight_color_profile_file, profile)
+        self._calibration.stop()
+        return {"ok": True, "profile_file": self.settings.ambilight_color_profile_file}
+
+    def calibration_cancel(self) -> dict:
+        self._calibration.stop()
+        return {"ok": True}
+
+    def calibration_status(self) -> dict:
+        if not self._calibration.active:
+            return {"active": False}
+        return {"active": True, "view_model": self._calibration.view_model()}
 
     def shutdown(self) -> None:
         self._ambilight.shutdown()
 
     def dispatch_event(self, event: CommandEvent) -> dict:
         self._sync_ramadan_day()
+        if self._calibration.active:
+            ui_payload = self._calibration.view_model()
+            ui_payload["command_source"] = "calibration_lock"
+            ui_payload["wake_active"] = self._wake_is_active()
+            return ui_payload
         normalized = self.command_router.normalize_event(event)
         if normalized.wake_word_detected:
             self.mark_wake_detected()
