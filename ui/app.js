@@ -1,6 +1,8 @@
 const stateView = document.getElementById('stateView');
 
 let wakeActiveUntil = 0;
+let wakeSync = null;
+let wakeAnimationFrame = null;
 let currentState = '';
 let refreshInFlight = null;
 let stateSocket = null;
@@ -362,8 +364,47 @@ function patchCurrentView(model) {
   if (model.view === 'day_review_state') patchReviewView(model);
 }
 
+function wakePulse(progress, minBlend, maxBlend) {
+  const oscillation = (1 - Math.cos(2 * Math.PI * progress)) / 2;
+  return minBlend + ((maxBlend - minBlend) * oscillation);
+}
+
+function renderWakeFrame() {
+  const frame = document.querySelector('.wake-frame');
+  const nowMs = Date.now();
+  const active = wakeSync && nowMs < Number(wakeSync.active_until_epoch_ms || 0);
+  document.body.classList.toggle('wake-active', Boolean(active));
+
+  if (!frame || !wakeSync || !active) {
+    document.documentElement.style.setProperty('--wake-frame-shadow', 'inset 0 0 0 0 rgba(0, 150, 255, 0)');
+    wakeAnimationFrame = requestAnimationFrame(renderWakeFrame);
+    return;
+  }
+
+  const profile = wakeSync.profile || {};
+  const color = Array.isArray(profile.color) ? profile.color : [100, 210, 255];
+  const periodMs = Math.max(200, Math.round((Number(profile.period_seconds) || 1.5) * 1000));
+  const elapsedMs = Math.max(0, nowMs - Number(wakeSync.started_at_epoch_ms || nowMs));
+  const progress = (elapsedMs % periodMs) / periodMs;
+
+  const minBlend = Math.max(0, Math.min(1, Number(profile.min_blend) || 0.2));
+  const maxBlend = Math.max(minBlend, Math.min(1.2, Number(profile.max_blend) || 1.0));
+  const pulse = wakePulse(progress, minBlend, maxBlend);
+
+  const spread = 10 + (30 * pulse);
+  const alpha = Math.max(0, Math.min(1, pulse * 0.9));
+  const shadow = `inset 0 0 ${Math.round(30 + (70 * pulse))}px ${Math.round(spread)}px rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha.toFixed(3)})`;
+  document.documentElement.style.setProperty('--wake-frame-shadow', shadow);
+
+  wakeAnimationFrame = requestAnimationFrame(renderWakeFrame);
+}
+
 function updateWakeBorder() {
-  document.body.classList.toggle('wake-active', Date.now() < wakeActiveUntil);
+  const active = Date.now() < wakeActiveUntil;
+  if (!active) {
+    wakeSync = null;
+  }
+  document.body.classList.toggle('wake-active', active);
 }
 
 function hardReloadPage() {
@@ -414,7 +455,10 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
 
   patchCurrentView(model);
 
-  if (model.wake_active) {
+  if (model.wake_sync) {
+    wakeSync = model.wake_sync;
+    wakeActiveUntil = Number(model.wake_sync.active_until_epoch_ms || 0);
+  } else if (model.wake_active) {
     wakeActiveUntil = Date.now() + 6000;
   }
 
@@ -746,7 +790,9 @@ document.addEventListener('keydown', () => {
 }, { once: true });
 
 fetchAmbilightConfig();
-setInterval(updateWakeBorder, 200);
+if (wakeAnimationFrame == null) {
+  wakeAnimationFrame = requestAnimationFrame(renderWakeFrame);
+}
 refreshState(true);
 connectStateSocket();
 setInterval(tickBaseCountdown, 1000);
