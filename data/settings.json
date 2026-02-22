@@ -15,5 +15,5 @@
   "ambilight_led_count": 165,
   "ambilight_brightness": 200,
   "ambilight_order": "GRB",
-  "ambilight_color_profile_file": "ambilight_color_profile.json"
+  "base_background_id": 1
 }

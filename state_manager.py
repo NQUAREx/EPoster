@@ -24,7 +24,7 @@ class StateManager:
 
     def _create_state(self, state_name: str) -> BaseState:
         if state_name == "base_state":
-            return BaseScreenState(self.session, self.tasks, self.prayer_times)
+            return BaseScreenState(self.session, self.tasks, self.prayer_times, self.settings)
         if state_name == "task_info_state":
             return TaskInfoState(self.session, self.tasks)
         if state_name == "tasks_map_state":

@@ -1,8 +1,14 @@
+@import url("/ui/backgrounds/theme-1.css");
+@import url("/ui/backgrounds/theme-2.css");
+@import url("/ui/backgrounds/theme-3.css");
+
 :root {
   --color-bg: #2b0a0a;
   --color-blob1: #ff5e62;
   --color-blob2: #ff9966;
   --color-blob3: #f12711;
+  --background-fix-top: #3d0e0e;
+  --background-fix-bottom: #2b0a0a;
   --glass-bg: rgba(244, 244, 244, 0.16);
   --glass-border: rgba(255, 255, 255, 0.2);
   --text-color: #f4f4f4;
@@ -76,8 +82,8 @@ body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
 }
 
 .background-fix {
-  background: radial-gradient(circle at top left, #3d0e0e, transparent),
-    radial-gradient(circle at bottom right, #2b0a0a, transparent);
+  background: radial-gradient(circle at top left, var(--background-fix-top), transparent),
+    radial-gradient(circle at bottom right, var(--background-fix-bottom), transparent);
 }
 
 .blob {
