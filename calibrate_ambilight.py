@@ -39,14 +39,33 @@ def main() -> None:
         step = view_model.get("step")
         total = view_model.get("total_steps")
         color = view_model.get("screen_color", {})
+        pending_samples: list[list[int]] = []
         print(f"\nШаг {step}/{total}, экранный цвет: {color}")
-        raw = input("Введите наблюдаемый цвет ленты (R,G,B или #RRGGBB), q для отмены: ").strip()
-        if raw.lower() == "q":
-            _call("POST", f"{base}/api/calibration/cancel")
-            print("Калибровка отменена.")
-            return
+        print("Вводите цвет столько раз, сколько нужно. Команда 'next' отправит последний введенный цвет и переключит на следующий шаг.")
+        print("Команды: next, q")
 
-        observed = _parse_color(raw)
+        while True:
+            raw = input("Цвет (R,G,B или #RRGGBB) / команда: ").strip()
+            if raw.lower() == "q":
+                _call("POST", f"{base}/api/calibration/cancel")
+                print("Калибровка отменена.")
+                return
+            if raw.lower() == "next":
+                if not pending_samples:
+                    print("Сначала введите хотя бы один цвет для текущего шага.")
+                    continue
+                observed = pending_samples[-1]
+                print(f"Отправляется последний цвет: {observed} (замеров: {len(pending_samples)})")
+                break
+
+            try:
+                observed = _parse_color(raw)
+            except ValueError as exc:
+                print(f"Ошибка ввода: {exc}")
+                continue
+            pending_samples.append(observed)
+            print(f"Принято: {observed}. Накоплено замеров: {len(pending_samples)}")
+
         result = _call("POST", f"{base}/api/calibration/sample", {"observed_rgb": observed})
         if result.get("finished"):
             break
