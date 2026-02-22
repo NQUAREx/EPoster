@@ -25,14 +25,6 @@ def _parse_color(raw: str) -> list[int]:
     return [max(0, min(255, int(part))) for part in parts]
 
 
-def _average_colors(samples: list[list[int]]) -> list[int]:
-    if not samples:
-        raise ValueError("Нет введенных цветов для отправки")
-    total = len(samples)
-    channels = zip(*samples)
-    return [int(round(sum(channel) / total)) for channel in channels]
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Пошаговая калибровка ambilight")
     parser.add_argument("--host", default="http://127.0.0.1:8000", help="Базовый URL API")
@@ -49,7 +41,7 @@ def main() -> None:
         color = view_model.get("screen_color", {})
         pending_samples: list[list[int]] = []
         print(f"\nШаг {step}/{total}, экранный цвет: {color}")
-        print("Вводите цвет столько раз, сколько нужно. Команда 'next' отправит среднее значение и переключит на следующий шаг.")
+        print("Вводите цвет столько раз, сколько нужно. Команда 'next' отправит последний введенный цвет и переключит на следующий шаг.")
         print("Команды: next, q")
 
         while True:
@@ -62,8 +54,8 @@ def main() -> None:
                 if not pending_samples:
                     print("Сначала введите хотя бы один цвет для текущего шага.")
                     continue
-                observed = _average_colors(pending_samples)
-                print(f"Отправляется средний цвет: {observed} (замеров: {len(pending_samples)})")
+                observed = pending_samples[-1]
+                print(f"Отправляется последний цвет: {observed} (замеров: {len(pending_samples)})")
                 break
 
             try:
