@@ -1,26 +1,30 @@
 from __future__ import annotations
 
-import importlib
-import importlib.util
 import os
+import subprocess
+
+
+_UNCLUTTER_PROCESS: subprocess.Popen | None = None
 
 
 def move_cursor_to_bottom_right() -> bool:
+    """Backward-compatible entrypoint: now hides cursor via unclutter on X11."""
+    global _UNCLUTTER_PROCESS
+
+    if _UNCLUTTER_PROCESS is not None and _UNCLUTTER_PROCESS.poll() is None:
+        return True
+
     if not os.environ.get("DISPLAY"):
         return False
 
-    pyautogui_spec = importlib.util.find_spec("pyautogui")
-    if pyautogui_spec is None:
-        return False
-
     try:
-        pyautogui = importlib.import_module("pyautogui")
+        _UNCLUTTER_PROCESS = subprocess.Popen(
+            ["unclutter", "-idle", "0"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
     except Exception:
         return False
 
-    try:
-        width, height = pyautogui.size()
-        pyautogui.moveTo(max(0, width - 1), max(0, height - 1), duration=0)
-    except Exception:
-        return False
-    return True
+    return _UNCLUTTER_PROCESS.poll() is None
