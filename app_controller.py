@@ -18,6 +18,7 @@ from storage import (
     load_session,
     load_settings,
     load_tasks,
+    migrate_legacy_data_if_needed,
     save_color_profile,
     save_session,
     save_settings,
@@ -26,6 +27,7 @@ from storage import (
 
 class AppController:
     def __init__(self) -> None:
+        migrate_legacy_data_if_needed()
         self.command_router = CommandRouter()
         self.settings = load_settings()
         self.tasks = load_tasks()
