@@ -88,6 +88,8 @@ def test_ambilight_config_endpoint(client):
     payload = response.json()
     assert isinstance(payload.get("led_count"), int)
     assert isinstance(payload.get("enabled"), bool)
+    assert payload.get("effect") in {"wake_blink", "none"}
+    assert isinstance(payload.get("effects"), list)
 
 def test_ambilight_frame_endpoint(client):
     response = client.post(
@@ -103,3 +105,16 @@ def test_ambilight_frame_endpoint(client):
     assert response.status_code == 200
     assert response.json()["ok"] is True
     assert response.json()["led_count"] > 0
+
+
+def test_voice_command_switches_ambilight_effect(client):
+    response = client.post(
+        "/api/command",
+        json={"command": "эмбилайт без эффекта", "source": "voice", "wake_word_detected": True},
+    )
+    assert response.status_code == 200
+    assert response.json()["view_model"]["wake_active"] is True
+
+    config = client.get("/api/ambilight/config")
+    assert config.status_code == 200
+    assert config.json()["effect"] == "none"

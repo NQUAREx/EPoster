@@ -10,6 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(REPO_ROOT))
 
 from app_controller import AppController
+from command_router import CommandEvent
 
 
 @pytest.fixture()
@@ -194,3 +195,24 @@ def test_existing_children_file_is_not_overwritten(tmp_path, monkeypatch):
 
     assert app.session.children == ["Камила", "Самир", "Амалия", "Сулейман", "Айя"]
     assert json.loads(children_file.read_text(encoding="utf-8")) == expected_children
+
+
+def test_wake_detection_triggers_ambilight_effect(isolated_app, monkeypatch):
+    calls = []
+
+    def fake_trigger(duration_seconds: float = 6.0):
+        calls.append(duration_seconds)
+
+    monkeypatch.setattr(isolated_app._ambilight, "trigger_wake_effect", fake_trigger)
+    isolated_app.mark_wake_detected()
+
+    assert calls == [6.0]
+
+
+def test_voice_command_can_switch_ambilight_effect(isolated_app):
+    payload = isolated_app.dispatch_event(
+        CommandEvent(command="эмбилайт без эффекта", source="voice", wake_word_detected=True)
+    )
+
+    assert payload["wake_active"] is True
+    assert isolated_app.ambilight_config()["effect"] == "none"

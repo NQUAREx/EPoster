@@ -62,3 +62,19 @@ def test_ambilight_led_distribution_prefers_30x52_layout():
     controller = AmbilightController(AmbilightConfig(enabled=True, led_count=164))
     right, top, left, bottom = controller._distribute_leds(width=1920, height=1080)
     assert (right, top, left, bottom) == (30, 52, 30, 52)
+
+
+def test_effect_status_contains_current_and_available_modes():
+    controller = AmbilightController(AmbilightConfig(enabled=False, led_count=60))
+    status = controller.effect_status()
+
+    assert status["current"] == "wake_blink"
+    names = [item["name"] for item in status["available"]]
+    assert "wake_blink" in names
+    assert "none" in names
+
+
+def test_set_effect_mode_rejects_unknown_name():
+    controller = AmbilightController(AmbilightConfig(enabled=False, led_count=60))
+    assert controller.set_effect_mode("unknown") is False
+    assert controller.effect_status()["current"] == "wake_blink"
