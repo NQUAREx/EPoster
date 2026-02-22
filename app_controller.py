@@ -35,19 +35,38 @@ class AppController:
         self.session = session
         self.state_manager = StateManager(session, self.tasks, self.settings, self.prayer_times)
         self._wake_active_until = 0.0
-        self._ambilight = AmbilightController(
-            AmbilightConfig(
-                enabled=self.settings.ambilight_enabled,
-                gpio_pin=self.settings.ambilight_gpio_pin,
-                led_count=self.settings.ambilight_led_count,
-                brightness=self.settings.ambilight_brightness,
-                color_order=self.settings.ambilight_order,
-            )
-        )
+        self._ambilight = self._create_ambilight_controller()
         self._session_snapshot = self._snapshot_session()
         self._settings_snapshot = self._snapshot_settings()
         self._sync_ramadan_day()
-        move_cursor_to_bottom_right()
+        self._init_cursor_position()
+
+    def _create_ambilight_controller(self) -> AmbilightController:
+        config = AmbilightConfig(
+            enabled=self.settings.ambilight_enabled,
+            gpio_pin=self.settings.ambilight_gpio_pin,
+            led_count=self.settings.ambilight_led_count,
+            brightness=self.settings.ambilight_brightness,
+            color_order=self.settings.ambilight_order,
+        )
+        try:
+            return AmbilightController(config)
+        except Exception:
+            safe_config = AmbilightConfig(
+                enabled=False,
+                gpio_pin=config.gpio_pin,
+                led_count=config.led_count,
+                brightness=config.brightness,
+                color_order=config.color_order,
+            )
+            return AmbilightController(safe_config)
+
+    @staticmethod
+    def _init_cursor_position() -> None:
+        try:
+            move_cursor_to_bottom_right()
+        except Exception:
+            return
 
     @staticmethod
     def _json_dump(payload: dict) -> str:
