@@ -59,7 +59,7 @@ class AmbilightController:
     _SATURATION_BOOST = 1.12
     _WAKE_EFFECT_DURATION_SECONDS = 6.0
 
-    def __init__(self, config: AmbilightConfig) -> None:
+    def __init__(self, config: AmbilightConfig, converter: ColorConverter | None = None) -> None:
         self._config = config
         self._converter = converter or ColorConverter()
         self._driver = LightController(
