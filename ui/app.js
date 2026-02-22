@@ -75,6 +75,22 @@ function applyPaletteFromModel(model) {
   root.style.setProperty('--color-blob3', String(palette.blob3 || ''));
 }
 
+function applyBackgroundThemeFromModel(model) {
+  const themeClass = model && model.background ? String(model.background.theme_class || '') : '';
+  const classesToRemove = [];
+  for (const cls of document.body.classList) {
+    if (cls.startsWith('bg-theme-')) {
+      classesToRemove.push(cls);
+    }
+  }
+  if (classesToRemove.length) {
+    document.body.classList.remove(...classesToRemove);
+  }
+  if (themeClass) {
+    document.body.classList.add(themeClass);
+  }
+}
+
 function updateDigit(id, newValue) {
   const container = document.getElementById(id);
   if (!container) return;
@@ -357,6 +373,7 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
   const stateChanged = currentState !== model.view;
   currentState = model.view;
   document.body.classList.toggle('base-active', model.view === 'base_state');
+  applyBackgroundThemeFromModel(model);
 
   if (forceFullRender || stateChanged || !stateView.firstElementChild) {
     stateView.innerHTML = renderState(model);
