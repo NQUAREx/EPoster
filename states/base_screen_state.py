@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List
 
 from models import AppSettings, PrayerTimes, Session, Task
@@ -65,29 +65,38 @@ class BaseScreenState(BaseState):
 
     def _times(self) -> dict[str, Any]:
         now = datetime.now()
-        date_key = now.strftime("%Y-%m-%d")
-        data = self.prayer_times.get(date_key) or self.prayer_times[sorted(self.prayer_times.keys())[0]]
-        suhoor = datetime.strptime(f"{date_key} {data.fajr}", "%Y-%m-%d %H:%M")
-        iftar = datetime.strptime(f"{date_key} {data.maghrib}", "%Y-%m-%d %H:%M")
+        today = now.date()
 
-        if now >= iftar:
-            target = suhoor + timedelta(days=1)
+        today_times = self._prayer_times_for_date(today)
+        yesterday_times = self._prayer_times_for_date(today - timedelta(days=1))
+        tomorrow_times = self._prayer_times_for_date(today + timedelta(days=1))
+
+        suhoor_today = datetime.combine(today, datetime.strptime(today_times.fajr, "%H:%M").time())
+        iftar_today = datetime.combine(today, datetime.strptime(today_times.maghrib, "%H:%M").time())
+        suhoor_tomorrow = datetime.combine(today + timedelta(days=1), datetime.strptime(tomorrow_times.fajr, "%H:%M").time())
+        iftar_yesterday = datetime.combine(today - timedelta(days=1), datetime.strptime(yesterday_times.maghrib, "%H:%M").time())
+
+        if now >= iftar_today:
+            target = suhoor_tomorrow
             next_name = "сухура"
             phase = "night"
-            start = iftar
-            end = suhoor + timedelta(days=1)
-        elif now >= suhoor:
-            target = iftar
+            start = iftar_today
+            end = suhoor_tomorrow
+            schedule = today_times
+        elif now >= suhoor_today:
+            target = iftar_today
             next_name = "ифтара"
             phase = "day"
-            start = suhoor
-            end = iftar
+            start = suhoor_today
+            end = iftar_today
+            schedule = today_times
         else:
-            target = suhoor
+            target = suhoor_today
             next_name = "сухура"
             phase = "night"
-            start = iftar - timedelta(days=1)
-            end = suhoor
+            start = iftar_yesterday
+            end = suhoor_today
+            schedule = yesterday_times
 
         delta = max(0, int((target - now).total_seconds()))
         total = max(1, int((end - start).total_seconds()))
@@ -99,10 +108,29 @@ class BaseScreenState(BaseState):
             "phase": phase,
             "phase_progress": progress,
             "phase_total_seconds": total,
-            "suhoor": data.fajr,
-            "iftar": data.maghrib,
+            "suhoor": today_times.fajr,
+            "iftar": schedule.maghrib,
             "palette": self._phase_palette(phase, palette_progress),
         }
+
+    def _prayer_times_for_date(self, target_date: date) -> PrayerTimes:
+        date_key = target_date.strftime("%Y-%m-%d")
+        exact = self.prayer_times.get(date_key)
+        if exact:
+            return exact
+
+        parsed: list[tuple[date, PrayerTimes]] = []
+        for key, value in self.prayer_times.items():
+            try:
+                parsed.append((datetime.strptime(key, "%Y-%m-%d").date(), value))
+            except ValueError:
+                continue
+
+        if not parsed:
+            raise ValueError("Prayer times are not configured")
+
+        parsed.sort(key=lambda item: abs((item[0] - target_date).days))
+        return parsed[0][1]
 
     @staticmethod
     def _ramadan_elapsed_days() -> float:
