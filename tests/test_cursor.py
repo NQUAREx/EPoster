@@ -1,31 +1,53 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
-from hardware.cursor import move_cursor_to_bottom_right
+import hardware.cursor as cursor
 
 
-class _FakePyAutoGui:
-    def __init__(self) -> None:
-        self.moved = None
+def test_move_cursor_returns_false_without_display(monkeypatch):
+    monkeypatch.delenv("DISPLAY", raising=False)
+    cursor._UNCLUTTER_PROCESS = None
 
-    def size(self):
-        return (1920, 1080)
-
-    def moveTo(self, x, y, duration=0):
-        self.moved = (x, y, duration)
+    assert cursor.move_cursor_to_bottom_right() is False
 
 
-def test_move_cursor_returns_false_when_pyautogui_missing(monkeypatch):
-    monkeypatch.setattr("importlib.util.find_spec", lambda name: None)
+def test_move_cursor_starts_unclutter(monkeypatch):
+    monkeypatch.setenv("DISPLAY", ":0")
+    cursor._UNCLUTTER_PROCESS = None
 
-    assert move_cursor_to_bottom_right() is False
+    class _FakeProcess:
+        def poll(self):
+            return None
+
+    started = {}
+
+    def _fake_popen(cmd, stdout, stderr, start_new_session):
+        started["cmd"] = cmd
+        started["start_new_session"] = start_new_session
+        return _FakeProcess()
+
+    monkeypatch.setattr("subprocess.Popen", _fake_popen)
+
+    assert cursor.move_cursor_to_bottom_right() is True
+    assert started["cmd"] == ["unclutter", "-idle", "0"]
+    assert started["start_new_session"] is True
 
 
-def test_move_cursor_moves_to_bottom_right(monkeypatch):
-    fake = _FakePyAutoGui()
-    monkeypatch.setattr("importlib.util.find_spec", lambda name: SimpleNamespace())
-    monkeypatch.setattr("importlib.import_module", lambda name: fake)
+def test_move_cursor_reuses_running_unclutter(monkeypatch):
+    monkeypatch.setenv("DISPLAY", ":0")
 
-    assert move_cursor_to_bottom_right() is True
-    assert fake.moved == (1919, 1079, 0)
+    class _FakeProcess:
+        def poll(self):
+            return None
+
+    cursor._UNCLUTTER_PROCESS = _FakeProcess()
+
+    called = {"value": False}
+
+    def _never_call(*args, **kwargs):
+        called["value"] = True
+        raise AssertionError("Popen should not be called")
+
+    monkeypatch.setattr("subprocess.Popen", _never_call)
+
+    assert cursor.move_cursor_to_bottom_right() is True
+    assert called["value"] is False
