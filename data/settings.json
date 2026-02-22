@@ -12,7 +12,7 @@
   "ramadan_day_updated_on": "",
   "ambilight_enabled": true,
   "ambilight_gpio_pin": 18,
-  "ambilight_led_count": 171,
+  "ambilight_led_count": 161,
   "ambilight_brightness": 96,
   "ambilight_order": "GRB"
 }
