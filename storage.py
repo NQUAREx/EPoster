@@ -10,11 +10,13 @@ from models import AppSettings, Day, PrayerTimes, Session, Task
 from hardware.color_profile import ColorProfile
 
 BASE_DIR = Path(__file__).resolve().parent
+LEGACY_DATA_DIR = BASE_DIR / "data"
+DEFAULT_DATA_DIR = Path.home() / ".eposter" / "data"
 DEFAULT_CHILDREN = ["Камила", "Самир", "Амалия", "Сулейман", "Айя"]
 
 
 def _data_dir() -> Path:
-    return Path(os.getenv("EPOSTER_DATA_DIR", str(BASE_DIR / "data"))).resolve()
+    return Path(os.getenv("EPOSTER_DATA_DIR", str(DEFAULT_DATA_DIR))).resolve()
 
 
 def _session_file() -> Path:
@@ -71,8 +73,8 @@ def load_children() -> list[str]:
     return children
 
 
-def _normalize_session(session: Session) -> Session:
-    session.children = list(DEFAULT_CHILDREN)
+def _normalize_session(session: Session, children: list[str]) -> Session:
+    session.children = list(children)
     session.current_day = min(30, max(1, int(session.current_day or 1)))
     if session.selected_day < 1 or session.selected_day > 30:
         session.selected_day = session.current_day
@@ -106,8 +108,30 @@ def load_session() -> Session | None:
     session_file = _session_file()
     if not session_file.exists():
         return None
+    children = load_children()
     with session_file.open("r", encoding="utf-8") as file:
-        return _normalize_session(Session.from_dict(json.load(file)))
+        return _normalize_session(Session.from_dict(json.load(file)), children)
+
+
+def migrate_legacy_data_if_needed() -> None:
+    if os.getenv("EPOSTER_DATA_DIR"):
+        return
+
+    target_dir = _data_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    if target_dir != DEFAULT_DATA_DIR.resolve():
+        return
+
+    legacy_dir = LEGACY_DATA_DIR.resolve()
+    if not legacy_dir.exists() or legacy_dir == target_dir:
+        return
+
+    for file_name in ["session.json", "children.json", "settings.json", "ambilight_color_profile.json"]:
+        source = legacy_dir / file_name
+        target = target_dir / file_name
+        if source.exists() and not target.exists():
+            with source.open("rb") as src, target.open("wb") as dst:
+                dst.write(src.read())
 
 
 def save_session(session: Session) -> None:

@@ -140,9 +140,10 @@ def test_base_view_task_text_comes_from_tasks_json(tmp_path, monkeypatch):
     assert payload["today_task"] == custom_text
 
 
-def test_children_list_is_strict_and_has_no_extra_names(isolated_app):
+def test_children_list_loaded_from_json(isolated_app):
     app = isolated_app
-    assert app.session.children == ["Камила", "Самир", "Амалия", "Сулейман", "Айя"]
+    expected_children = json.loads((Path("data") / "children.json").read_text(encoding="utf-8"))
+    assert app.session.children == expected_children
     app.dispatch("open_day_review")
     view = app.render()
     assert view["view"] == "day_review_state"
@@ -193,8 +194,25 @@ def test_existing_children_file_is_not_overwritten(tmp_path, monkeypatch):
 
     app = AppController()
 
-    assert app.session.children == ["Камила", "Самир", "Амалия", "Сулейман", "Айя"]
+    assert app.session.children == expected_children
     assert json.loads(children_file.read_text(encoding="utf-8")) == expected_children
+
+
+def test_day_scores_are_restored_from_session_file(tmp_path, monkeypatch):
+    source_data = REPO_ROOT / "data"
+    shutil.copytree(source_data, tmp_path / "data")
+    monkeypatch.setenv("EPOSTER_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.chdir(tmp_path)
+
+    session_file = tmp_path / "data" / "session.json"
+    session_payload = json.loads(session_file.read_text(encoding="utf-8"))
+    session_payload["days"]["2"]["scores"] = {"Камила": 3, "Самир": 2}
+    session_file.write_text(json.dumps(session_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    app = AppController()
+
+    assert app.session.days[2].scores["Камила"] == 3
+    assert app.session.days[2].scores["Самир"] == 2
 
 
 def test_wake_detection_triggers_ambilight_effect(isolated_app, monkeypatch):
