@@ -11,7 +11,7 @@ from hardware.color_profile import ColorProfile
 
 BASE_DIR = Path(__file__).resolve().parent
 LEGACY_DATA_DIR = BASE_DIR / "data"
-DEFAULT_DATA_DIR = Path.home() / ".eposter" / "data"
+DEFAULT_DATA_DIR = LEGACY_DATA_DIR
 DEFAULT_CHILDREN = ["Камила", "Самир", "Амалия", "Сулейман", "Айя"]
 
 
@@ -114,24 +114,23 @@ def load_session() -> Session | None:
 
 
 def migrate_legacy_data_if_needed() -> None:
+    """Сохраняем совместимость со старым внешним каталогом ~/.eposter/data.
+
+    Текущий источник истины — data/ внутри репозитория.
+    При первом запуске, если найдено старое состояние, переносим только session.json.
+    """
     if os.getenv("EPOSTER_DATA_DIR"):
         return
 
     target_dir = _data_dir()
     target_dir.mkdir(parents=True, exist_ok=True)
-    if target_dir != DEFAULT_DATA_DIR.resolve():
-        return
 
-    legacy_dir = LEGACY_DATA_DIR.resolve()
-    if not legacy_dir.exists() or legacy_dir == target_dir:
-        return
-
-    for file_name in ["session.json", "children.json", "settings.json", "ambilight_color_profile.json"]:
-        source = legacy_dir / file_name
-        target = target_dir / file_name
-        if source.exists() and not target.exists():
-            with source.open("rb") as src, target.open("wb") as dst:
-                dst.write(src.read())
+    old_external_dir = Path.home() / ".eposter" / "data"
+    source = old_external_dir / "session.json"
+    target = target_dir / "session.json"
+    if source.exists() and not target.exists():
+        with source.open("rb") as src, target.open("wb") as dst:
+            dst.write(src.read())
 
 
 def save_session(session: Session) -> None:

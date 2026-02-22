@@ -204,6 +204,8 @@ def test_day_scores_are_restored_from_session_file(tmp_path, monkeypatch):
     monkeypatch.setenv("EPOSTER_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.chdir(tmp_path)
 
+    AppController()  # создаёт session.json при первом запуске
+
     session_file = tmp_path / "data" / "session.json"
     session_payload = json.loads(session_file.read_text(encoding="utf-8"))
     session_payload["days"]["2"]["scores"] = {"Камила": 3, "Самир": 2}
