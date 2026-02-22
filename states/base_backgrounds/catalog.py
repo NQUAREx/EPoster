@@ -12,8 +12,6 @@ class BaseBackground:
 
 _BASE_BACKGROUNDS: dict[int, BaseBackground] = {
     1: BaseBackground(id=1, theme_class="bg-theme-1", animation_profile="lava-v1"),
-    2: BaseBackground(id=2, theme_class="bg-theme-2", animation_profile="lava-v2"),
-    3: BaseBackground(id=3, theme_class="bg-theme-3", animation_profile="lava-v3"),
 }
 
 
