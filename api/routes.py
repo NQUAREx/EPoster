@@ -47,6 +47,10 @@ def build_router(ui_dir: Path) -> APIRouter:
         return await request.app.state.app_service.dispatch_event(event)
 
 
+    @router.get("/api/ambilight/config")
+    async def get_ambilight_config(request: Request) -> dict:
+        return await request.app.state.app_service.get_ambilight_config()
+
     @router.post("/api/ambilight/frame")
     async def post_ambilight_frame(payload: AmbilightFrameRequest, request: Request) -> dict:
         edge_colors = {

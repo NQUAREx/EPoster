@@ -46,6 +46,10 @@ class AppService:
         return response
 
 
+    async def get_ambilight_config(self) -> dict:
+        async with self._lock:
+            return await asyncio.to_thread(self._controller.ambilight_config)
+
     async def apply_ambilight_frame(self, edge_colors: dict, viewport: dict | None = None) -> int:
         async with self._lock:
             return await asyncio.to_thread(self._controller.apply_ambilight_frame, edge_colors, viewport)

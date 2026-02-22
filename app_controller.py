@@ -128,6 +128,12 @@ class AppController:
         self._save_settings_if_changed()
         return ui_payload
 
+    def ambilight_config(self) -> dict:
+        return {
+            "enabled": self.settings.ambilight_enabled,
+            "led_count": self.settings.ambilight_led_count,
+        }
+
     def apply_ambilight_frame(self, edge_colors: dict, viewport: dict | None = None) -> int:
         return self._ambilight.apply_frame(edge_colors=edge_colors, viewport=viewport)
 
