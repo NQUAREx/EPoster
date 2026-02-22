@@ -3,51 +3,43 @@ from __future__ import annotations
 import hardware.cursor as cursor
 
 
-def test_move_cursor_returns_false_without_display(monkeypatch):
-    monkeypatch.delenv("DISPLAY", raising=False)
-    cursor._UNCLUTTER_PROCESS = None
+class _FakeMouse:
+    def __init__(self, calls: dict):
+        self._calls = calls
 
-    assert cursor.move_cursor_to_bottom_right() is False
+    def set_visible(self, value):
+        self._calls["set_visible"].append(value)
 
 
-def test_move_cursor_starts_unclutter(monkeypatch):
-    monkeypatch.setenv("DISPLAY", ":0")
-    cursor._UNCLUTTER_PROCESS = None
+class _FakePygame:
+    def __init__(self, calls: dict):
+        self._calls = calls
+        self.mouse = _FakeMouse(calls)
 
-    class _FakeProcess:
-        def poll(self):
-            return None
+    def init(self):
+        self._calls["init"] += 1
 
-    started = {}
 
-    def _fake_popen(cmd, stdout, stderr, start_new_session):
-        started["cmd"] = cmd
-        started["start_new_session"] = start_new_session
-        return _FakeProcess()
+def test_move_cursor_hides_cursor(monkeypatch):
+    cursor._CURSOR_HIDDEN = False
+    calls = {"init": 0, "set_visible": []}
 
-    monkeypatch.setattr("subprocess.Popen", _fake_popen)
+    monkeypatch.setattr(cursor.importlib, "import_module", lambda name: _FakePygame(calls))
 
     assert cursor.move_cursor_to_bottom_right() is True
-    assert started["cmd"] == ["unclutter", "-idle", "0"]
-    assert started["start_new_session"] is True
+    assert calls["init"] == 1
+    assert calls["set_visible"] == [False]
 
 
-def test_move_cursor_reuses_running_unclutter(monkeypatch):
-    monkeypatch.setenv("DISPLAY", ":0")
-
-    class _FakeProcess:
-        def poll(self):
-            return None
-
-    cursor._UNCLUTTER_PROCESS = _FakeProcess()
-
+def test_move_cursor_reuses_hidden_state(monkeypatch):
+    cursor._CURSOR_HIDDEN = True
     called = {"value": False}
 
-    def _never_call(*args, **kwargs):
+    def _never_call(_name):
         called["value"] = True
-        raise AssertionError("Popen should not be called")
+        raise AssertionError("import_module should not be called")
 
-    monkeypatch.setattr("subprocess.Popen", _never_call)
+    monkeypatch.setattr(cursor.importlib, "import_module", _never_call)
 
     assert cursor.move_cursor_to_bottom_right() is True
     assert called["value"] is False

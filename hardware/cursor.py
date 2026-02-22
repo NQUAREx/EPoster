@@ -1,30 +1,24 @@
 from __future__ import annotations
 
-import os
-import subprocess
+import importlib
 
 
-_UNCLUTTER_PROCESS: subprocess.Popen | None = None
+_CURSOR_HIDDEN = False
 
 
 def move_cursor_to_bottom_right() -> bool:
-    """Backward-compatible entrypoint: now hides cursor via unclutter on X11."""
-    global _UNCLUTTER_PROCESS
+    """Backward-compatible entrypoint: hide cursor globally via pygame."""
+    global _CURSOR_HIDDEN
 
-    if _UNCLUTTER_PROCESS is not None and _UNCLUTTER_PROCESS.poll() is None:
+    if _CURSOR_HIDDEN:
         return True
 
-    if not os.environ.get("DISPLAY"):
-        return False
-
     try:
-        _UNCLUTTER_PROCESS = subprocess.Popen(
-            ["unclutter", "-idle", "0"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
+        pygame = importlib.import_module("pygame")
+        pygame.init()
+        pygame.mouse.set_visible(False)
     except Exception:
         return False
 
-    return _UNCLUTTER_PROCESS.poll() is None
+    _CURSOR_HIDDEN = True
+    return True
