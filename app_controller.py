@@ -6,6 +6,7 @@ import time
 
 from command_router import CommandEvent, CommandRouter
 from hardware.ambilight import AmbilightConfig, AmbilightController
+from hardware.cursor import move_cursor_to_bottom_right
 from state_manager import StateManager
 from storage import (
     create_session,
@@ -46,6 +47,7 @@ class AppController:
         self._session_snapshot = self._snapshot_session()
         self._settings_snapshot = self._snapshot_settings()
         self._sync_ramadan_day()
+        move_cursor_to_bottom_right()
 
     @staticmethod
     def _json_dump(payload: dict) -> str:
