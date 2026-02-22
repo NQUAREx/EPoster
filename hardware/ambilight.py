@@ -5,6 +5,7 @@ from threading import Event, Lock, Thread
 from time import monotonic, sleep
 from typing import Iterable
 
+from hardware.color_profile import ColorConverter
 from hardware.lights import LightController, StripConfig
 
 
@@ -21,8 +22,9 @@ class AmbilightController:
     _BASE_VERTICAL_LEDS = 30
     _BASE_HORIZONTAL_LEDS = 52
 
-    def __init__(self, config: AmbilightConfig) -> None:
+    def __init__(self, config: AmbilightConfig, converter: ColorConverter | None = None) -> None:
         self._config = config
+        self._converter = converter or ColorConverter()
         self._driver = LightController(
             StripConfig(
                 enabled=config.enabled,
@@ -156,7 +158,8 @@ class AmbilightController:
         # Физический обход: старт в правом нижнем углу, затем вверх,
         # далее по верху влево, по левой стороне вниз и по низу вправо.
         raw_strip = list(reversed(right)) + list(reversed(top)) + left + bottom
-        return [self._apply_ambilight_tone_mapping(color) for color in raw_strip]
+        tone_mapped = [self._apply_ambilight_tone_mapping(color) for color in raw_strip]
+        return [self._converter.convert(color) for color in tone_mapped]
 
     def _render_loop(self) -> None:
         target_dt = 1.0 / self._FRAME_RATE
@@ -191,6 +194,17 @@ class AmbilightController:
             self._driver.show(rendered)
             if dt < target_dt:
                 sleep(target_dt - dt)
+
+
+    def show_calibration_color(self, rgb: tuple[int, int, int]) -> int:
+        if not self._config.enabled:
+            return 0
+        tone_mapped = self._apply_ambilight_tone_mapping(self._safe_rgb(rgb))
+        strip = [tone_mapped for _ in range(self._config.led_count)]
+        with self._frame_lock:
+            self._target_strip = strip
+        self._render_event.set()
+        return len(strip)
 
     def apply_frame(self, edge_colors: dict, viewport: dict | None = None) -> int:
         if not self._config.enabled:

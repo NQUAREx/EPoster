@@ -54,5 +54,46 @@ class AppService:
         async with self._lock:
             return await asyncio.to_thread(self._controller.apply_ambilight_frame, edge_colors, viewport)
 
+
+
+    async def calibration_start(self) -> dict:
+        async with self._lock:
+            response = await asyncio.to_thread(self._controller.calibration_start)
+            payload = self._with_meta(self._to_response(response))
+        await self._broadcaster.publish(payload)
+        return payload
+
+    async def calibration_status(self) -> dict:
+        async with self._lock:
+            return await asyncio.to_thread(self._controller.calibration_status)
+
+    async def calibration_submit(self, observed_rgb: tuple[int, int, int]) -> dict:
+        async with self._lock:
+            result = await asyncio.to_thread(self._controller.calibration_submit, observed_rgb)
+            status = await asyncio.to_thread(self._controller.calibration_status)
+            if status.get("active"):
+                payload = self._with_meta(self._to_response(status["view_model"]))
+            else:
+                payload = self._with_meta(self._to_response(await asyncio.to_thread(self._controller.render)))
+        await self._broadcaster.publish(payload)
+        result["state_payload"] = payload
+        return result
+
+    async def calibration_finish(self) -> dict:
+        async with self._lock:
+            result = await asyncio.to_thread(self._controller.calibration_finish)
+            payload = self._with_meta(self._to_response(await asyncio.to_thread(self._controller.render)))
+        await self._broadcaster.publish(payload)
+        result["state_payload"] = payload
+        return result
+
+    async def calibration_cancel(self) -> dict:
+        async with self._lock:
+            result = await asyncio.to_thread(self._controller.calibration_cancel)
+            payload = self._with_meta(self._to_response(await asyncio.to_thread(self._controller.render)))
+        await self._broadcaster.publish(payload)
+        result["state_payload"] = payload
+        return result
+
     async def shutdown(self) -> None:
         await asyncio.to_thread(self._controller.shutdown)

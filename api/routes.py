@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
-from api.schemas import AmbilightFrameRequest, CommandRequest, WakeRequest
+from api.schemas import AmbilightFrameRequest, CalibrationSampleRequest, CommandRequest, WakeRequest
 from command_router import CommandEvent
 
 
@@ -62,6 +62,28 @@ def build_router(ui_dir: Path) -> APIRouter:
         viewport = payload.viewport.model_dump()
         led_count = await request.app.state.app_service.apply_ambilight_frame(edge_colors=edge_colors, viewport=viewport)
         return {"ok": True, "led_count": led_count}
+
+
+    @router.post("/api/calibration/start")
+    async def post_calibration_start(request: Request) -> dict:
+        return await request.app.state.app_service.calibration_start()
+
+    @router.get("/api/calibration/status")
+    async def get_calibration_status(request: Request) -> dict:
+        return await request.app.state.app_service.calibration_status()
+
+    @router.post("/api/calibration/sample")
+    async def post_calibration_sample(payload: CalibrationSampleRequest, request: Request) -> dict:
+        rgb = tuple(int(max(0, min(255, value))) for value in payload.observed_rgb[:3])
+        return await request.app.state.app_service.calibration_submit(rgb)
+
+    @router.post("/api/calibration/finish")
+    async def post_calibration_finish(request: Request) -> dict:
+        return await request.app.state.app_service.calibration_finish()
+
+    @router.post("/api/calibration/cancel")
+    async def post_calibration_cancel(request: Request) -> dict:
+        return await request.app.state.app_service.calibration_cancel()
 
     @router.websocket("/ws/state")
     async def state_ws(websocket: WebSocket) -> None:
