@@ -25,6 +25,14 @@ def _parse_color(raw: str) -> list[int]:
     return [max(0, min(255, int(part))) for part in parts]
 
 
+def _average_colors(samples: list[list[int]]) -> list[int]:
+    if not samples:
+        raise ValueError("Нет введенных цветов для отправки")
+    total = len(samples)
+    channels = zip(*samples)
+    return [int(round(sum(channel) / total)) for channel in channels]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Пошаговая калибровка ambilight")
     parser.add_argument("--host", default="http://127.0.0.1:8000", help="Базовый URL API")
@@ -39,14 +47,33 @@ def main() -> None:
         step = view_model.get("step")
         total = view_model.get("total_steps")
         color = view_model.get("screen_color", {})
+        pending_samples: list[list[int]] = []
         print(f"\nШаг {step}/{total}, экранный цвет: {color}")
-        raw = input("Введите наблюдаемый цвет ленты (R,G,B или #RRGGBB), q для отмены: ").strip()
-        if raw.lower() == "q":
-            _call("POST", f"{base}/api/calibration/cancel")
-            print("Калибровка отменена.")
-            return
+        print("Вводите цвет столько раз, сколько нужно. Команда 'next' отправит среднее значение и переключит на следующий шаг.")
+        print("Команды: next, q")
 
-        observed = _parse_color(raw)
+        while True:
+            raw = input("Цвет (R,G,B или #RRGGBB) / команда: ").strip()
+            if raw.lower() == "q":
+                _call("POST", f"{base}/api/calibration/cancel")
+                print("Калибровка отменена.")
+                return
+            if raw.lower() == "next":
+                if not pending_samples:
+                    print("Сначала введите хотя бы один цвет для текущего шага.")
+                    continue
+                observed = _average_colors(pending_samples)
+                print(f"Отправляется средний цвет: {observed} (замеров: {len(pending_samples)})")
+                break
+
+            try:
+                observed = _parse_color(raw)
+            except ValueError as exc:
+                print(f"Ошибка ввода: {exc}")
+                continue
+            pending_samples.append(observed)
+            print(f"Принято: {observed}. Накоплено замеров: {len(pending_samples)}")
+
         result = _call("POST", f"{base}/api/calibration/sample", {"observed_rgb": observed})
         if result.get("finished"):
             break
