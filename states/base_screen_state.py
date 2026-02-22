@@ -10,6 +10,9 @@ from states.base_state import BaseState
 class BaseScreenState(BaseState):
     name = "base_state"
 
+    SLOW_PHASE_REAL_SHARE = 0.8
+    SLOW_PHASE_COLOR_SHARE = 0.2
+
     def __init__(self, session: Session, tasks: List[Task], prayer_times: Dict[str, PrayerTimes]):
         self.session = session
         self.tasks = tasks
@@ -41,6 +44,23 @@ class BaseScreenState(BaseState):
         }
         return green_to_red if phase == "night" else red_to_green
 
+    @classmethod
+    def _remap_palette_progress(cls, linear_progress: float) -> float:
+        """Замедляет смену фона в начале и ускоряет за 2 часа до конца.
+
+        Пример из запроса: при окне в 10 часов
+        - первые 8 реальных часов покрывают только 20% цветового перехода;
+        - последние 2 реальных часа покрывают оставшиеся 80%.
+        """
+        p = min(1.0, max(0.0, linear_progress))
+        split_real = cls.SLOW_PHASE_REAL_SHARE
+        split_color = cls.SLOW_PHASE_COLOR_SHARE
+
+        if p <= split_real:
+            return (p / split_real) * split_color
+        accelerated = (p - split_real) / (1.0 - split_real)
+        return split_color + accelerated * (1.0 - split_color)
+
     def _times(self) -> dict[str, Any]:
         now = datetime.now()
         date_key = now.strftime("%Y-%m-%d")
@@ -70,6 +90,7 @@ class BaseScreenState(BaseState):
         delta = max(0, int((target - now).total_seconds()))
         total = max(1, int((end - start).total_seconds()))
         progress = min(1.0, max(0.0, (now - start).total_seconds() / total))
+        palette_progress = self._remap_palette_progress(progress)
         return {
             "next": next_name,
             "countdown": f"{delta // 3600:02d}:{(delta % 3600) // 60:02d}:{delta % 60:02d}",
@@ -78,7 +99,7 @@ class BaseScreenState(BaseState):
             "phase_total_seconds": total,
             "suhoor": data.fajr,
             "iftar": data.maghrib,
-            "palette": self._phase_palette(phase, progress),
+            "palette": self._phase_palette(phase, palette_progress),
         }
 
     @staticmethod
