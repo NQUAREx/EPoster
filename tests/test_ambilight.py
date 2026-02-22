@@ -48,6 +48,16 @@ def test_tone_mapping_darkens_but_preserves_color_bias():
     assert mapped[0] > mapped[1] > mapped[2]
 
 
+def test_tone_mapping_keeps_black_pixels_black_without_floor():
+    assert AmbilightController._apply_ambilight_tone_mapping((0, 0, 0)) == (0, 0, 0)
+
+
+def test_tone_mapping_has_wider_range_between_dark_and_bright_samples():
+    dark = AmbilightController._apply_ambilight_tone_mapping((24, 24, 24))[0]
+    bright = AmbilightController._apply_ambilight_tone_mapping((200, 200, 200))[0]
+    assert bright - dark >= 100
+
+
 def test_ambilight_led_distribution_prefers_30x52_layout():
     controller = AmbilightController(AmbilightConfig(enabled=True, led_count=164))
     right, top, left, bottom = controller._distribute_leds(width=1920, height=1080)
