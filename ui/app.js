@@ -11,12 +11,14 @@ let appInstanceId = null;
 let reloadInProgress = false;
 const baseViewCache = {
   nextPrayerLabel: null,
+  progressTitle: null,
   progressBar: null,
   taskLabel: null,
   taskText: null,
   lastTaskText: '',
   lastTaskLabelText: '',
   lastNextPrayerText: '',
+  lastProgressTitleText: '',
   lastProgressPercent: null,
 };
 
@@ -100,6 +102,10 @@ function updateJellyClock(clockDigits) {
   updateDigit('m2', clockDigits[3]);
 }
 
+function formatRamadanTitle(progressPercent) {
+  return `Рамадан · ${progressPercent.toFixed(2)}%`;
+}
+
 function renderBase(model) {
   const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
   const taskType = String(model.today_task_type || '').trim();
@@ -114,7 +120,7 @@ function renderBase(model) {
     <div class="wake-frame"></div>
 
     <div class="progress-wrapper">
-      <div class="progress-title">Рамадан</div>
+      <div class="progress-title" id="progress-title">${formatRamadanTitle(progressPercent)}</div>
       <div class="progress-container">
         <div class="progress-bar" id="progress-bar" style="width:${progressPercent}%"></div>
       </div>
@@ -208,6 +214,7 @@ function renderState(model) {
 
 function patchBaseView(model) {
   baseViewCache.nextPrayerLabel = baseViewCache.nextPrayerLabel || document.getElementById('nextPrayerLabel');
+  baseViewCache.progressTitle = baseViewCache.progressTitle || document.getElementById('progress-title');
   baseViewCache.progressBar = baseViewCache.progressBar || document.getElementById('progress-bar');
   baseViewCache.taskLabel = baseViewCache.taskLabel || document.getElementById('daily-task-label');
   baseViewCache.taskText = baseViewCache.taskText || document.getElementById('daily-task');
@@ -240,8 +247,14 @@ function patchBaseView(model) {
     }
   }
 
+  const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
+  const progressTitleText = formatRamadanTitle(progressPercent);
+  if (baseViewCache.progressTitle && baseViewCache.lastProgressTitleText !== progressTitleText) {
+    baseViewCache.progressTitle.textContent = progressTitleText;
+    baseViewCache.lastProgressTitleText = progressTitleText;
+  }
+
   if (baseViewCache.progressBar) {
-    const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
     if (baseViewCache.lastProgressPercent !== progressPercent) {
       baseViewCache.progressBar.style.width = `${progressPercent}%`;
       baseViewCache.lastProgressPercent = progressPercent;
@@ -337,10 +350,12 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
   if (forceFullRender || stateChanged || !stateView.firstElementChild) {
     stateView.innerHTML = renderState(model);
     baseViewCache.nextPrayerLabel = null;
+    baseViewCache.progressTitle = null;
     baseViewCache.progressBar = null;
     baseViewCache.taskText = null;
     baseViewCache.lastTaskText = '';
     baseViewCache.lastNextPrayerText = '';
+    baseViewCache.lastProgressTitleText = '';
     baseViewCache.lastProgressPercent = null;
     const section = stateView.querySelector('section');
     if (section) {
