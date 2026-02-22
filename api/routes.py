@@ -77,6 +77,11 @@ def build_router(ui_dir: Path) -> APIRouter:
         rgb = tuple(int(max(0, min(255, value))) for value in payload.observed_rgb[:3])
         return await request.app.state.app_service.calibration_submit(rgb)
 
+    @router.post("/api/calibration/preview")
+    async def post_calibration_preview(payload: CalibrationSampleRequest, request: Request) -> dict:
+        rgb = tuple(int(max(0, min(255, value))) for value in payload.observed_rgb[:3])
+        return await request.app.state.app_service.calibration_preview(rgb)
+
     @router.post("/api/calibration/finish")
     async def post_calibration_finish(request: Request) -> dict:
         return await request.app.state.app_service.calibration_finish()
