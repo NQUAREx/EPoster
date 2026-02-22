@@ -79,6 +79,10 @@ class AppService:
         result["state_payload"] = payload
         return result
 
+    async def calibration_preview(self, observed_rgb: tuple[int, int, int]) -> dict:
+        async with self._lock:
+            return await asyncio.to_thread(self._controller.calibration_preview, observed_rgb)
+
     async def calibration_finish(self) -> dict:
         async with self._lock:
             result = await asyncio.to_thread(self._controller.calibration_finish)

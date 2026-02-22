@@ -122,3 +122,18 @@ def test_voice_command_switches_ambilight_effect(client):
     config = client.get("/api/ambilight/config")
     assert config.status_code == 200
     assert config.json()["effect"] == "none"
+
+
+def test_calibration_preview_endpoint(client):
+    start = client.post("/api/calibration/start")
+    assert start.status_code == 200
+
+    preview = client.post("/api/calibration/preview", json={"observed_rgb": [10, 20, 30]})
+    assert preview.status_code == 200
+    assert preview.json()["ok"] is True
+
+
+def test_calibration_preview_requires_active_session(client):
+    preview = client.post("/api/calibration/preview", json={"observed_rgb": [10, 20, 30]})
+    assert preview.status_code == 200
+    assert preview.json()["ok"] is False

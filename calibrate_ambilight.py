@@ -39,9 +39,9 @@ def main() -> None:
         step = view_model.get("step")
         total = view_model.get("total_steps")
         color = view_model.get("screen_color", {})
-        pending_samples: list[list[int]] = []
+        last_observed: list[int] | None = None
         print(f"\nШаг {step}/{total}, экранный цвет: {color}")
-        print("Вводите цвет столько раз, сколько нужно. Команда 'next' отправит последний введенный цвет и переключит на следующий шаг.")
+        print("Введите цвет, проверьте ленту и нажмите 'next' для перехода к следующему шагу.")
         print("Команды: next, q")
 
         while True:
@@ -51,11 +51,11 @@ def main() -> None:
                 print("Калибровка отменена.")
                 return
             if raw.lower() == "next":
-                if not pending_samples:
-                    print("Сначала введите хотя бы один цвет для текущего шага.")
+                if last_observed is None:
+                    print("Сначала введите цвет для текущего шага.")
                     continue
-                observed = pending_samples[-1]
-                print(f"Отправляется последний цвет: {observed} (замеров: {len(pending_samples)})")
+                observed = last_observed
+                print(f"Отправляется последний цвет: {observed}")
                 break
 
             try:
@@ -63,8 +63,12 @@ def main() -> None:
             except ValueError as exc:
                 print(f"Ошибка ввода: {exc}")
                 continue
-            pending_samples.append(observed)
-            print(f"Принято: {observed}. Накоплено замеров: {len(pending_samples)}")
+            last_observed = observed
+            preview = _call("POST", f"{base}/api/calibration/preview", {"observed_rgb": observed})
+            if preview.get("ok"):
+                print(f"Показано на ленте: {observed}")
+            else:
+                print(f"Не удалось показать цвет на ленте: {preview}")
 
         result = _call("POST", f"{base}/api/calibration/sample", {"observed_rgb": observed})
         if result.get("finished"):

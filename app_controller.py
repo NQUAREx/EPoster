@@ -189,6 +189,12 @@ class AppController:
         model["finished"] = False
         return model
 
+    def calibration_preview(self, rgb: tuple[int, int, int]) -> dict:
+        if not self._calibration.active:
+            return {"ok": False, "error": "Калибровка не запущена"}
+        led_count = self._ambilight.show_calibration_color(rgb)
+        return {"ok": True, "led_count": led_count}
+
     def calibration_finish(self) -> dict:
         if not self._calibration.can_finish():
             return {"ok": False, "error": "Недостаточно калибровочных точек"}
