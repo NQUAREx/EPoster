@@ -275,10 +275,18 @@ class AmbilightController:
     def show_calibration_color(self, rgb: tuple[int, int, int]) -> int:
         if not self._config.enabled:
             return 0
-        tone_mapped = self._apply_ambilight_tone_mapping(self._safe_rgb(rgb))
-        strip = [tone_mapped for _ in range(self._config.led_count)]
+
+        direct_rgb = self._safe_rgb(rgb)
+        strip = [direct_rgb for _ in range(self._config.led_count)]
         with self._frame_lock:
             self._target_strip = strip
+            self._current_strip = [(float(direct_rgb[0]), float(direct_rgb[1]), float(direct_rgb[2])) for _ in range(self._config.led_count)]
+
+        with self._effect_lock:
+            self._wake_effect_until = 0.0
+            self._wake_effect_until_epoch_ms = 0
+
+        self._driver.show(strip)
         self._render_event.set()
         return len(strip)
 

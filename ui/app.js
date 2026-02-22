@@ -358,10 +358,28 @@ function patchReviewView(model) {
   }
 }
 
+function patchCalibrationView(model) {
+  const section = stateView.querySelector('.calibration-screen');
+  if (!section) return;
+
+  const color = model.screen_color_css || 'rgb(0, 0, 0)';
+  section.style.setProperty('--calibration-color', color);
+
+  const lines = section.querySelectorAll('.calibration-panel p');
+  if (lines.length >= 3) {
+    const step = Number(model.step || 1);
+    const total = Number(model.total_steps || 1);
+    lines[0].textContent = `Шаг ${step} / ${total}`;
+    lines[1].textContent = model.hint || '';
+    lines[2].textContent = `Цвет: ${color}`;
+  }
+}
+
 function patchCurrentView(model) {
   if (model.view === 'base_state') patchBaseView(model);
   if (model.view === 'tasks_map_state') patchMapView(model);
   if (model.view === 'day_review_state') patchReviewView(model);
+  if (model.view === 'calibration_state') patchCalibrationView(model);
 }
 
 function wakePulse(progress, minBlend, maxBlend) {
