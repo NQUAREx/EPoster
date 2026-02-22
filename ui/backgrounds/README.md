@@ -1,6 +1,5 @@
-# Background themes for base_state
+# Base background themes
 
-- Every file in this folder describes one visual background preset.
-- `settings.json` controls active preset via `base_background_id` (1, 2, 3...).
-- Add a new `theme-N.css` and map `N` in `states/base_backgrounds/catalog.py`.
-- Existing markup/animations stay compatible, so future animated redesigns can be introduced without touching state logic.
+- Base screen uses modular background catalog (`states/base_backgrounds/catalog.py`).
+- `settings.json` keeps `base_background_id` for compatibility, but only the original theme is provided.
+- Unknown ids automatically resolve to the original theme (`bg-theme-1`).
