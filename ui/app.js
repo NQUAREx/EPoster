@@ -10,8 +10,10 @@ let wsConnected = false;
 const baseViewCache = {
   nextPrayerLabel: null,
   progressBar: null,
+  taskLabel: null,
   taskText: null,
   lastTaskText: '',
+  lastTaskLabelText: '',
   lastNextPrayerText: '',
   lastProgressPercent: null,
 };
@@ -98,6 +100,8 @@ function updateJellyClock(clockDigits) {
 
 function renderBase(model) {
   const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
+  const taskType = String(model.today_task_type || '').trim();
+  const taskMeta = taskType ? ` · ${taskType}` : '';
   return `<section class="base-screen" data-view="base_state">
     <div class="lava-background">
       <div class="blob"></div>
@@ -136,7 +140,7 @@ function renderBase(model) {
     </div>
 
     <div class="task-container ${taskTypeClass(model.today_task_type)}">
-      <div class="task-label">Задание на сегодня · День ${model.day}</div>
+      <div class="task-label" id="daily-task-label">Задание на сегодня · День ${model.day}${taskMeta}</div>
       <div class="task-text" id="daily-task">${model.today_task}</div>
     </div>
   </section>`;
@@ -203,12 +207,21 @@ function renderState(model) {
 function patchBaseView(model) {
   baseViewCache.nextPrayerLabel = baseViewCache.nextPrayerLabel || document.getElementById('nextPrayerLabel');
   baseViewCache.progressBar = baseViewCache.progressBar || document.getElementById('progress-bar');
+  baseViewCache.taskLabel = baseViewCache.taskLabel || document.getElementById('daily-task-label');
   baseViewCache.taskText = baseViewCache.taskText || document.getElementById('daily-task');
 
   const nextPrayerText = `До ${model.next_prayer.next}`;
   if (baseViewCache.nextPrayerLabel && baseViewCache.lastNextPrayerText !== nextPrayerText) {
     baseViewCache.nextPrayerLabel.textContent = nextPrayerText;
     baseViewCache.lastNextPrayerText = nextPrayerText;
+  }
+
+  const taskType = String(model.today_task_type || '').trim();
+  const taskMeta = taskType ? ` · ${taskType}` : '';
+  const taskLabelText = `Задание на сегодня · День ${model.day}${taskMeta}`;
+  if (baseViewCache.taskLabel && baseViewCache.lastTaskLabelText !== taskLabelText) {
+    baseViewCache.taskLabel.textContent = taskLabelText;
+    baseViewCache.lastTaskLabelText = taskLabelText;
   }
 
   if (baseViewCache.taskText && baseViewCache.lastTaskText !== model.today_task) {
