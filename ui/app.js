@@ -30,6 +30,10 @@ function textGradient(text) {
   return `<span class="water-text">${text}</span>`;
 }
 
+function asWakeFrame() {
+  return '<div class="wake-frame"></div>';
+}
+
 
 function taskTypeClass(taskType) {
   const normalized = String(taskType || '').trim().toLowerCase();
@@ -158,7 +162,7 @@ function renderTaskInfo(model) {
   const scores = model.closed
     ? `<div class="scores-line">${model.scores_line.map((item) => `<span>${item.child}: <span class="emoji-plain">${item.emoji}</span></span>`).join(' · ')}</div>`
     : '';
-  return `<section class="task-info-screen" data-view="task_info_state">${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h1>${textGradient(`Задание дня ${model.day}`)}</h1><p class="large-copy">${textGradient(model.task_text)}</p>${scores}</div>`)}</section>`;
+  return `<section class="task-info-screen" data-view="task_info_state">${asWakeFrame()}${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h1>${textGradient(`Задание дня ${model.day}`)}</h1><p class="large-copy">${textGradient(model.task_text)}</p>${scores}</div>`)}</section>`;
 }
 
 function renderMap(model) {
@@ -180,7 +184,7 @@ function renderMap(model) {
     return `<article data-day="${circle.day}" class="task-card ${typeClass} ${isLocked ? 'locked' : circle.status} ${circle.selected ? 'selected' : ''}"><span class="pin" aria-hidden="true"></span><div class="day-number">${circle.day}</div><div class="card-content">${content}</div></article>`;
   }).join('');
   const warning = model.warning ? `<div class="warning" id="mapWarning">${textGradient(model.warning)}</div>` : '<div class="warning" id="mapWarning"></div>';
-  return `<section class="map-screen" data-view="tasks_map_state"><div class="background-fix"></div><div class="chalkboard-overlay"></div><div class="wake-frame"></div><div class="tasks-grid">${circles}</div>${warning}</section>`;
+  return `<section class="map-screen" data-view="tasks_map_state"><div class="background-fix"></div><div class="chalkboard-overlay"></div>${asWakeFrame()}<div class="tasks-grid">${circles}</div>${warning}</section>`;
 }
 
 function renderReview(model) {
@@ -196,11 +200,18 @@ function renderReview(model) {
   };
   const options = model.score_options.map((s) => `<div class="score">${scoreSvg(s.score)}<small>${textGradient(s.label)}</small></div>`).join('');
   const childName = model.child == null ? '-' : model.child;
-  return `<section class="review-screen" data-view="day_review_state">${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${childName}`)}</h1><div class="score-row">${options}</div>${done}</div>`)}</section>`;
+  return `<section class="review-screen" data-view="day_review_state">${asWakeFrame()}${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${childName}`)}</h1><div class="score-row">${options}</div>${done}</div>`)}</section>`;
 }
 
 function renderEid(model) {
-  return `<section class="eid-screen" data-view="eid_state"><div class="confetti"></div>${asGlass(`<h1>${textGradient(model.message)}</h1>`)}</section>`;
+  return `<section class="eid-screen" data-view="eid_state"><div class="confetti"></div>${asWakeFrame()}${asGlass(`<h1>${textGradient(model.message)}</h1>`)}</section>`;
+}
+
+function extractViewModel(apiPayload) {
+  if (!apiPayload || typeof apiPayload !== 'object') return null;
+  if (apiPayload.view_model && typeof apiPayload.view_model === 'object') return apiPayload.view_model;
+  if (apiPayload.view && typeof apiPayload.view === 'string') return apiPayload;
+  return null;
 }
 
 function renderState(model) {
@@ -382,10 +393,17 @@ async function refreshState(forceFullRender = false) {
   }
 
   refreshInFlight = (async () => {
-    const response = await fetch('/api/state');
+    const response = await fetch('/api/state', { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`State API error: ${response.status}`);
+    }
     const data = await response.json();
     trackAppInstance(data.app_instance_id);
-    applyViewModel(data.view_model, { forceFullRender });
+    const viewModel = extractViewModel(data);
+    if (!viewModel) {
+      throw new Error('State API payload has no view model');
+    }
+    applyViewModel(viewModel, { forceFullRender });
   })();
 
   try {
@@ -419,11 +437,12 @@ function connectStateSocket() {
     try {
       const data = JSON.parse(event.data);
       trackAppInstance(data?.app_instance_id);
-      if (!data?.view_model) {
+      const viewModel = extractViewModel(data);
+      if (!viewModel) {
         refreshState().catch(() => {});
         return;
       }
-      applyViewModel(data.view_model);
+      applyViewModel(viewModel);
     } catch (_) {
       refreshState().catch(() => {});
     }
