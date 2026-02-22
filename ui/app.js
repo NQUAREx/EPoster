@@ -7,6 +7,8 @@ let stateSocket = null;
 let reconnectTimer = null;
 let baseCountdownSeconds = null;
 let wsConnected = false;
+let appInstanceId = null;
+let reloadInProgress = false;
 const baseViewCache = {
   nextPrayerLabel: null,
   progressBar: null,
@@ -307,6 +309,26 @@ function updateWakeBorder() {
   document.body.classList.toggle('wake-active', Date.now() < wakeActiveUntil);
 }
 
+function hardReloadPage() {
+  if (reloadInProgress) return;
+  reloadInProgress = true;
+  const url = new URL(window.location.href);
+  url.searchParams.set('reload_ts', String(Date.now()));
+  window.location.replace(url.toString());
+}
+
+function trackAppInstance(instanceId) {
+  if (!instanceId) return;
+  if (!appInstanceId) {
+    appInstanceId = instanceId;
+    return;
+  }
+
+  if (appInstanceId !== instanceId) {
+    hardReloadPage();
+  }
+}
+
 function applyViewModel(model, { forceFullRender = false } = {}) {
   const stateChanged = currentState !== model.view;
   currentState = model.view;
@@ -347,6 +369,7 @@ async function refreshState(forceFullRender = false) {
   refreshInFlight = (async () => {
     const response = await fetch('/api/state');
     const data = await response.json();
+    trackAppInstance(data.app_instance_id);
     applyViewModel(data.view_model, { forceFullRender });
   })();
 
@@ -380,6 +403,7 @@ function connectStateSocket() {
   stateSocket.addEventListener('message', (event) => {
     try {
       const data = JSON.parse(event.data);
+      trackAppInstance(data?.app_instance_id);
       if (!data?.view_model) {
         refreshState().catch(() => {});
         return;

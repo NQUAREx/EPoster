@@ -14,7 +14,14 @@ def build_router(ui_dir: Path) -> APIRouter:
 
     @router.get("/")
     async def index() -> FileResponse:
-        return FileResponse(ui_dir / "index.html")
+        return FileResponse(
+            ui_dir / "index.html",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
     @router.get("/api/state")
     async def get_state(request: Request) -> dict:

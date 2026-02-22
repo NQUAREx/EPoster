@@ -29,7 +29,9 @@ def client(tmp_path, monkeypatch):
 def test_get_state(client):
     response = client.get("/api/state")
     assert response.status_code == 200
-    assert response.json()["state"] == "base_state"
+    payload = response.json()
+    assert payload["state"] == "base_state"
+    assert isinstance(payload.get("app_instance_id"), str) and payload["app_instance_id"]
 
 
 def test_command_transition(client):
@@ -68,6 +70,7 @@ def test_websocket_pushes_state_updates(client):
     with client.websocket_connect("/ws/state") as ws:
         initial_payload = ws.receive_json()
         assert initial_payload["state"] == "base_state"
+        assert isinstance(initial_payload.get("app_instance_id"), str) and initial_payload["app_instance_id"]
 
         command_response = client.post("/api/command", json={"command": "open_tasks_map"})
         assert command_response.status_code == 200
