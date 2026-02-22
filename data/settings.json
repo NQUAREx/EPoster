@@ -13,6 +13,6 @@
   "ambilight_enabled": true,
   "ambilight_gpio_pin": 18,
   "ambilight_led_count": 164,
-  "ambilight_brightness": 255,
+  "ambilight_brightness": 10,
   "ambilight_order": "GRB"
 }
