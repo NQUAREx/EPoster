@@ -135,6 +135,7 @@ class AppController:
 
     def mark_wake_detected(self, duration_seconds: float = 6.0) -> None:
         self._wake_active_until = max(self._wake_active_until, time.monotonic() + duration_seconds)
+        self._ambilight.trigger_wake_effect(duration_seconds)
 
     def render(self) -> dict:
         self._sync_ramadan_day()
@@ -157,10 +158,16 @@ class AppController:
         return ui_payload
 
     def ambilight_config(self) -> dict:
+        effect_status = self._ambilight.effect_status()
         return {
             "enabled": self.settings.ambilight_enabled,
             "led_count": self.settings.ambilight_led_count,
+            "effect": effect_status["current"],
+            "effects": effect_status["available"],
         }
+
+    def set_ambilight_effect(self, effect_name: str) -> bool:
+        return self._ambilight.set_effect_mode(effect_name)
 
     def apply_ambilight_frame(self, edge_colors: dict, viewport: dict | None = None) -> int:
         if self._calibration.active:
@@ -212,6 +219,10 @@ class AppController:
         normalized = self.command_router.normalize_event(event)
         if normalized.wake_word_detected:
             self.mark_wake_detected()
+
+        if normalized.command.startswith("ambilight_effect_"):
+            effect_name = normalized.command.removeprefix("ambilight_effect_")
+            self.set_ambilight_effect(effect_name)
 
         ui_payload = self.state_manager.handle_command(normalized.command, normalized.payload)
         ui_payload["command_source"] = normalized.source

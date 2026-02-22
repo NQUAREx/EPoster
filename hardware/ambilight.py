@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from threading import Event, Lock, Thread
 from time import monotonic, sleep
-from typing import Iterable
+from typing import Callable, Iterable, Protocol
 
 from hardware.color_profile import ColorConverter
 from hardware.lights import LightController, StripConfig
@@ -18,11 +18,48 @@ class AmbilightConfig:
     color_order: str = "GRB"
 
 
+class AmbilightEffect(Protocol):
+    def apply(self, colors: list[tuple[int, int, int]], timestamp: float) -> list[tuple[int, int, int]]:
+        ...
+
+
+class NoopEffect:
+    def apply(self, colors: list[tuple[int, int, int]], timestamp: float) -> list[tuple[int, int, int]]:
+        del timestamp
+        return colors
+
+
+class WakeBlinkEffect:
+    _BLINK_PERIOD_SECONDS = 0.65
+
+    def __init__(self, color: tuple[int, int, int] = (100, 210, 255)) -> None:
+        self._color = color
+
+    def apply(self, colors: list[tuple[int, int, int]], timestamp: float) -> list[tuple[int, int, int]]:
+        phase = (timestamp % self._BLINK_PERIOD_SECONDS) / self._BLINK_PERIOD_SECONDS
+        pulse = 1.0 if phase < 0.5 else 0.2
+        return [
+            (
+                round((base[0] * 0.35) + (self._color[0] * pulse * 0.65)),
+                round((base[1] * 0.35) + (self._color[1] * pulse * 0.65)),
+                round((base[2] * 0.35) + (self._color[2] * pulse * 0.65)),
+            )
+            for base in colors
+        ]
+
+
 class AmbilightController:
     _BASE_VERTICAL_LEDS = 30
     _BASE_HORIZONTAL_LEDS = 52
 
-    def __init__(self, config: AmbilightConfig, converter: ColorConverter | None = None) -> None:
+    _GAMMA = 2.35
+    _FRAME_RATE = 30.0
+    _SMOOTHING_HALF_LIFE = 0.18
+    _DARKEN_FACTOR = 0.78
+    _SATURATION_BOOST = 1.12
+    _WAKE_EFFECT_DURATION_SECONDS = 6.0
+
+    def __init__(self, config: AmbilightConfig) -> None:
         self._config = config
         self._converter = converter or ColorConverter()
         self._driver = LightController(
@@ -41,16 +78,22 @@ class AmbilightController:
         ]
         self._shutdown_event = Event()
         self._render_event = Event()
+        self._effect_lock = Lock()
+        self._wake_effect_until = 0.0
+        self._effect_factories: dict[str, Callable[[], AmbilightEffect]] = {
+            "none": NoopEffect,
+            "wake_blink": WakeBlinkEffect,
+        }
+        self._effect_titles: dict[str, str] = {
+            "none": "Без эффекта",
+            "wake_blink": "Мигание при wake",
+        }
+        self._effect_name = "wake_blink"
+        self._effect: AmbilightEffect = self._effect_factories[self._effect_name]()
         self._render_thread: Thread | None = None
         if self._config.enabled:
             self._render_thread = Thread(target=self._render_loop, name="ambilight-render", daemon=True)
             self._render_thread.start()
-
-    _GAMMA = 2.35
-    _FRAME_RATE = 30.0
-    _SMOOTHING_HALF_LIFE = 0.18
-    _DARKEN_FACTOR = 0.78
-    _SATURATION_BOOST = 1.12
 
     @classmethod
     def _to_linear(cls, value: int) -> float:
@@ -63,8 +106,6 @@ class AmbilightController:
 
     @classmethod
     def _apply_ambilight_tone_mapping(cls, rgb: tuple[int, int, int]) -> tuple[int, int, int]:
-        # Рабочий пайплайн для LED: легкое затемнение, буст насыщенности
-        # и гамма-коррекция.
         r_lin = cls._to_linear(rgb[0])
         g_lin = cls._to_linear(rgb[1])
         b_lin = cls._to_linear(rgb[2])
@@ -155,8 +196,6 @@ class AmbilightController:
         left = self._nearest_palette([self._safe_rgb(v) for v in edge_colors.get("left", [])], left_count)
         bottom = self._nearest_palette([self._safe_rgb(v) for v in edge_colors.get("bottom", [])], bottom_count)
 
-        # Физический обход: старт в правом нижнем углу, затем вверх,
-        # далее по верху влево, по левой стороне вниз и по низу вправо.
         raw_strip = list(reversed(right)) + list(reversed(top)) + left + bottom
         tone_mapped = [self._apply_ambilight_tone_mapping(color) for color in raw_strip]
         return [self._converter.convert(color) for color in tone_mapped]
@@ -191,6 +230,12 @@ class AmbilightController:
                 self._current_strip[index] = next_rgb
                 rendered.append((round(next_rgb[0]), round(next_rgb[1]), round(next_rgb[2])))
 
+            with self._effect_lock:
+                wake_overlay_active = now < self._wake_effect_until
+                effect = self._effect
+            if wake_overlay_active:
+                rendered = effect.apply(rendered, now)
+
             self._driver.show(rendered)
             if dt < target_dt:
                 sleep(target_dt - dt)
@@ -214,6 +259,31 @@ class AmbilightController:
             self._target_strip = strip
         self._render_event.set()
         return len(strip)
+
+    def trigger_wake_effect(self, duration_seconds: float = _WAKE_EFFECT_DURATION_SECONDS) -> None:
+        with self._effect_lock:
+            self._wake_effect_until = max(self._wake_effect_until, monotonic() + max(0.1, duration_seconds))
+        self._render_event.set()
+
+    def set_effect_mode(self, name: str) -> bool:
+        normalized = str(name or "").strip().lower()
+        factory = self._effect_factories.get(normalized)
+        if factory is None:
+            return False
+        with self._effect_lock:
+            self._effect_name = normalized
+            self._effect = factory()
+        self._render_event.set()
+        return True
+
+    def effect_status(self) -> dict:
+        with self._effect_lock:
+            current = self._effect_name
+        available = [
+            {"name": name, "title": self._effect_titles.get(name, name)}
+            for name in sorted(self._effect_factories.keys())
+        ]
+        return {"current": current, "available": available}
 
     def shutdown(self) -> None:
         self._shutdown_event.set()

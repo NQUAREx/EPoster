@@ -56,6 +56,10 @@ class CommandRouter:
             "средне": "score_2",
             "хорошо": "score_3",
             "отлично": "score_3",
+            "эмбилайт стандарт": "ambilight_effect_wake_blink",
+            "эффект эмбилайт стандарт": "ambilight_effect_wake_blink",
+            "эмбилайт без эффекта": "ambilight_effect_none",
+            "эффект эмбилайт выключить": "ambilight_effect_none",
         }
 
     def normalize(self, command: str) -> str:
