@@ -135,6 +135,15 @@ class AppController:
     def _wake_is_active(self) -> bool:
         return time.monotonic() < self._wake_active_until
 
+    def _wake_sync_model(self) -> dict:
+        wake_state = self._ambilight.wake_blink_state()
+        return {
+            "active": self._wake_is_active(),
+            "started_at_epoch_ms": wake_state["started_at_epoch_ms"],
+            "active_until_epoch_ms": wake_state["active_until_epoch_ms"],
+            "profile": wake_state["profile"],
+        }
+
     def mark_wake_detected(self, duration_seconds: float = 6.0) -> None:
         self._wake_active_until = max(self._wake_active_until, time.monotonic() + duration_seconds)
         self._ambilight.trigger_wake_effect(duration_seconds)
@@ -145,7 +154,8 @@ class AppController:
             ui_payload = self._calibration.view_model()
         else:
             ui_payload = self.state_manager.show()
-        ui_payload["wake_active"] = self._wake_is_active()
+        ui_payload["wake_sync"] = self._wake_sync_model()
+        ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
         self._save_session_if_changed()
         return ui_payload
 
@@ -154,7 +164,8 @@ class AppController:
         event = self.command_router.normalize_event(CommandEvent(command=command, payload=payload))
         ui_payload = self.state_manager.handle_command(event.command, event.payload)
         ui_payload["command_source"] = event.source
-        ui_payload["wake_active"] = event.wake_word_detected
+        ui_payload["wake_sync"] = self._wake_sync_model()
+        ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
         self._save_session_if_changed()
         self._save_settings_if_changed()
         return ui_payload
@@ -222,7 +233,8 @@ class AppController:
         if self._calibration.active:
             ui_payload = self._calibration.view_model()
             ui_payload["command_source"] = "calibration_lock"
-            ui_payload["wake_active"] = self._wake_is_active()
+            ui_payload["wake_sync"] = self._wake_sync_model()
+            ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
             return ui_payload
         normalized = self.command_router.normalize_event(event)
         if normalized.wake_word_detected:
@@ -234,7 +246,8 @@ class AppController:
 
         ui_payload = self.state_manager.handle_command(normalized.command, normalized.payload)
         ui_payload["command_source"] = normalized.source
-        ui_payload["wake_active"] = self._wake_is_active()
+        ui_payload["wake_sync"] = self._wake_sync_model()
+        ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
         self._save_session_if_changed()
         self._save_settings_if_changed()
         return ui_payload

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import cos, pi
 from threading import Event, Lock, Thread
-from time import monotonic, sleep
+from time import monotonic, sleep, time
 from typing import Callable, Iterable, Protocol
 
 from hardware.color_profile import ColorConverter
@@ -19,6 +19,16 @@ class AmbilightConfig:
     color_order: str = "GRB"
 
 
+@dataclass(frozen=True)
+class WakeBlinkProfile:
+    period_seconds: float = 1.5
+    min_blend: float = 0.2
+    max_blend: float = 1.0
+    base_mix: float = 0.35
+    overlay_mix: float = 0.65
+    color: tuple[int, int, int] = (100, 210, 255)
+
+
 class AmbilightEffect(Protocol):
     def apply(self, colors: list[tuple[int, int, int]], timestamp: float) -> list[tuple[int, int, int]]:
         ...
@@ -31,22 +41,35 @@ class NoopEffect:
 
 
 class WakeBlinkEffect:
-    _BLINK_PERIOD_SECONDS = 0.65
-    _MIN_BLEND = 0.2
-    _MAX_BLEND = 1.0
+    _BLINK_PERIOD_SECONDS = WakeBlinkProfile.period_seconds
 
-    def __init__(self, color: tuple[int, int, int] = (100, 210, 255)) -> None:
-        self._color = color
+    def __init__(self, profile: WakeBlinkProfile | None = None, color: tuple[int, int, int] | None = None) -> None:
+        if profile is None:
+            profile = WakeBlinkProfile(color=color or WakeBlinkProfile().color)
+        elif color is not None:
+            profile = WakeBlinkProfile(
+                period_seconds=profile.period_seconds,
+                min_blend=profile.min_blend,
+                max_blend=profile.max_blend,
+                base_mix=profile.base_mix,
+                overlay_mix=profile.overlay_mix,
+                color=color,
+            )
+        self._profile = profile
+
+    @property
+    def profile(self) -> WakeBlinkProfile:
+        return self._profile
 
     def apply(self, colors: list[tuple[int, int, int]], timestamp: float) -> list[tuple[int, int, int]]:
-        phase = (timestamp % self._BLINK_PERIOD_SECONDS) / self._BLINK_PERIOD_SECONDS
+        phase = (timestamp % self._profile.period_seconds) / self._profile.period_seconds
         oscillation = (1.0 - cos(2.0 * pi * phase)) / 2.0
-        pulse = self._MIN_BLEND + ((self._MAX_BLEND - self._MIN_BLEND) * oscillation)
+        pulse = self._profile.min_blend + ((self._profile.max_blend - self._profile.min_blend) * oscillation)
         return [
             (
-                round((base[0] * 0.35) + (self._color[0] * pulse * 0.65)),
-                round((base[1] * 0.35) + (self._color[1] * pulse * 0.65)),
-                round((base[2] * 0.35) + (self._color[2] * pulse * 0.65)),
+                round((base[0] * self._profile.base_mix) + (self._profile.color[0] * pulse * self._profile.overlay_mix)),
+                round((base[1] * self._profile.base_mix) + (self._profile.color[1] * pulse * self._profile.overlay_mix)),
+                round((base[2] * self._profile.base_mix) + (self._profile.color[2] * pulse * self._profile.overlay_mix)),
             )
             for base in colors
         ]
@@ -84,9 +107,13 @@ class AmbilightController:
         self._render_event = Event()
         self._effect_lock = Lock()
         self._wake_effect_until = 0.0
+        self._wake_effect_started_at = 0.0
+        self._wake_effect_started_at_epoch_ms = 0
+        self._wake_effect_until_epoch_ms = 0
+        self._wake_profile = WakeBlinkProfile()
         self._effect_factories: dict[str, Callable[[], AmbilightEffect]] = {
             "none": NoopEffect,
-            "wake_blink": WakeBlinkEffect,
+            "wake_blink": lambda: WakeBlinkEffect(self._wake_profile),
         }
         self._effect_titles: dict[str, str] = {
             "none": "Без эффекта",
@@ -238,7 +265,7 @@ class AmbilightController:
                 wake_overlay_active = now < self._wake_effect_until
                 effect = self._effect
             if wake_overlay_active:
-                rendered = effect.apply(rendered, now)
+                rendered = effect.apply(rendered, max(0.0, now - self._wake_effect_started_at))
 
             self._driver.show(rendered)
             if dt < target_dt:
@@ -265,9 +292,31 @@ class AmbilightController:
         return len(strip)
 
     def trigger_wake_effect(self, duration_seconds: float = _WAKE_EFFECT_DURATION_SECONDS) -> None:
+        now = monotonic()
+        now_epoch_ms = round(time() * 1000)
+        safe_duration = max(0.1, duration_seconds)
         with self._effect_lock:
-            self._wake_effect_until = max(self._wake_effect_until, monotonic() + max(0.1, duration_seconds))
+            if now >= self._wake_effect_until:
+                self._wake_effect_started_at = now
+                self._wake_effect_started_at_epoch_ms = now_epoch_ms
+            self._wake_effect_until = max(self._wake_effect_until, now + safe_duration)
+            self._wake_effect_until_epoch_ms = max(self._wake_effect_until_epoch_ms, now_epoch_ms + round(safe_duration * 1000))
         self._render_event.set()
+
+    def wake_blink_state(self) -> dict:
+        with self._effect_lock:
+            return {
+                "started_at_epoch_ms": self._wake_effect_started_at_epoch_ms,
+                "active_until_epoch_ms": self._wake_effect_until_epoch_ms,
+                "profile": {
+                    "period_seconds": self._wake_profile.period_seconds,
+                    "min_blend": self._wake_profile.min_blend,
+                    "max_blend": self._wake_profile.max_blend,
+                    "base_mix": self._wake_profile.base_mix,
+                    "overlay_mix": self._wake_profile.overlay_mix,
+                    "color": list(self._wake_profile.color),
+                },
+            }
 
     def set_effect_mode(self, name: str) -> bool:
         normalized = str(name or "").strip().lower()
