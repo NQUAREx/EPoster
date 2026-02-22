@@ -4,7 +4,7 @@ import sys
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(REPO_ROOT))
 
-from hardware.ambilight import AmbilightConfig, AmbilightController
+from hardware.ambilight import AmbilightConfig, AmbilightController, WakeBlinkEffect
 
 
 def test_ambilight_led_distribution_matches_configured_length():
@@ -78,3 +78,14 @@ def test_set_effect_mode_rejects_unknown_name():
     controller = AmbilightController(AmbilightConfig(enabled=False, led_count=60))
     assert controller.set_effect_mode("unknown") is False
     assert controller.effect_status()["current"] == "wake_blink"
+
+
+def test_wake_blink_effect_transitions_smoothly_between_peaks():
+    effect = WakeBlinkEffect(color=(100, 210, 255))
+    base = [(10, 20, 30)]
+
+    low = effect.apply(base, timestamp=0.0)[0]
+    middle = effect.apply(base, timestamp=WakeBlinkEffect._BLINK_PERIOD_SECONDS / 4)[0]
+    high = effect.apply(base, timestamp=WakeBlinkEffect._BLINK_PERIOD_SECONDS / 2)[0]
+
+    assert low[2] < middle[2] < high[2]
