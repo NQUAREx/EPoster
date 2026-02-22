@@ -47,7 +47,6 @@ class AmbilightController:
     _GAMMA = 2.35
     _FRAME_RATE = 30.0
     _SMOOTHING_HALF_LIFE = 0.18
-    _MIN_LED_BRIGHTNESS = 6
     _DARKEN_FACTOR = 0.78
     _SATURATION_BOOST = 1.12
 
@@ -62,8 +61,8 @@ class AmbilightController:
 
     @classmethod
     def _apply_ambilight_tone_mapping(cls, rgb: tuple[int, int, int]) -> tuple[int, int, int]:
-        # Рабочий пайплайн для LED: легкое затемнение, буст насыщенности,
-        # минимальный порог свечения и гамма-коррекция.
+        # Рабочий пайплайн для LED: легкое затемнение, буст насыщенности
+        # и гамма-коррекция.
         r_lin = cls._to_linear(rgb[0])
         g_lin = cls._to_linear(rgb[1])
         b_lin = cls._to_linear(rgb[2])
@@ -76,11 +75,6 @@ class AmbilightController:
         r_out = cls._to_gamma(r_lin * cls._DARKEN_FACTOR)
         g_out = cls._to_gamma(g_lin * cls._DARKEN_FACTOR)
         b_out = cls._to_gamma(b_lin * cls._DARKEN_FACTOR)
-
-        if (r_out + g_out + b_out) > 0:
-            r_out = max(cls._MIN_LED_BRIGHTNESS, r_out)
-            g_out = max(cls._MIN_LED_BRIGHTNESS, g_out)
-            b_out = max(cls._MIN_LED_BRIGHTNESS, b_out)
 
         return (
             max(0, min(255, r_out)),
