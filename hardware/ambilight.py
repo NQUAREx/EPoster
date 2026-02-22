@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import cos, pi
 from threading import Event, Lock, Thread
 from time import monotonic, sleep
 from typing import Callable, Iterable, Protocol
@@ -31,13 +32,16 @@ class NoopEffect:
 
 class WakeBlinkEffect:
     _BLINK_PERIOD_SECONDS = 0.65
+    _MIN_BLEND = 0.2
+    _MAX_BLEND = 1.0
 
     def __init__(self, color: tuple[int, int, int] = (100, 210, 255)) -> None:
         self._color = color
 
     def apply(self, colors: list[tuple[int, int, int]], timestamp: float) -> list[tuple[int, int, int]]:
         phase = (timestamp % self._BLINK_PERIOD_SECONDS) / self._BLINK_PERIOD_SECONDS
-        pulse = 1.0 if phase < 0.5 else 0.2
+        oscillation = (1.0 - cos(2.0 * pi * phase)) / 2.0
+        pulse = self._MIN_BLEND + ((self._MAX_BLEND - self._MIN_BLEND) * oscillation)
         return [
             (
                 round((base[0] * 0.35) + (self._color[0] * pulse * 0.65)),
