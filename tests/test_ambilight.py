@@ -89,3 +89,26 @@ def test_wake_blink_effect_transitions_smoothly_between_peaks():
     high = effect.apply(base, timestamp=WakeBlinkEffect._BLINK_PERIOD_SECONDS / 2)[0]
 
     assert low[2] < middle[2] < high[2]
+
+
+def test_calibration_color_is_written_without_tone_mapping():
+    controller = AmbilightController(AmbilightConfig(enabled=False, led_count=10))
+    controller._config = AmbilightConfig(enabled=True, led_count=5)
+
+    captured = {}
+
+    class DummyDriver:
+        def show(self, colors):
+            captured["colors"] = list(colors)
+
+    controller._driver = DummyDriver()
+    controller._wake_effect_until = 10.0
+    controller._wake_effect_until_epoch_ms = 999
+
+    led_count = controller.show_calibration_color((255, 50, 50))
+
+    assert led_count == 5
+    assert captured["colors"] == [(255, 50, 50)] * 5
+    assert controller._target_strip == [(255, 50, 50)] * 5
+    assert controller._wake_effect_until == 0.0
+    assert controller._wake_effect_until_epoch_ms == 0
