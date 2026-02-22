@@ -80,6 +80,15 @@ def test_websocket_pushes_state_updates(client):
         assert len(pushed_payload["view_model"]["circles"]) == 30
 
 
+
+
+def test_ambilight_config_endpoint(client):
+    response = client.get("/api/ambilight/config")
+    assert response.status_code == 200
+    payload = response.json()
+    assert isinstance(payload.get("led_count"), int)
+    assert isinstance(payload.get("enabled"), bool)
+
 def test_ambilight_frame_endpoint(client):
     response = client.post(
         "/api/ambilight/frame",

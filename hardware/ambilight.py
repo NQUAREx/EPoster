@@ -18,6 +18,9 @@ class AmbilightConfig:
 
 
 class AmbilightController:
+    _BASE_VERTICAL_LEDS = 30
+    _BASE_HORIZONTAL_LEDS = 52
+
     def __init__(self, config: AmbilightConfig) -> None:
         self._config = config
         self._driver = LightController(
@@ -97,15 +100,35 @@ class AmbilightController:
         )
 
     def _distribute_leds(self, width: int, height: int) -> tuple[int, int, int, int]:
-        width = max(1, int(width or 1))
-        height = max(1, int(height or 1))
-        perimeter = (2 * width) + (2 * height)
+        del width, height
         led_count = max(12, self._config.led_count)
+        base_layout = [
+            self._BASE_VERTICAL_LEDS,
+            self._BASE_HORIZONTAL_LEDS,
+            self._BASE_VERTICAL_LEDS,
+            self._BASE_HORIZONTAL_LEDS,
+        ]
+        base_total = sum(base_layout)
+        scale = led_count / base_total
 
-        right = max(1, round(led_count * (height / perimeter)))
-        top = max(1, round(led_count * (width / perimeter)))
-        left = max(1, round(led_count * (height / perimeter)))
-        bottom = max(1, led_count - (right + top + left))
+        scaled = [max(1, int(value * scale)) for value in base_layout]
+        missing = led_count - sum(scaled)
+        if missing != 0:
+            priorities = sorted(
+                range(len(base_layout)),
+                key=lambda idx: (base_layout[idx] * scale) - int(base_layout[idx] * scale),
+                reverse=missing > 0,
+            )
+            step = 1 if missing > 0 else -1
+            idx = 0
+            while missing != 0:
+                edge_index = priorities[idx % len(priorities)]
+                if scaled[edge_index] + step >= 1:
+                    scaled[edge_index] += step
+                    missing -= step
+                idx += 1
+
+        right, top, left, bottom = scaled
         return right, top, left, bottom
 
     @staticmethod
@@ -136,7 +159,9 @@ class AmbilightController:
         left = self._nearest_palette([self._safe_rgb(v) for v in edge_colors.get("left", [])], left_count)
         bottom = self._nearest_palette([self._safe_rgb(v) for v in edge_colors.get("bottom", [])], bottom_count)
 
-        raw_strip = right + top + left + bottom
+        # Физический обход: старт в правом нижнем углу, затем вверх,
+        # далее по верху влево, по левой стороне вниз и по низу вправо.
+        raw_strip = list(reversed(right)) + list(reversed(top)) + left + bottom
         return [self._apply_ambilight_tone_mapping(color) for color in raw_strip]
 
     def _render_loop(self) -> None:

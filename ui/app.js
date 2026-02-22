@@ -443,6 +443,88 @@ function connectStateSocket() {
 
 
 let ambilightInFlight = false;
+let ambilightCaptureReady = false;
+let ambilightCaptureTried = false;
+let ambilightCaptureVideo = null;
+let ambilightCaptureCanvas = null;
+let ambilightCaptureCtx = null;
+let ambilightEdgeLayout = { right: 30, top: 52, left: 30, bottom: 52 };
+
+const AMBILIGHT_EDGE_DEPTH_PX = 30;
+const AMBILIGHT_PUSH_INTERVAL_MS = 130;
+
+function estimateEdgeLayout(totalLeds) {
+  const baseline = { right: 30, top: 52, left: 30, bottom: 52 };
+  const baseTotal = baseline.right + baseline.top + baseline.left + baseline.bottom;
+  const total = Math.max(12, Number(totalLeds) || baseTotal);
+  const scale = total / baseTotal;
+  const scaled = {
+    right: Math.max(1, Math.floor(baseline.right * scale)),
+    top: Math.max(1, Math.floor(baseline.top * scale)),
+    left: Math.max(1, Math.floor(baseline.left * scale)),
+    bottom: Math.max(1, Math.floor(baseline.bottom * scale)),
+  };
+
+  let missing = total - (scaled.right + scaled.top + scaled.left + scaled.bottom);
+  const edges = ['right', 'top', 'left', 'bottom'];
+  let idx = 0;
+  while (missing !== 0) {
+    const edge = edges[idx % edges.length];
+    const step = missing > 0 ? 1 : -1;
+    if (scaled[edge] + step >= 1) {
+      scaled[edge] += step;
+      missing -= step;
+    }
+    idx += 1;
+  }
+  return scaled;
+}
+
+async function fetchAmbilightConfig() {
+  try {
+    const response = await fetch('/api/ambilight/config');
+    if (!response.ok) return;
+    const payload = await response.json();
+    ambilightEdgeLayout = estimateEdgeLayout(payload?.led_count);
+  } catch (_) {
+    // Best effort only.
+  }
+}
+
+async function ensureAmbilightCapture() {
+  if (ambilightCaptureReady || ambilightCaptureTried || !navigator.mediaDevices?.getDisplayMedia) {
+    return;
+  }
+
+  ambilightCaptureTried = true;
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        frameRate: { ideal: 30, max: 60 },
+        cursor: 'never',
+      },
+      audio: false,
+    });
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.muted = true;
+    await video.play();
+
+    const track = stream.getVideoTracks()[0];
+    if (track) {
+      track.addEventListener('ended', () => {
+        ambilightCaptureReady = false;
+      });
+    }
+
+    ambilightCaptureVideo = video;
+    ambilightCaptureCanvas = document.createElement('canvas');
+    ambilightCaptureCtx = ambilightCaptureCanvas.getContext('2d', { willReadFrequently: true });
+    ambilightCaptureReady = Boolean(ambilightCaptureCtx);
+  } catch (_) {
+    ambilightCaptureReady = false;
+  }
+}
 
 function parseCssColorToRgb(colorValue) {
   const source = String(colorValue || '').trim();
@@ -478,7 +560,36 @@ function resolveVisualColor(element) {
   return [bodyR, bodyG, bodyB];
 }
 
+function sampleFromCapture(x, y) {
+  if (!ambilightCaptureReady || !ambilightCaptureVideo || !ambilightCaptureCtx || !ambilightCaptureCanvas) {
+    return null;
+  }
+
+  const sourceWidth = ambilightCaptureVideo.videoWidth || window.innerWidth;
+  const sourceHeight = ambilightCaptureVideo.videoHeight || window.innerHeight;
+  if (!sourceWidth || !sourceHeight) {
+    return null;
+  }
+
+  if (ambilightCaptureCanvas.width !== sourceWidth || ambilightCaptureCanvas.height !== sourceHeight) {
+    ambilightCaptureCanvas.width = sourceWidth;
+    ambilightCaptureCanvas.height = sourceHeight;
+  }
+
+  ambilightCaptureCtx.drawImage(ambilightCaptureVideo, 0, 0, sourceWidth, sourceHeight);
+  const px = Math.max(0, Math.min(sourceWidth - 1, Math.round((x / Math.max(1, window.innerWidth - 1)) * (sourceWidth - 1))));
+  const py = Math.max(0, Math.min(sourceHeight - 1, Math.round((y / Math.max(1, window.innerHeight - 1)) * (sourceHeight - 1))));
+
+  const pixel = ambilightCaptureCtx.getImageData(px, py, 1, 1).data;
+  return [pixel[0], pixel[1], pixel[2]];
+}
+
 function samplePixelColorAt(x, y) {
+  const captured = sampleFromCapture(x, y);
+  if (captured) {
+    return captured;
+  }
+
   const clampedX = Math.max(0, Math.min(window.innerWidth - 1, Math.round(x)));
   const clampedY = Math.max(0, Math.min(window.innerHeight - 1, Math.round(y)));
   const element = document.elementFromPoint(clampedX, clampedY);
@@ -486,28 +597,47 @@ function samplePixelColorAt(x, y) {
   return resolveVisualColor(element);
 }
 
-function collectEdgeColors(samplesPerEdge = 18) {
+function collectEdgeSamples(count, edge) {
   const width = Math.max(1, window.innerWidth);
   const height = Math.max(1, window.innerHeight);
-  const edgePadding = 6;
+  const samples = [];
 
-  const top = [];
-  const right = [];
-  const bottom = [];
-  const left = [];
+  for (let i = 0; i < count; i += 1) {
+    const t = count === 1 ? 0 : i / (count - 1);
+    let x = 0;
+    let y = 0;
 
-  for (let i = 0; i < samplesPerEdge; i += 1) {
-    const t = samplesPerEdge === 1 ? 0 : i / (samplesPerEdge - 1);
-    const x = t * (width - 1);
-    const y = t * (height - 1);
+    if (edge === 'top') {
+      x = t * (width - 1);
+      y = AMBILIGHT_EDGE_DEPTH_PX;
+    } else if (edge === 'right') {
+      x = width - AMBILIGHT_EDGE_DEPTH_PX;
+      y = t * (height - 1);
+    } else if (edge === 'bottom') {
+      x = t * (width - 1);
+      y = height - AMBILIGHT_EDGE_DEPTH_PX;
+    } else {
+      x = AMBILIGHT_EDGE_DEPTH_PX;
+      y = t * (height - 1);
+    }
 
-    top.push(samplePixelColorAt(x, edgePadding));
-    right.push(samplePixelColorAt(width - edgePadding, y));
-    bottom.push(samplePixelColorAt(x, height - edgePadding));
-    left.push(samplePixelColorAt(edgePadding, y));
+    samples.push(samplePixelColorAt(x, y));
   }
 
-  return { top, right, bottom, left, viewport: { width, height } };
+  return samples;
+}
+
+function collectEdgeColors() {
+  const width = Math.max(1, window.innerWidth);
+  const height = Math.max(1, window.innerHeight);
+
+  return {
+    top: collectEdgeSamples(ambilightEdgeLayout.top, 'top'),
+    right: collectEdgeSamples(ambilightEdgeLayout.right, 'right'),
+    bottom: collectEdgeSamples(ambilightEdgeLayout.bottom, 'bottom'),
+    left: collectEdgeSamples(ambilightEdgeLayout.left, 'left'),
+    viewport: { width, height },
+  };
 }
 
 async function pushAmbilightFrame() {
@@ -517,7 +647,7 @@ async function pushAmbilightFrame() {
 
   ambilightInFlight = true;
   try {
-    const payload = collectEdgeColors(16);
+    const payload = collectEdgeColors();
     await fetch('/api/ambilight/frame', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -550,12 +680,22 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     refreshState();
     connectStateSocket();
+    ensureAmbilightCapture();
   }
 });
 
+document.addEventListener('pointerdown', () => {
+  ensureAmbilightCapture();
+}, { once: true });
+
+document.addEventListener('keydown', () => {
+  ensureAmbilightCapture();
+}, { once: true });
+
+fetchAmbilightConfig();
 setInterval(updateWakeBorder, 200);
 refreshState(true);
 connectStateSocket();
 setInterval(tickBaseCountdown, 1000);
 setInterval(fallbackRefreshTick, 3000);
-setInterval(pushAmbilightFrame, 220);
+setInterval(pushAmbilightFrame, AMBILIGHT_PUSH_INTERVAL_MS);
