@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
-import pygame
-pygame.init()
-pygame.mouse.set_visible(False)
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
