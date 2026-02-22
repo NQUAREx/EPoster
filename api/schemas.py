@@ -25,3 +25,7 @@ class AmbilightFrameRequest(BaseModel):
     bottom: list[list[int]] = Field(default_factory=list)
     left: list[list[int]] = Field(default_factory=list)
     viewport: ViewportSize = Field(default_factory=ViewportSize)
+
+
+class CalibrationSampleRequest(BaseModel):
+    observed_rgb: list[int] = Field(min_length=3, max_length=3)

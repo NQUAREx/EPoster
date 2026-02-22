@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
-from models import PrayerTimes, Session, Task
+from models import AppSettings, PrayerTimes, Session, Task
+from states.base_backgrounds import resolve_base_background
 from states.base_state import BaseState
 
 
@@ -13,10 +14,11 @@ class BaseScreenState(BaseState):
     SLOW_PHASE_REAL_SHARE = 0.8
     SLOW_PHASE_COLOR_SHARE = 0.2
 
-    def __init__(self, session: Session, tasks: List[Task], prayer_times: Dict[str, PrayerTimes]):
+    def __init__(self, session: Session, tasks: List[Task], prayer_times: Dict[str, PrayerTimes], settings: AppSettings):
         self.session = session
         self.tasks = tasks
         self.prayer_times = prayer_times
+        self.settings = settings
 
     @staticmethod
     def _lerp_color(start: tuple[int, int, int], end: tuple[int, int, int], progress: float) -> str:
@@ -111,6 +113,7 @@ class BaseScreenState(BaseState):
 
     def show(self) -> dict[str, Any]:
         times = self._times()
+        background = resolve_base_background(self.settings.base_background_id)
         ramadan_elapsed_days = self._ramadan_elapsed_days()
         base_task_day = self.session.base_task_day()
         return {
@@ -122,6 +125,11 @@ class BaseScreenState(BaseState):
             "today_task_type": self.tasks[base_task_day - 1].type,
             "task_day": base_task_day,
             "next_prayer": times,
+            "background": {
+                "id": background.id,
+                "theme_class": background.theme_class,
+                "animation_profile": background.animation_profile,
+            },
         }
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:

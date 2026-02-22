@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from models import AppSettings, Day, PrayerTimes, Session, Task
+from hardware.color_profile import ColorProfile
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_CHILDREN = ["Камила", "Самир", "Амалия", "Сулейман", "Айя"]
@@ -34,6 +35,11 @@ def _prayer_times_file() -> Path:
 
 def _children_file() -> Path:
     return _data_dir() / "children.json"
+
+
+def _resolve_profile_file(file_name: str) -> Path:
+    safe_name = str(file_name or "ambilight_color_profile.json").strip() or "ambilight_color_profile.json"
+    return (_data_dir() / safe_name).resolve()
 
 
 def _build_empty_scores(children: list[str]) -> dict[str, int | None]:
@@ -121,6 +127,22 @@ def save_settings(settings: AppSettings) -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     with _settings_file().open("w", encoding="utf-8") as file:
         json.dump(settings.to_dict(), file, ensure_ascii=False, indent=2)
+
+
+def load_color_profile(file_name: str) -> ColorProfile:
+    profile_file = _resolve_profile_file(file_name)
+    if not profile_file.exists():
+        return ColorProfile.identity()
+    with profile_file.open("r", encoding="utf-8") as file:
+        return ColorProfile.from_dict(json.load(file))
+
+
+def save_color_profile(file_name: str, profile: ColorProfile) -> None:
+    data_dir = _data_dir()
+    data_dir.mkdir(parents=True, exist_ok=True)
+    profile_file = _resolve_profile_file(file_name)
+    with profile_file.open("w", encoding="utf-8") as file:
+        json.dump(profile.to_dict(), file, ensure_ascii=False, indent=2)
 
 
 def load_tasks() -> List[Task]:

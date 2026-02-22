@@ -1,0 +1,8 @@
+body.base-active.bg-theme-1 {
+  --color-bg: #2b0a0a;
+  --color-blob1: #ff5e62;
+  --color-blob2: #ff9966;
+  --color-blob3: #f12711;
+  --background-fix-top: #3d0e0e;
+  --background-fix-bottom: #2b0a0a;
+}
