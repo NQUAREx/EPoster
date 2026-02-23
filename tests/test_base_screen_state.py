@@ -66,3 +66,20 @@ def test_prayer_lookup_falls_back_to_nearest_date():
     nearest = state._prayer_times_for_date(datetime(2025, 3, 29).date())
 
     assert nearest.fajr == "04:50"
+
+
+def test_prayer_lookup_matches_month_and_day_when_year_differs():
+    session = Session(current_day=1, celebration_mode=False, children=[], days={1: Day()})
+    state = BaseScreenState(
+        session=session,
+        tasks=[Task(day=1, text="task", type="обычное")],
+        prayer_times={
+            "2026-03-20": PrayerTimes(fajr="05:11", maghrib="18:21"),
+            "2026-03-21": PrayerTimes(fajr="05:09", maghrib="18:23"),
+        },
+    )
+
+    matched = state._prayer_times_for_date(datetime(2025, 3, 20).date())
+
+    assert matched.fajr == "05:11"
+    assert matched.maghrib == "18:21"
