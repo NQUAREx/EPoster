@@ -127,6 +127,13 @@ class BaseScreenState(BaseState):
         if not parsed:
             raise ValueError("Prayer times are not configured")
 
+        # Файл расписания может быть за конкретный год (например 2026),
+        # тогда при несовпадении года сначала ищем совпадение по месяцу/дню.
+        # Это позволяет показывать корректные времена в текущем году.
+        by_month_day = [item for item in parsed if item[0].month == target_date.month and item[0].day == target_date.day]
+        if by_month_day:
+            return by_month_day[0][1]
+
         parsed.sort(key=lambda item: abs((item[0] - target_date).days))
         return parsed[0][1]
 
