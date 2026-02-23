@@ -128,7 +128,7 @@ body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
   top: 0;
   left: 0;
   border-radius: 50%;
-  filter: blur(6vw);
+  filter: blur(10.2vw);
   opacity: 0.8;
   will-change: transform;
   transform-origin: center center;
