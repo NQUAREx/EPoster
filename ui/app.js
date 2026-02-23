@@ -114,7 +114,7 @@ function updateJellyClock(clockDigits) {
 }
 
 function formatRamadanTitle(progressPercent) {
-  return `Рамадан · ${progressPercent.toFixed(2)}%`;
+  return `Рамадан · ${progressPercent.toFixed(3)}%`;
 }
 
 function renderBase(model) {
