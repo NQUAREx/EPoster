@@ -76,8 +76,34 @@ def test_early_night_shows_iftar_for_today_date_block(monkeypatch):
     payload = state._times()
 
     assert payload["next"] == "сухура"
+    assert payload["source_date"] == "2026-02-23"
     assert payload["suhoor"] == "04:46"
     assert payload["iftar"] == "17:04"
+
+
+def test_times_payload_contains_source_date_when_year_differs(monkeypatch):
+    fake_now = datetime(2025, 3, 20, 12, 0, 0)
+
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fake_now
+
+    monkeypatch.setattr("states.base_screen_state.datetime", FrozenDateTime)
+
+    session = Session(current_day=1, celebration_mode=False, children=[], days={1: Day()})
+    state = BaseScreenState(
+        session=session,
+        tasks=[Task(day=1, text="task", type="обычное")],
+        prayer_times={
+            "2026-03-20": PrayerTimes(fajr="05:11", maghrib="18:21"),
+            "2026-03-21": PrayerTimes(fajr="05:09", maghrib="18:23"),
+        },
+    )
+
+    payload = state._times()
+
+    assert payload["source_date"] == "2026-03-20"
 
 
 def test_prayer_lookup_falls_back_to_nearest_date():
