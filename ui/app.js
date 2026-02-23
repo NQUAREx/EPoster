@@ -41,7 +41,7 @@ const lavaRuntime = {
 
 const LAVA_CONFIG = {
   minBlobs: 15,
-  maxBlobs: 10,
+  maxBlobs: 16,
   minLifeMs: 60000,
   maxLifeMs: 300000,
   anomalyChance: 0.1,
@@ -189,7 +189,7 @@ class LavaBlob {
     this.container = container;
 
     this.isAnomaly = Math.random() < LAVA_CONFIG.anomalyChance;
-    this.size = 20 + (Math.random() * 13.41);
+    this.size = 20 + (Math.random() * 24.55);
     this.el.style.width = `${this.size}vw`;
     this.el.style.height = `${this.size}vw`;
 
