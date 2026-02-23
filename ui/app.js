@@ -164,6 +164,13 @@ function setLavaColor(colorValue) {
   lavaRuntime.baseColorHSL = rgbToHsl(parsedRgb);
 }
 
+function randomRgbColor() {
+  const r = Math.floor(Math.random() * 256);
+  const g = Math.floor(Math.random() * 256);
+  const b = Math.floor(Math.random() * 256);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 class LavaBlob {
   constructor(container) {
     this.el = document.createElement('div');
@@ -183,9 +190,9 @@ class LavaBlob {
     this.lifeTimeMs = 0;
 
     if (this.isAnomaly) {
-      this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
+      this.color = randomRgbColor();
       this.maxLifeMs = LAVA_CONFIG.minLifeMs + (Math.random() * (LAVA_CONFIG.maxLifeMs - LAVA_CONFIG.minLifeMs));
-      this.baseSpeed *= 3;
+      this.baseSpeed *= 9;
       this.el.style.zIndex = '5';
     } else {
       let lightness = lavaRuntime.baseColorHSL.l + ((Math.random() * 40) - 20);
