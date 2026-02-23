@@ -39,10 +39,10 @@ const lavaRuntime = {
 };
 
 const LAVA_CONFIG = {
-  minBlobs: 8,
-  maxBlobs: 14,
-  minLifeMs: 10000,
-  maxLifeMs: 40000,
+  minBlobs: 15,
+  maxBlobs: 25,
+  minLifeMs: 60000,
+  maxLifeMs: 300000,
   anomalyChance: 0.03,
 };
 
@@ -178,14 +178,14 @@ class LavaBlob {
     this.x = Math.random() * 100;
     this.y = Math.random() * 100;
     this.angle = Math.random() * Math.PI * 2;
-    this.baseSpeed = 0.02 + (Math.random() * 0.04);
+    this.baseSpeed = (0.02 + (Math.random() * 0.04)) * 1.2;
     this.timeOffset = Math.random() * 10000;
     this.lifeTimeMs = 0;
 
     if (this.isAnomaly) {
       this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
-      this.maxLifeMs = 5000 + (Math.random() * 2000);
-      this.baseSpeed *= 1.5;
+      this.maxLifeMs = LAVA_CONFIG.minLifeMs + (Math.random() * (LAVA_CONFIG.maxLifeMs - LAVA_CONFIG.minLifeMs));
+      this.baseSpeed *= 3;
       this.el.style.zIndex = '5';
     } else {
       let lightness = lavaRuntime.baseColorHSL.l + ((Math.random() * 40) - 20);
