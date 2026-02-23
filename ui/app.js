@@ -41,7 +41,7 @@ const lavaRuntime = {
 
 const LAVA_CONFIG = {
   minBlobs: 15,
-  maxBlobs: 25,
+  maxBlobs: 22,
   minLifeMs: 60000,
   maxLifeMs: 300000,
   anomalyChance: 0.06,
@@ -49,9 +49,11 @@ const LAVA_CONFIG = {
   anomalyMaxLifeMs: 5000,
   fadeSlowdownFactor: 3,
   shadeVarianceMultiplier: 3,
-  maxOffscreenFraction: 0.5,
+  maxOffscreenFraction: 0.6,
   directionDriftMultiplier: 1.35,
   xyWaveRangeMultiplier: 6,
+  normalXySpeedMultiplier: 0.9,
+  anomalyXySpeedMultiplier: 15,
 };
 
 function asGlass(content) {
@@ -186,7 +188,7 @@ class LavaBlob {
     this.container = container;
 
     this.isAnomaly = Math.random() < LAVA_CONFIG.anomalyChance;
-    this.size = 20 + (Math.random() * 35);
+    this.size = 20 + (Math.random() * 29.5);
     this.el.style.width = `${this.size}vw`;
     this.el.style.height = `${this.size}vw`;
 
@@ -200,11 +202,12 @@ class LavaBlob {
     this.lifeTimeMs = 0;
     this.xWaveRange = (2 + (Math.random() * 3)) * LAVA_CONFIG.xyWaveRangeMultiplier;
     this.yWaveRange = (2 + (Math.random() * 3)) * LAVA_CONFIG.xyWaveRangeMultiplier;
+    this.lastTransform = '';
 
     if (this.isAnomaly) {
       this.color = randomRgbColor();
       this.maxLifeMs = LAVA_CONFIG.anomalyMinLifeMs + (Math.random() * (LAVA_CONFIG.anomalyMaxLifeMs - LAVA_CONFIG.anomalyMinLifeMs));
-      this.baseSpeed *= 27;
+      this.baseSpeed *= LAVA_CONFIG.anomalyXySpeedMultiplier;
       this.el.style.zIndex = '5';
     } else {
       const lightnessSpread = 20 * LAVA_CONFIG.shadeVarianceMultiplier;
@@ -225,7 +228,7 @@ class LavaBlob {
       hue = (hue + 360) % 360;
       this.color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
       this.maxLifeMs = LAVA_CONFIG.minLifeMs + (Math.random() * (LAVA_CONFIG.maxLifeMs - LAVA_CONFIG.minLifeMs));
-      this.baseSpeed *= 0.8;
+      this.baseSpeed *= 0.8 * LAVA_CONFIG.normalXySpeedMultiplier;
       this.el.style.zIndex = '1';
     }
 
@@ -280,7 +283,11 @@ class LavaBlob {
     this.baseX = this.x - waveX;
     this.baseY = this.y - waveY;
 
-    this.el.style.transform = `translate3d(calc(${this.x}vw - 50%), calc(${this.y}vh - 50%), 0) scale(${scale})`;
+    const transform = `translate3d(calc(${this.x}vw - 50%), calc(${this.y}vh - 50%), 0) scale(${scale})`;
+    if (transform !== this.lastTransform) {
+      this.lastTransform = transform;
+      this.el.style.transform = transform;
+    }
     return true;
   }
 
