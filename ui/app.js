@@ -224,6 +224,9 @@ function renderReview(model) {
     if (score === 2) {
       return '<svg class="score-icon score-icon-mid" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><circle cx="22" cy="25" r="3.2"/><circle cx="42" cy="25" r="3.2"/><path d="M19 41h26"/></svg>';
     }
+    if (score === null) {
+      return '<svg class="score-icon score-icon-skip" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><path d="M20 22l14 10-14 10z"/><path d="M36 22l14 10-14 10z"/><path d="M50 20v24"/></svg>';
+    }
     return '<svg class="score-icon score-icon-good" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><circle cx="22" cy="25" r="3.2"/><circle cx="42" cy="25" r="3.2"/><path d="M19 39c3.5 6 8.3 9 13 9s9.5-3 13-9"/></svg>';
   };
   const options = model.score_options.map((s) => `<div class="score">${scoreSvg(s.score)}<small>${textGradient(s.label)}</small></div>`).join('');

@@ -39,6 +39,30 @@ def test_day_review_scores_and_moves_to_base(isolated_app):
     assert app.session.days[2].closed is True
 
 
+def test_day_review_skip_sets_null_and_keeps_day_open(isolated_app):
+    app = isolated_app
+    app.session.selected_day = 2
+
+    app.dispatch("open_day_review")
+
+    child_count = len(app.session.children)
+    for _ in range(child_count - 1):
+        app.dispatch("score_3")
+    payload = app.dispatch("score_skip")
+
+    assert payload["view"] == "base_state"
+    assert app.session.days[2].closed is False
+    assert len(app.session.days[2].scores) == child_count
+    assert list(app.session.days[2].scores.values()).count(None) == 1
+
+
+def test_day_review_view_contains_skip_option(isolated_app):
+    app = isolated_app
+    payload = app.dispatch("open_day_review")
+
+    labels = {item["label"] for item in payload["score_options"]}
+    assert "Пропустить" in labels
+
 def test_map_navigation_and_open_selected_day(isolated_app):
     app = isolated_app
     app.dispatch("open_tasks_map")
