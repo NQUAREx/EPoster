@@ -119,15 +119,42 @@ body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
     radial-gradient(circle at bottom right, var(--background-fix-bottom), transparent);
 }
 
-.lava-blob {
+.blob {
   position: absolute;
-  top: 0;
-  left: 0;
   border-radius: 50%;
-  filter: blur(6vw);
+  filter: blur(80px);
   opacity: 0.8;
-  will-change: transform;
-  transform-origin: center center;
+  animation: float 20s infinite alternate cubic-bezier(0.4, 0.0, 0.2, 1);
+  transition: background 2s ease;
+}
+
+.blob:nth-child(1) {
+  width: 60vw;
+  height: 60vw;
+  background: var(--color-blob1);
+  top: -10%;
+  left: -10%;
+  animation-duration: 22.5s;
+}
+
+.blob:nth-child(2) {
+  width: 50vw;
+  height: 50vw;
+  background: var(--color-blob2);
+  bottom: -20%;
+  right: -10%;
+  animation-duration: 19.8s;
+  animation-delay: -5s;
+}
+
+.blob:nth-child(3) {
+  width: 55vw;
+  height: 55vw;
+  background: var(--color-blob3);
+  bottom: 20%;
+  left: 20%;
+  animation-duration: 25.2s;
+  animation-delay: -10s;
 }
 
 .wake-frame {
