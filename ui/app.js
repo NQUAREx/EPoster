@@ -44,12 +44,12 @@ const LAVA_CONFIG = {
   maxBlobs: 25,
   minLifeMs: 60000,
   maxLifeMs: 300000,
-  anomalyChance: 0.03,
+  anomalyChance: 0.06,
   anomalyMinLifeMs: 2000,
   anomalyMaxLifeMs: 5000,
   fadeSlowdownFactor: 3,
   shadeVarianceMultiplier: 3,
-  maxOffscreenFraction: 0.65,
+  maxOffscreenFraction: 0.5,
   directionDriftMultiplier: 1.35,
   xyWaveRangeMultiplier: 6,
 };
@@ -204,7 +204,7 @@ class LavaBlob {
     if (this.isAnomaly) {
       this.color = randomRgbColor();
       this.maxLifeMs = LAVA_CONFIG.anomalyMinLifeMs + (Math.random() * (LAVA_CONFIG.anomalyMaxLifeMs - LAVA_CONFIG.anomalyMinLifeMs));
-      this.baseSpeed *= 9;
+      this.baseSpeed *= 27;
       this.el.style.zIndex = '5';
     } else {
       const lightnessSpread = 20 * LAVA_CONFIG.shadeVarianceMultiplier;
@@ -212,11 +212,20 @@ class LavaBlob {
       const hueSpread = 8 * LAVA_CONFIG.shadeVarianceMultiplier;
       let lightness = lavaRuntime.baseColorHSL.l + ((Math.random() * (lightnessSpread * 2)) - lightnessSpread);
       let saturation = lavaRuntime.baseColorHSL.s + ((Math.random() * (saturationSpread * 2)) - saturationSpread);
-      const hue = (lavaRuntime.baseColorHSL.h + ((Math.random() * (hueSpread * 2)) - hueSpread) + 360) % 360;
+      let hue = (lavaRuntime.baseColorHSL.h + ((Math.random() * (hueSpread * 2)) - hueSpread) + 360) % 360;
+
+      // Возвращаемся на 30% к более яркой "детской" теплой палитре,
+      // не ломая текущий дизайн полностью.
+      hue = (hue * 0.7) + (15 * 0.3);
+      saturation = (saturation * 0.7) + (95 * 0.3);
+      lightness = (lightness * 0.7) + (62 * 0.3);
+
       lightness = Math.max(10, Math.min(90, lightness));
       saturation = Math.max(35, Math.min(100, saturation));
+      hue = (hue + 360) % 360;
       this.color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
       this.maxLifeMs = LAVA_CONFIG.minLifeMs + (Math.random() * (LAVA_CONFIG.maxLifeMs - LAVA_CONFIG.minLifeMs));
+      this.baseSpeed *= 0.8;
       this.el.style.zIndex = '1';
     }
 
