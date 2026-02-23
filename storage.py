@@ -35,10 +35,6 @@ def _prayer_times_file() -> Path:
     return _data_dir() / "prayer_times_2026.json"
 
 
-def _children_file() -> Path:
-    return _data_dir() / "children.json"
-
-
 def _resolve_profile_file(file_name: str) -> Path:
     safe_name = str(file_name or "ambilight_color_profile.json").strip() or "ambilight_color_profile.json"
     return (_data_dir() / safe_name).resolve()
@@ -52,25 +48,6 @@ def _build_review_order(children: list[str]) -> list[str]:
     order = list(children)
     random.shuffle(order)
     return order
-
-
-def load_children() -> list[str]:
-    data_dir = _data_dir()
-    data_dir.mkdir(parents=True, exist_ok=True)
-    children_file = _children_file()
-
-    if children_file.exists():
-        with children_file.open("r", encoding="utf-8") as file:
-            payload = json.load(file)
-        if isinstance(payload, list):
-            normalized = [name.strip() for name in payload if isinstance(name, str) and name.strip()]
-            if normalized:
-                return normalized
-
-    children = list(DEFAULT_CHILDREN)
-    with children_file.open("w", encoding="utf-8") as file:
-        json.dump(children, file, ensure_ascii=False, indent=2)
-    return children
 
 
 def _normalize_session(session: Session, children: list[str]) -> Session:
@@ -104,11 +81,10 @@ def _normalize_session(session: Session, children: list[str]) -> Session:
     return session
 
 
-def load_session() -> Session | None:
+def load_session(children: list[str]) -> Session | None:
     session_file = _session_file()
     if not session_file.exists():
         return None
-    children = load_children()
     with session_file.open("r", encoding="utf-8") as file:
         return _normalize_session(Session.from_dict(json.load(file)), children)
 
@@ -142,7 +118,11 @@ def save_session(session: Session) -> None:
 
 def load_settings() -> AppSettings:
     with _settings_file().open("r", encoding="utf-8") as file:
-        return AppSettings.from_dict(json.load(file))
+        settings = AppSettings.from_dict(json.load(file))
+
+    if not settings.children:
+        settings.children = list(DEFAULT_CHILDREN)
+    return settings
 
 
 def save_settings(settings: AppSettings) -> None:

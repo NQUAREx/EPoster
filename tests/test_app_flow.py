@@ -140,9 +140,9 @@ def test_base_view_task_text_comes_from_tasks_json(tmp_path, monkeypatch):
     assert payload["today_task"] == custom_text
 
 
-def test_children_list_loaded_from_json(isolated_app):
+def test_children_list_loaded_from_settings(isolated_app):
     app = isolated_app
-    expected_children = json.loads((Path("data") / "children.json").read_text(encoding="utf-8"))
+    expected_children = json.loads((Path("data") / "settings.json").read_text(encoding="utf-8"))["children"]
     assert app.session.children == expected_children
     app.dispatch("open_day_review")
     view = app.render()
@@ -182,20 +182,22 @@ def test_render_does_not_reload_tasks_when_file_unchanged(isolated_app, monkeypa
     assert load_calls == 0
 
 
-def test_existing_children_file_is_not_overwritten(tmp_path, monkeypatch):
+def test_existing_settings_children_are_loaded_without_overwrite(tmp_path, monkeypatch):
     source_data = REPO_ROOT / "data"
     shutil.copytree(source_data, tmp_path / "data")
     monkeypatch.setenv("EPOSTER_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.chdir(tmp_path)
 
-    children_file = tmp_path / "data" / "children.json"
+    settings_file = tmp_path / "data" / "settings.json"
+    settings_payload = json.loads(settings_file.read_text(encoding="utf-8"))
     expected_children = ["Алия", "Ильяс"]
-    children_file.write_text(json.dumps(expected_children, ensure_ascii=False, indent=2), encoding="utf-8")
+    settings_payload["children"] = expected_children
+    settings_file.write_text(json.dumps(settings_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     app = AppController()
 
     assert app.session.children == expected_children
-    assert json.loads(children_file.read_text(encoding="utf-8")) == expected_children
+    assert json.loads(settings_file.read_text(encoding="utf-8"))["children"] == expected_children
 
 
 def test_day_scores_are_restored_from_session_file(tmp_path, monkeypatch):
