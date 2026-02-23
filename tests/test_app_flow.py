@@ -63,6 +63,31 @@ def test_day_review_view_contains_skip_option(isolated_app):
     labels = {item["label"] for item in payload["score_options"]}
     assert "Пропустить" in labels
 
+
+def test_day_review_randomizes_next_child_from_remaining(isolated_app, monkeypatch):
+    app = isolated_app
+    app.session.selected_day = 2
+    day = app.session.days[2]
+    day.review_order = ["Камила", "Самир", "Амалия"]
+    day.review_index = 0
+
+    picks = [2, 1]
+
+    def fake_randrange(start, stop):
+        assert start in {0, 1}
+        assert stop == 3
+        return picks.pop(0)
+
+    monkeypatch.setattr("states.day_review_state.random.randrange", fake_randrange)
+
+    app.dispatch("open_day_review")
+    first_view = app.render()
+    assert first_view["child"] == "Амалия"
+
+    app.dispatch("score_3")
+    second_view = app.render()
+    assert second_view["child"] == "Самир"
+
 def test_map_navigation_and_open_selected_day(isolated_app):
     app = isolated_app
     app.dispatch("open_tasks_map")
