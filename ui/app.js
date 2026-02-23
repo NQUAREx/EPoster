@@ -49,6 +49,7 @@ const LAVA_CONFIG = {
   anomalyMaxLifeMs: 5000,
   fadeSlowdownFactor: 3,
   shadeVarianceMultiplier: 3,
+  hueVarianceBoost: 1.5,
   maxOffscreenFraction: 0.7,
   directionDriftMultiplier: 1.35,
   xyWaveRangeMultiplier: 6,
@@ -212,7 +213,7 @@ class LavaBlob {
     } else {
       const lightnessSpread = 20 * LAVA_CONFIG.shadeVarianceMultiplier;
       const saturationSpread = 12 * LAVA_CONFIG.shadeVarianceMultiplier;
-      const hueSpread = 8 * LAVA_CONFIG.shadeVarianceMultiplier;
+      const hueSpread = 8 * LAVA_CONFIG.shadeVarianceMultiplier * LAVA_CONFIG.hueVarianceBoost;
       let lightness = lavaRuntime.baseColorHSL.l + ((Math.random() * (lightnessSpread * 2)) - lightnessSpread);
       let saturation = lavaRuntime.baseColorHSL.s + ((Math.random() * (saturationSpread * 2)) - saturationSpread);
       let hue = (lavaRuntime.baseColorHSL.h + ((Math.random() * (hueSpread * 2)) - hueSpread) + 360) % 360;
