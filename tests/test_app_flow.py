@@ -238,3 +238,47 @@ def test_voice_command_can_switch_ambilight_effect(isolated_app):
 
     assert payload["wake_active"] is True
     assert isolated_app.ambilight_config()["effect"] == "none"
+
+
+def test_sleep_voice_command_toggles_mode_and_dims_ambilight(isolated_app, monkeypatch):
+    calls = []
+
+    def fake_recreate(brightness: int):
+        calls.append(brightness)
+
+    monkeypatch.setattr(isolated_app, "_recreate_ambilight_controller", fake_recreate)
+
+    payload = isolated_app.dispatch_event(CommandEvent(command="сон", source="voice"))
+
+    assert payload["view"] == "base_state"
+    assert payload["sleep_mode"] is True
+    assert calls[-1] == 3
+
+    payload = isolated_app.dispatch_event(CommandEvent(command="сон", source="voice"))
+
+    assert payload["sleep_mode"] is False
+    assert calls[-1] == isolated_app.settings.ambilight_brightness
+
+
+def test_sleep_mode_is_applied_on_startup(tmp_path, monkeypatch):
+    source_data = REPO_ROOT / "data"
+    shutil.copytree(source_data, tmp_path / "data")
+    monkeypatch.setenv("EPOSTER_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.chdir(tmp_path)
+
+    settings_file = tmp_path / "data" / "settings.json"
+    settings_payload = json.loads(settings_file.read_text(encoding="utf-8"))
+    settings_payload["sleep_mode"] = True
+    settings_file.write_text(json.dumps(settings_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    calls = []
+
+    def fake_recreate(self, brightness: int):
+        calls.append(brightness)
+
+    monkeypatch.setattr("app_controller.AppController._recreate_ambilight_controller", fake_recreate)
+
+    app = AppController()
+
+    assert app.settings.sleep_mode is True
+    assert calls[-1] == 3

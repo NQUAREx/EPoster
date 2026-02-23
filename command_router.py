@@ -60,6 +60,7 @@ class CommandRouter:
             "эффект эмбилайт стандарт": "ambilight_effect_wake_blink",
             "эмбилайт без эффекта": "ambilight_effect_none",
             "эффект эмбилайт выключить": "ambilight_effect_none",
+            "сон": "sleep_toggle",
         }
 
     def normalize(self, command: str) -> str:
