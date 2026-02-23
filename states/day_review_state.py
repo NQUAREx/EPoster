@@ -20,6 +20,7 @@ class DayReviewState(BaseState):
         self.session = session
         self.tasks = tasks
         self.completed = False
+        self._prepared_index: int | None = None
 
     def _ensure_random_order(self) -> None:
         day_data = self.session.days[self.session.selected_day]
@@ -28,11 +29,26 @@ class DayReviewState(BaseState):
             random.shuffle(day_data.review_order)
             day_data.review_index = 0
 
+    def _prepare_current_child(self) -> None:
+        day_data = self.session.days[self.session.selected_day]
+        if day_data.review_index >= len(day_data.review_order):
+            return
+        if self._prepared_index == day_data.review_index:
+            return
+
+        random_pos = random.randrange(day_data.review_index, len(day_data.review_order))
+        day_data.review_order[day_data.review_index], day_data.review_order[random_pos] = (
+            day_data.review_order[random_pos],
+            day_data.review_order[day_data.review_index],
+        )
+        self._prepared_index = day_data.review_index
+
     def _current_child(self) -> str | None:
         self._ensure_random_order()
         day_data = self.session.days[self.session.selected_day]
         if day_data.review_index >= len(day_data.review_order):
             return None
+        self._prepare_current_child()
         return day_data.review_order[day_data.review_index]
 
 
@@ -85,6 +101,7 @@ class DayReviewState(BaseState):
 
         day_data.scores[child] = score
         day_data.review_index += 1
+        self._prepared_index = None
 
         if not self._remaining_children():
             day_data.closed = all(child_score in {1, 2, 3} for child_score in day_data.scores.values())
