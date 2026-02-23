@@ -5,7 +5,14 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
-from api.schemas import AmbilightFrameRequest, CalibrationSampleRequest, CommandRequest, WakeRequest
+from api.schemas import (
+    AmbilightFrameRequest,
+    CalibrationSampleRequest,
+    CommandRequest,
+    RuntimeAccelerationRequest,
+    RuntimePrayerOverrideRequest,
+    WakeRequest,
+)
 from command_router import CommandEvent
 
 
@@ -89,6 +96,34 @@ def build_router(ui_dir: Path) -> APIRouter:
     @router.post("/api/calibration/cancel")
     async def post_calibration_cancel(request: Request) -> dict:
         return await request.app.state.app_service.calibration_cancel()
+
+    @router.get("/api/runtime-test/status")
+    async def get_runtime_test_status(request: Request) -> dict:
+        return await request.app.state.app_service.runtime_status()
+
+    @router.post("/api/runtime-test/start")
+    async def post_runtime_test_start(request: Request) -> dict:
+        return await request.app.state.app_service.runtime_start()
+
+    @router.post("/api/runtime-test/stop")
+    async def post_runtime_test_stop(request: Request) -> dict:
+        return await request.app.state.app_service.runtime_stop()
+
+    @router.post("/api/runtime-test/prayer-override")
+    async def post_runtime_test_prayer_override(payload: RuntimePrayerOverrideRequest, request: Request) -> dict:
+        return await request.app.state.app_service.runtime_set_prayer_overrides(payload.suhoor, payload.iftar)
+
+    @router.post("/api/runtime-test/prayer-override/clear")
+    async def post_runtime_test_prayer_override_clear(request: Request) -> dict:
+        return await request.app.state.app_service.runtime_clear_prayer_overrides()
+
+    @router.post("/api/runtime-test/time-cycle/start")
+    async def post_runtime_time_cycle_start(payload: RuntimeAccelerationRequest, request: Request) -> dict:
+        return await request.app.state.app_service.runtime_start_time_cycle(payload.hours_per_second)
+
+    @router.post("/api/runtime-test/time-cycle/stop")
+    async def post_runtime_time_cycle_stop(request: Request) -> dict:
+        return await request.app.state.app_service.runtime_stop_time_cycle()
 
     @router.websocket("/ws/state")
     async def state_ws(websocket: WebSocket) -> None:

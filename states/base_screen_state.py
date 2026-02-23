@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 from models import PrayerTimes, Session, Task
 from states.base_state import BaseState
@@ -13,10 +13,19 @@ class BaseScreenState(BaseState):
     SLOW_PHASE_REAL_SHARE = 0.9
     SLOW_PHASE_COLOR_SHARE = 0.1
 
-    def __init__(self, session: Session, tasks: List[Task], prayer_times: Dict[str, PrayerTimes]):
+    def __init__(
+        self,
+        session: Session,
+        tasks: List[Task],
+        prayer_times: Dict[str, PrayerTimes],
+        now_provider: Callable[[], datetime] | None = None,
+        prayer_overrides_provider: Callable[[], dict[str, str]] | None = None,
+    ):
         self.session = session
         self.tasks = tasks
         self.prayer_times = prayer_times
+        self._now_provider = now_provider or datetime.now
+        self._prayer_overrides_provider = prayer_overrides_provider or (lambda: {})
 
     @staticmethod
     def _lerp_color(start: tuple[int, int, int], end: tuple[int, int, int], progress: float) -> str:
@@ -62,15 +71,19 @@ class BaseScreenState(BaseState):
         return split_color + accelerated * (1.0 - split_color)
 
     def _times(self) -> dict[str, Any]:
-        now = datetime.now()
+        now = self._now_provider()
         today = now.date()
 
         today_source_date, today_times = self._prayer_times_for_date_with_source(today)
         _, yesterday_times = self._prayer_times_for_date_with_source(today - timedelta(days=1))
         _, tomorrow_times = self._prayer_times_for_date_with_source(today + timedelta(days=1))
 
-        suhoor_today = datetime.combine(today, datetime.strptime(today_times.fajr, "%H:%M").time())
-        iftar_today = datetime.combine(today, datetime.strptime(today_times.maghrib, "%H:%M").time())
+        overrides = self._prayer_overrides_provider()
+        suhoor_time = overrides.get("suhoor", today_times.fajr)
+        iftar_time = overrides.get("iftar", today_times.maghrib)
+
+        suhoor_today = datetime.combine(today, datetime.strptime(suhoor_time, "%H:%M").time())
+        iftar_today = datetime.combine(today, datetime.strptime(iftar_time, "%H:%M").time())
         suhoor_tomorrow = datetime.combine(today + timedelta(days=1), datetime.strptime(tomorrow_times.fajr, "%H:%M").time())
         iftar_yesterday = datetime.combine(today - timedelta(days=1), datetime.strptime(yesterday_times.maghrib, "%H:%M").time())
 
@@ -109,8 +122,8 @@ class BaseScreenState(BaseState):
             "phase": phase,
             "phase_progress": progress,
             "phase_total_seconds": total,
-            "suhoor": today_times.fajr,
-            "iftar": schedule.maghrib,
+            "suhoor": suhoor_time,
+            "iftar": iftar_time if schedule is today_times else schedule.maghrib,
             "palette": self._phase_palette(phase, palette_progress),
         }
 
@@ -143,9 +156,8 @@ class BaseScreenState(BaseState):
         parsed.sort(key=lambda item: abs((item[1] - target_date).days))
         return parsed[0][0], parsed[0][2]
 
-    @staticmethod
-    def _ramadan_elapsed_days() -> float:
-        now = datetime.now()
+    def _ramadan_elapsed_days(self) -> float:
+        now = self._now_provider()
         ramadan_start = datetime(now.year, 2, 18, 0, 0, 0)
         elapsed_days = (now - ramadan_start).total_seconds() / 86400
         return min(30.0, max(0.0, elapsed_days))

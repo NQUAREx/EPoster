@@ -29,3 +29,12 @@ class AmbilightFrameRequest(BaseModel):
 
 class CalibrationSampleRequest(BaseModel):
     observed_rgb: list[int] = Field(min_length=3, max_length=3)
+
+
+class RuntimePrayerOverrideRequest(BaseModel):
+    suhoor: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    iftar: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+class RuntimeAccelerationRequest(BaseModel):
+    hours_per_second: float = Field(default=1.0, ge=0.1, le=24.0)

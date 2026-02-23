@@ -10,6 +10,7 @@ from hardware.color_profile import ColorConverter
 from hardware.cursor import move_cursor_to_bottom_right
 from state_manager import StateManager
 from services.ambilight_calibration import AmbilightCalibration
+from services.runtime_control import RuntimeControl
 from storage import (
     create_session,
     load_color_profile,
@@ -38,7 +39,15 @@ class AppController:
             session = create_session(children)
 
         self.session = session
-        self.state_manager = StateManager(session, self.tasks, self.settings, self.prayer_times)
+        self._runtime_control = RuntimeControl()
+        self.state_manager = StateManager(
+            session,
+            self.tasks,
+            self.settings,
+            self.prayer_times,
+            now_provider=self._runtime_control.runtime_now,
+            prayer_overrides_provider=self._runtime_control.prayer_overrides,
+        )
         self._wake_active_until = 0.0
         self._calibration = AmbilightCalibration()
         self._ambilight = self._create_ambilight_controller()
@@ -148,24 +157,31 @@ class AppController:
         self._ambilight.trigger_wake_effect(duration_seconds)
 
     def render(self) -> dict:
-        self._sync_ramadan_day()
+        if not self._runtime_control.is_active():
+            self._sync_ramadan_day()
         if self._calibration.active:
             ui_payload = self._calibration.view_model()
         else:
             ui_payload = self.state_manager.show()
         ui_payload["wake_sync"] = self._wake_sync_model()
         ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
-        self._save_session_if_changed()
+        if not self._runtime_control.is_active():
+            self._save_session_if_changed()
         return ui_payload
 
     def dispatch(self, command: str, payload: dict | None = None) -> dict:
+        if self._runtime_control.is_active():
+            locked = self.render()
+            locked["command_source"] = "runtime_lock"
+            return locked
         self._sync_ramadan_day()
         event = self.command_router.normalize_event(CommandEvent(command=command, payload=payload))
         ui_payload = self.state_manager.handle_command(event.command, event.payload)
         ui_payload["command_source"] = event.source
         ui_payload["wake_sync"] = self._wake_sync_model()
         ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
-        self._save_session_if_changed()
+        if not self._runtime_control.is_active():
+            self._save_session_if_changed()
         self._save_settings_if_changed()
         return ui_payload
 
@@ -224,10 +240,43 @@ class AppController:
             return {"active": False}
         return {"active": True, "view_model": self._calibration.view_model()}
 
+
+    def runtime_status(self) -> dict:
+        return self._runtime_control.status()
+
+    def runtime_start(self) -> dict:
+        self._runtime_control.start()
+        return self.runtime_status()
+
+    def runtime_stop(self) -> dict:
+        self._runtime_control.stop()
+        return self.runtime_status()
+
+    def runtime_set_prayer_overrides(self, suhoor: str, iftar: str) -> dict:
+        self._runtime_control.set_prayer_overrides(suhoor, iftar)
+        return self.runtime_status()
+
+    def runtime_clear_prayer_overrides(self) -> dict:
+        self._runtime_control.clear_prayer_overrides()
+        return self.runtime_status()
+
+    def runtime_start_time_cycle(self, hours_per_second: float = 1.0) -> dict:
+        multiplier = max(1.0, hours_per_second * 3600.0)
+        self._runtime_control.start_time_acceleration(multiplier)
+        return self.runtime_status()
+
+    def runtime_stop_time_cycle(self) -> dict:
+        self._runtime_control.stop_time_acceleration()
+        return self.runtime_status()
+
     def shutdown(self) -> None:
         self._ambilight.shutdown()
 
     def dispatch_event(self, event: CommandEvent) -> dict:
+        if self._runtime_control.is_active():
+            locked = self.render()
+            locked["command_source"] = "runtime_lock"
+            return locked
         self._sync_ramadan_day()
         if self._calibration.active:
             ui_payload = self._calibration.view_model()
@@ -247,6 +296,7 @@ class AppController:
         ui_payload["command_source"] = normalized.source
         ui_payload["wake_sync"] = self._wake_sync_model()
         ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
-        self._save_session_if_changed()
+        if not self._runtime_control.is_active():
+            self._save_session_if_changed()
         self._save_settings_if_changed()
         return ui_payload
