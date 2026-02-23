@@ -25,6 +25,8 @@ from storage import (
 
 
 class AppController:
+    _SLEEP_AMBILIGHT_BRIGHTNESS = 3
+
     def __init__(self) -> None:
         migrate_legacy_data_if_needed()
         self.command_router = CommandRouter()
@@ -46,6 +48,7 @@ class AppController:
         self._settings_snapshot = self._snapshot_settings()
         self._sync_ramadan_day()
         self._init_cursor_position()
+        self._apply_sleep_ambilight_brightness()
 
     def _create_ambilight_controller(self) -> AmbilightController:
         profile = load_color_profile(self.settings.ambilight_color_profile_file)
@@ -67,6 +70,40 @@ class AppController:
                 color_order=config.color_order,
             )
             return AmbilightController(safe_config, converter=ColorConverter(profile))
+
+    def _recreate_ambilight_controller(self, brightness: int) -> None:
+        try:
+            self._ambilight.shutdown()
+        except Exception:
+            pass
+
+        profile = load_color_profile(self.settings.ambilight_color_profile_file)
+        config = AmbilightConfig(
+            enabled=self.settings.ambilight_enabled,
+            gpio_pin=self.settings.ambilight_gpio_pin,
+            led_count=self.settings.ambilight_led_count,
+            brightness=brightness,
+            color_order=self.settings.ambilight_order,
+        )
+        try:
+            self._ambilight = AmbilightController(config, converter=ColorConverter(profile))
+        except Exception:
+            safe_config = AmbilightConfig(
+                enabled=False,
+                gpio_pin=config.gpio_pin,
+                led_count=config.led_count,
+                brightness=config.brightness,
+                color_order=config.color_order,
+            )
+            self._ambilight = AmbilightController(safe_config, converter=ColorConverter(profile))
+
+    def _apply_sleep_ambilight_brightness(self) -> None:
+        brightness = self._SLEEP_AMBILIGHT_BRIGHTNESS if self.settings.sleep_mode else self.settings.ambilight_brightness
+        self._recreate_ambilight_controller(brightness)
+
+    def _toggle_sleep_mode(self) -> None:
+        self.settings.sleep_mode = not self.settings.sleep_mode
+        self._apply_sleep_ambilight_brightness()
 
     @staticmethod
     def _init_cursor_position() -> None:
@@ -161,7 +198,11 @@ class AppController:
     def dispatch(self, command: str, payload: dict | None = None) -> dict:
         self._sync_ramadan_day()
         event = self.command_router.normalize_event(CommandEvent(command=command, payload=payload))
-        ui_payload = self.state_manager.handle_command(event.command, event.payload)
+        if event.command == "sleep_toggle":
+            self._toggle_sleep_mode()
+            ui_payload = self.render()
+        else:
+            ui_payload = self.state_manager.handle_command(event.command, event.payload)
         ui_payload["command_source"] = event.source
         ui_payload["wake_sync"] = self._wake_sync_model()
         ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
@@ -239,11 +280,15 @@ class AppController:
         if normalized.wake_word_detected:
             self.mark_wake_detected()
 
-        if normalized.command.startswith("ambilight_effect_"):
-            effect_name = normalized.command.removeprefix("ambilight_effect_")
-            self.set_ambilight_effect(effect_name)
+        if normalized.command == "sleep_toggle":
+            self._toggle_sleep_mode()
+            ui_payload = self.render()
+        else:
+            if normalized.command.startswith("ambilight_effect_"):
+                effect_name = normalized.command.removeprefix("ambilight_effect_")
+                self.set_ambilight_effect(effect_name)
 
-        ui_payload = self.state_manager.handle_command(normalized.command, normalized.payload)
+            ui_payload = self.state_manager.handle_command(normalized.command, normalized.payload)
         ui_payload["command_source"] = normalized.source
         ui_payload["wake_sync"] = self._wake_sync_model()
         ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
