@@ -88,6 +88,12 @@ class RuntimeControl:
         with self._lock:
             return self._state.active
 
+    def time_multiplier(self) -> float:
+        with self._lock:
+            if not self._state.active:
+                return 1.0
+            return self._state.time_multiplier
+
     def prayer_overrides(self) -> dict[str, str]:
         with self._lock:
             if not self._state.active:

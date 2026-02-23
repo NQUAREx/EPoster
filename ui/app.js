@@ -10,6 +10,7 @@ let reconnectTimer = null;
 let baseCountdownSeconds = null;
 let baseRamadanProgressPercent = null;
 let baseRamadanProgressUpdatedAtMs = null;
+let baseRuntimeTimeMultiplier = 1;
 let wsConnected = false;
 let appInstanceId = null;
 let reloadInProgress = false;
@@ -567,6 +568,7 @@ function patchBaseView(model) {
 
   applyPaletteFromModel(model);
   ensureLavaAnimationRunning();
+  baseRuntimeTimeMultiplier = Math.max(1, Number(model.runtime_time_multiplier) || 1);
   baseCountdownSeconds = parseCountdownToSeconds(model.next_prayer.countdown);
   updateJellyClock(formatClock(baseCountdownSeconds));
 }
@@ -581,7 +583,7 @@ function tickRamadanProgress() {
   }
 
   const nowMs = Date.now();
-  const elapsedSeconds = Math.max(0, (nowMs - baseRamadanProgressUpdatedAtMs) / 1000);
+  const elapsedSeconds = Math.max(0, (nowMs - baseRamadanProgressUpdatedAtMs) / 1000) * baseRuntimeTimeMultiplier;
   const deltaPercent = (elapsedSeconds / (30 * 24 * 60 * 60)) * 100;
   const nextProgress = Math.min(100, baseRamadanProgressPercent + deltaPercent);
 
@@ -1118,7 +1120,7 @@ function tickBaseCountdown() {
   if (currentState !== 'base_state' || baseCountdownSeconds == null) {
     return;
   }
-  baseCountdownSeconds = Math.max(0, baseCountdownSeconds - 1);
+  baseCountdownSeconds = Math.max(0, baseCountdownSeconds - baseRuntimeTimeMultiplier);
   updateJellyClock(formatClock(baseCountdownSeconds));
   if (baseCountdownSeconds === 0) {
     refreshState().catch(() => {});
