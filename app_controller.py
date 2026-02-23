@@ -165,6 +165,7 @@ class AppController:
             ui_payload = self.state_manager.show()
         ui_payload["wake_sync"] = self._wake_sync_model()
         ui_payload["wake_active"] = ui_payload["wake_sync"]["active"]
+        ui_payload["runtime_time_multiplier"] = self._runtime_control.time_multiplier()
         if not self._runtime_control.is_active():
             self._save_session_if_changed()
         return ui_payload

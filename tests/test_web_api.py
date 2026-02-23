@@ -167,3 +167,15 @@ def test_runtime_prayer_override_endpoint(client):
     clear = client.post('/api/runtime-test/prayer-override/clear')
     assert clear.status_code == 200
     assert clear.json()['view_model']['overrides']['suhoor'] is None
+
+
+def test_runtime_time_cycle_exposes_multiplier_in_state(client):
+    client.post('/api/runtime-test/start')
+
+    accelerated = client.post('/api/runtime-test/time-cycle/start', json={'hours_per_second': 1.0})
+    assert accelerated.status_code == 200
+    assert accelerated.json()['view_model']['time_multiplier'] == 3600.0
+
+    state = client.get('/api/state')
+    assert state.status_code == 200
+    assert state.json()['view_model']['runtime_time_multiplier'] == 3600.0
