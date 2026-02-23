@@ -32,10 +32,7 @@ def test_get_state(client):
     payload = response.json()
     assert payload["state"] == "base_state"
     assert isinstance(payload.get("app_instance_id"), str) and payload["app_instance_id"]
-    background = payload["view_model"].get("background")
-    assert isinstance(background, dict)
-    assert background["id"] == 1
-    assert background["theme_class"] == "bg-theme-1"
+    assert "background" not in payload["view_model"]
 
 
 def test_command_transition(client):
