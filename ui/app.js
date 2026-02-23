@@ -121,6 +121,8 @@ function renderBase(model) {
   const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
   const taskType = String(model.today_task_type || '').trim();
   const taskMeta = taskType ? ` · ${taskType}` : '';
+  const nextPrayerSourceDate = model.next_prayer.source_date || '—';
+  const nextPrayerText = `До ${model.next_prayer.next}`;
   return `<section class="base-screen" data-view="base_state">
     <div class="lava-background">
       <div class="blob"></div>
@@ -148,7 +150,11 @@ function renderBase(model) {
     </svg>
 
     <div class="clock-container">
-      <div class="next-prayer-label" id="nextPrayerLabel">До ${model.next_prayer.next}</div>
+      <div class="next-prayer-label" id="nextPrayerLabel">
+        <span class="next-prayer-source-date">${nextPrayerSourceDate}</span>
+        <span class="next-prayer-divider" aria-hidden="true">·</span>
+        <span class="next-prayer-main-text">${nextPrayerText}</span>
+      </div>
       <div class="clock" aria-label="countdown-clock">
         <div class="digit-box" id="h1"></div>
         <div class="digit-box" id="h2"></div>
@@ -254,10 +260,12 @@ function patchBaseView(model) {
   baseViewCache.taskLabel = baseViewCache.taskLabel || document.getElementById('daily-task-label');
   baseViewCache.taskText = baseViewCache.taskText || document.getElementById('daily-task');
 
+  const nextPrayerSourceDate = model.next_prayer.source_date || '—';
   const nextPrayerText = `До ${model.next_prayer.next}`;
-  if (baseViewCache.nextPrayerLabel && baseViewCache.lastNextPrayerText !== nextPrayerText) {
-    baseViewCache.nextPrayerLabel.textContent = nextPrayerText;
-    baseViewCache.lastNextPrayerText = nextPrayerText;
+  const nextPrayerLabelText = `${nextPrayerSourceDate} · ${nextPrayerText}`;
+  if (baseViewCache.nextPrayerLabel && baseViewCache.lastNextPrayerText !== nextPrayerLabelText) {
+    baseViewCache.nextPrayerLabel.innerHTML = `<span class="next-prayer-source-date">${escapeHtml(nextPrayerSourceDate)}</span><span class="next-prayer-divider" aria-hidden="true">·</span><span class="next-prayer-main-text">${escapeHtml(nextPrayerText)}</span>`;
+    baseViewCache.lastNextPrayerText = nextPrayerLabelText;
   }
 
   const taskType = String(model.today_task_type || '').trim();

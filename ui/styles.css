@@ -221,12 +221,22 @@ body.wake-active .wake-frame {
 }
 
 .next-prayer-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   color: var(--text-color);
   font-size: clamp(14px, 1.3vw, 22px);
   font-weight: 900;
   letter-spacing: 2px;
   text-transform: uppercase;
   text-shadow: 0 4px 10px rgba(0, 0, 0, 0.24);
+}
+
+.next-prayer-source-date,
+.next-prayer-main-text,
+.next-prayer-divider {
+  display: inline-block;
 }
 
 .clock {

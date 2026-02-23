@@ -65,9 +65,9 @@ class BaseScreenState(BaseState):
         now = datetime.now()
         today = now.date()
 
-        today_times = self._prayer_times_for_date(today)
-        yesterday_times = self._prayer_times_for_date(today - timedelta(days=1))
-        tomorrow_times = self._prayer_times_for_date(today + timedelta(days=1))
+        today_source_date, today_times = self._prayer_times_for_date_with_source(today)
+        _, yesterday_times = self._prayer_times_for_date_with_source(today - timedelta(days=1))
+        _, tomorrow_times = self._prayer_times_for_date_with_source(today + timedelta(days=1))
 
         suhoor_today = datetime.combine(today, datetime.strptime(today_times.fajr, "%H:%M").time())
         iftar_today = datetime.combine(today, datetime.strptime(today_times.maghrib, "%H:%M").time())
@@ -104,6 +104,7 @@ class BaseScreenState(BaseState):
         palette_progress = self._remap_palette_progress(progress)
         return {
             "next": next_name,
+            "source_date": today_source_date,
             "countdown": f"{delta // 3600:02d}:{(delta % 3600) // 60:02d}:{delta % 60:02d}",
             "phase": phase,
             "phase_progress": progress,
@@ -114,15 +115,18 @@ class BaseScreenState(BaseState):
         }
 
     def _prayer_times_for_date(self, target_date: date) -> PrayerTimes:
+        return self._prayer_times_for_date_with_source(target_date)[1]
+
+    def _prayer_times_for_date_with_source(self, target_date: date) -> tuple[str, PrayerTimes]:
         date_key = target_date.strftime("%Y-%m-%d")
         exact = self.prayer_times.get(date_key)
         if exact:
-            return exact
+            return date_key, exact
 
-        parsed: list[tuple[date, PrayerTimes]] = []
+        parsed: list[tuple[str, date, PrayerTimes]] = []
         for key, value in self.prayer_times.items():
             try:
-                parsed.append((datetime.strptime(key, "%Y-%m-%d").date(), value))
+                parsed.append((key, datetime.strptime(key, "%Y-%m-%d").date(), value))
             except ValueError:
                 continue
 
@@ -132,12 +136,12 @@ class BaseScreenState(BaseState):
         # Файл расписания может быть за конкретный год (например 2026),
         # тогда при несовпадении года сначала ищем совпадение по месяцу/дню.
         # Это позволяет показывать корректные времена в текущем году.
-        by_month_day = [item for item in parsed if item[0].month == target_date.month and item[0].day == target_date.day]
+        by_month_day = [item for item in parsed if item[1].month == target_date.month and item[1].day == target_date.day]
         if by_month_day:
-            return by_month_day[0][1]
+            return by_month_day[0][0], by_month_day[0][2]
 
-        parsed.sort(key=lambda item: abs((item[0] - target_date).days))
-        return parsed[0][1]
+        parsed.sort(key=lambda item: abs((item[1] - target_date).days))
+        return parsed[0][0], parsed[0][2]
 
     @staticmethod
     def _ramadan_elapsed_days() -> float:
