@@ -177,17 +177,52 @@ function createBlobNode(isFlash = false) {
   node.className = 'blob dynamic-blob';
   if (isFlash) {
     node.classList.add('blob-flash');
-    const flashPalette = ['#be2fff', '#ff2bd6', '#090909'];
-    node.style.background = flashPalette[Math.floor(Math.random() * flashPalette.length)];
+    node.style.background = randomRgbColor();
   }
   return node;
+}
+
+function randomRgbColor() {
+  const r = Math.floor(randomInRange(0, 256));
+  const g = Math.floor(randomInRange(0, 256));
+  const b = Math.floor(randomInRange(0, 256));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function parseRgbColor(value) {
+  const raw = String(value || '').trim();
+  const match = raw.match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i);
+  if (!match) return null;
+  const r = Math.max(0, Math.min(255, Number(match[1])));
+  const g = Math.max(0, Math.min(255, Number(match[2])));
+  const b = Math.max(0, Math.min(255, Number(match[3])));
+  return [r, g, b];
+}
+
+function toRgbCss(rgb) {
+  return `rgb(${Math.round(rgb[0])}, ${Math.round(rgb[1])}, ${Math.round(rgb[2])})`;
+}
+
+function withBrightnessSpread(rgb, spread = 0.2) {
+  const factor = randomInRange(1 - spread, 1 + spread);
+  return rgb.map((channel) => Math.max(0, Math.min(255, channel * factor)));
+}
+
+function pickBlobBaseColor(blobIndex) {
+  const rootStyle = window.getComputedStyle(document.documentElement);
+  const paletteKey = ((blobIndex % 3) + 1);
+  const fallback = ['rgb(255, 98, 102)', 'rgb(232, 34, 24)', 'rgb(255, 164, 110)'][blobIndex % 3];
+  return rootStyle.getPropertyValue(`--color-blob${paletteKey}`).trim() || fallback;
 }
 
 function makeBlob(isFlash = false) {
   const now = performance.now();
   const baseSizeVw = randomInRange(22, 60);
   const spawnDurationMs = randomInRange(1400, 2600);
-  const holdDurationMs = isFlash ? randomInRange(2800, 5200) : randomInRange(8000, 19000);
+  const holdDurationMs = isFlash ? randomInRange(16800, 31200) : randomInRange(48000, 114000);
+  const baseColor = pickBlobBaseColor(Math.floor(Math.random() * 3));
+  const parsedBaseColor = parseRgbColor(baseColor);
+  const colorCss = parsedBaseColor ? toRgbCss(withBrightnessSpread(parsedBaseColor, 0.2)) : baseColor;
   return {
     id: `blob-${Math.random().toString(36).slice(2)}`,
     node: createBlobNode(isFlash),
@@ -205,6 +240,7 @@ function makeBlob(isFlash = false) {
     deformPhase: randomInRange(0, Math.PI * 2),
     deformSpeed: randomInRange(0.0008, 0.0017),
     isFlash,
+    colorCss,
     stage: 'spawning',
     createdAtMs: now,
     stageSinceMs: now,
@@ -232,8 +268,10 @@ function ensureBlobSystem() {
   };
 
   const initialCount = Math.floor(randomInRange(7, 12));
-  for (let i = 0; i < initialCount; i += 1) {
+  const boostedInitialCount = Math.max(1, initialCount * 3);
+  for (let i = 0; i < boostedInitialCount; i += 1) {
     const blob = makeBlob(false);
+    blob.node.style.background = blob.colorCss;
     blobSystem.blobs.push(blob);
     container.appendChild(blob.node);
   }
@@ -261,14 +299,15 @@ function updateBlobSystem() {
   const nowMs = performance.now();
   const elapsed = nowMs - blobSystem.startedAtMs;
   const wave = (Math.sin(elapsed * 0.00023) + 1) / 2;
-  const targetCount = Math.round(7 + (wave * 8));
+  const targetCount = Math.round((7 + (wave * 8)) * 3);
 
   const livingBlobs = blobSystem.blobs.filter((blob) => blob.stage !== 'despawning').length;
   if (livingBlobs < targetCount) {
     const addCount = Math.min(2, targetCount - livingBlobs);
     for (let i = 0; i < addCount; i += 1) {
-      const isFlash = Math.random() < 0.10;
+      const isFlash = Math.random() < 0.02;
       const blob = makeBlob(isFlash);
+      if (!isFlash) blob.node.style.background = blob.colorCss;
       blobSystem.blobs.push(blob);
       blobSystem.container.appendChild(blob.node);
     }
@@ -303,7 +342,7 @@ function updateBlobSystem() {
     if (blob.xVw < -22 || blob.xVw > 102) blob.vx *= -1;
     if (blob.yVh < -22 || blob.yVh > 102) blob.vy *= -1;
 
-    const pulse = 1 + (blob.pulseAmplitude * Math.sin((nowMs * blob.pulseSpeed) + blob.deformPhase));
+    const pulse = 1 + (blob.pulseAmplitude * Math.sin((nowMs * blob.pulseSpeed * 0.3) + blob.deformPhase));
     const sizeVw = blob.baseSizeVw * pulse;
 
     let stageScale = 1;
