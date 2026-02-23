@@ -8,6 +8,8 @@ let refreshInFlight = null;
 let stateSocket = null;
 let reconnectTimer = null;
 let baseCountdownSeconds = null;
+let baseRamadanProgressPercent = null;
+let baseRamadanProgressUpdatedAtMs = null;
 let wsConnected = false;
 let appInstanceId = null;
 let reloadInProgress = false;
@@ -290,6 +292,8 @@ function patchBaseView(model) {
   }
 
   const progressPercent = Math.min(100, Math.max(0, Number(model.ramadan_progress_percent) || 0));
+  baseRamadanProgressPercent = progressPercent;
+  baseRamadanProgressUpdatedAtMs = Date.now();
   const progressTitleText = formatRamadanTitle(progressPercent);
   if (baseViewCache.progressTitle && baseViewCache.lastProgressTitleText !== progressTitleText) {
     baseViewCache.progressTitle.textContent = progressTitleText;
@@ -306,6 +310,37 @@ function patchBaseView(model) {
   applyPaletteFromModel(model);
   baseCountdownSeconds = parseCountdownToSeconds(model.next_prayer.countdown);
   updateJellyClock(formatClock(baseCountdownSeconds));
+}
+
+function tickRamadanProgress() {
+  if (currentState !== 'base_state' || baseRamadanProgressPercent == null || baseRamadanProgressUpdatedAtMs == null) {
+    return;
+  }
+
+  if (baseRamadanProgressPercent >= 100) {
+    return;
+  }
+
+  const nowMs = Date.now();
+  const elapsedSeconds = Math.max(0, (nowMs - baseRamadanProgressUpdatedAtMs) / 1000);
+  const deltaPercent = (elapsedSeconds / (30 * 24 * 60 * 60)) * 100;
+  const nextProgress = Math.min(100, baseRamadanProgressPercent + deltaPercent);
+
+  baseRamadanProgressPercent = nextProgress;
+  baseRamadanProgressUpdatedAtMs = nowMs;
+
+  if (baseViewCache.progressTitle) {
+    const title = formatRamadanTitle(nextProgress);
+    if (baseViewCache.lastProgressTitleText !== title) {
+      baseViewCache.progressTitle.textContent = title;
+      baseViewCache.lastProgressTitleText = title;
+    }
+  }
+
+  if (baseViewCache.progressBar && baseViewCache.lastProgressPercent !== nextProgress) {
+    baseViewCache.progressBar.style.width = `${nextProgress}%`;
+    baseViewCache.lastProgressPercent = nextProgress;
+  }
 }
 
 function patchMapView(model) {
@@ -824,6 +859,8 @@ function tickBaseCountdown() {
   if (baseCountdownSeconds === 0) {
     refreshState().catch(() => {});
   }
+
+  tickRamadanProgress();
 }
 
 document.addEventListener('visibilitychange', () => {
