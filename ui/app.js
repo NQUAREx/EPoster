@@ -1058,11 +1058,37 @@ function samplePixelColorAt(x, y) {
     return captured;
   }
 
-  const clampedX = Math.max(0, Math.min(window.innerWidth - 1, Math.round(x)));
-  const clampedY = Math.max(0, Math.min(window.innerHeight - 1, Math.round(y)));
-  const element = document.elementFromPoint(clampedX, clampedY);
-  if (!element) return [0, 0, 0];
-  return resolveVisualColor(element);
+  const width = Math.max(1, window.innerWidth);
+  const height = Math.max(1, window.innerHeight);
+  const clampedX = Math.max(0, Math.min(width - 1, Math.round(x)));
+  const clampedY = Math.max(0, Math.min(height - 1, Math.round(y)));
+
+  const probeOffsets = [
+    [0, 0],
+    [8, 0],
+    [-8, 0],
+    [0, 8],
+    [0, -8],
+    [16, 0],
+    [-16, 0],
+  ];
+
+  let best = [0, 0, 0];
+  let bestLuma = -1;
+  for (const [dx, dy] of probeOffsets) {
+    const px = Math.max(0, Math.min(width - 1, clampedX + dx));
+    const py = Math.max(0, Math.min(height - 1, clampedY + dy));
+    const element = document.elementFromPoint(px, py);
+    if (!element) continue;
+    const rgb = resolveVisualColor(element);
+    const luma = (0.2126 * rgb[0]) + (0.7152 * rgb[1]) + (0.0722 * rgb[2]);
+    if (luma > bestLuma) {
+      bestLuma = luma;
+      best = rgb;
+    }
+  }
+
+  return best;
 }
 
 function collectEdgeSamples(count, edge) {
@@ -1077,15 +1103,15 @@ function collectEdgeSamples(count, edge) {
 
     if (edge === 'top') {
       x = t * (width - 1);
-      y = AMBILIGHT_EDGE_DEPTH_PX;
+      y = 0;
     } else if (edge === 'right') {
-      x = width - AMBILIGHT_EDGE_DEPTH_PX;
+      x = width - 1;
       y = t * (height - 1);
     } else if (edge === 'bottom') {
       x = t * (width - 1);
-      y = height - AMBILIGHT_EDGE_DEPTH_PX;
+      y = height - 1;
     } else {
-      x = AMBILIGHT_EDGE_DEPTH_PX;
+      x = 0;
       y = t * (height - 1);
     }
 
@@ -1094,6 +1120,7 @@ function collectEdgeSamples(count, edge) {
 
   return samples;
 }
+
 
 function collectEdgeColors() {
   const width = Math.max(1, window.innerWidth);
