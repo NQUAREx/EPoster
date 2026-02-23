@@ -44,6 +44,13 @@ const LAVA_CONFIG = {
   minLifeMs: 60000,
   maxLifeMs: 300000,
   anomalyChance: 0.03,
+  anomalyMinLifeMs: 2000,
+  anomalyMaxLifeMs: 5000,
+  fadeSlowdownFactor: 3,
+  shadeVarianceMultiplier: 3,
+  maxOffscreenFraction: 0.65,
+  directionDriftMultiplier: 1.35,
+  xyWaveRangeMultiplier: 6,
 };
 
 function asGlass(content) {
@@ -184,20 +191,30 @@ class LavaBlob {
 
     this.x = Math.random() * 100;
     this.y = Math.random() * 100;
+    this.baseX = this.x;
+    this.baseY = this.y;
     this.angle = Math.random() * Math.PI * 2;
     this.baseSpeed = (0.02 + (Math.random() * 0.04)) * 1.2;
     this.timeOffset = Math.random() * 10000;
     this.lifeTimeMs = 0;
+    this.xWaveRange = (2 + (Math.random() * 3)) * LAVA_CONFIG.xyWaveRangeMultiplier;
+    this.yWaveRange = (2 + (Math.random() * 3)) * LAVA_CONFIG.xyWaveRangeMultiplier;
 
     if (this.isAnomaly) {
       this.color = randomRgbColor();
-      this.maxLifeMs = LAVA_CONFIG.minLifeMs + (Math.random() * (LAVA_CONFIG.maxLifeMs - LAVA_CONFIG.minLifeMs));
+      this.maxLifeMs = LAVA_CONFIG.anomalyMinLifeMs + (Math.random() * (LAVA_CONFIG.anomalyMaxLifeMs - LAVA_CONFIG.anomalyMinLifeMs));
       this.baseSpeed *= 9;
       this.el.style.zIndex = '5';
     } else {
-      let lightness = lavaRuntime.baseColorHSL.l + ((Math.random() * 40) - 20);
+      const lightnessSpread = 20 * LAVA_CONFIG.shadeVarianceMultiplier;
+      const saturationSpread = 12 * LAVA_CONFIG.shadeVarianceMultiplier;
+      const hueSpread = 8 * LAVA_CONFIG.shadeVarianceMultiplier;
+      let lightness = lavaRuntime.baseColorHSL.l + ((Math.random() * (lightnessSpread * 2)) - lightnessSpread);
+      let saturation = lavaRuntime.baseColorHSL.s + ((Math.random() * (saturationSpread * 2)) - saturationSpread);
+      const hue = (lavaRuntime.baseColorHSL.h + ((Math.random() * (hueSpread * 2)) - hueSpread) + 360) % 360;
       lightness = Math.max(10, Math.min(90, lightness));
-      this.color = `hsl(${lavaRuntime.baseColorHSL.h}, ${lavaRuntime.baseColorHSL.s}%, ${lightness}%)`;
+      saturation = Math.max(35, Math.min(100, saturation));
+      this.color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
       this.maxLifeMs = LAVA_CONFIG.minLifeMs + (Math.random() * (LAVA_CONFIG.maxLifeMs - LAVA_CONFIG.minLifeMs));
       this.el.style.zIndex = '1';
     }
@@ -205,8 +222,23 @@ class LavaBlob {
     this.el.style.backgroundColor = this.color;
 
     const fadeVariance = 1 + ((Math.random() * 0.3) - 0.15);
-    this.fadeDurationMs = Math.min(2500 * fadeVariance, this.maxLifeMs * 0.3);
+    this.fadeDurationMs = Math.min(2500 * fadeVariance * LAVA_CONFIG.fadeSlowdownFactor, this.maxLifeMs * 0.45);
     this.container.appendChild(this.el);
+  }
+
+  clampToVisibleBounds() {
+    const minVisibleFraction = 1 - LAVA_CONFIG.maxOffscreenFraction;
+    const overflowX = this.size * minVisibleFraction - (this.size / 2);
+    const overflowY = this.size * minVisibleFraction - (this.size / 2);
+    const minX = -overflowX;
+    const maxX = 100 + overflowX;
+    const minY = -overflowY;
+    const maxY = 100 + overflowY;
+
+    if (this.x < minX) { this.x = minX; this.angle = Math.random() * 0.8 - 0.4; }
+    if (this.x > maxX) { this.x = maxX; this.angle = Math.PI + (Math.random() * 0.8 - 0.4); }
+    if (this.y < minY) { this.y = minY; this.angle = (Math.PI / 2) + (Math.random() * 0.8 - 0.4); }
+    if (this.y > maxY) { this.y = maxY; this.angle = (-Math.PI / 2) + (Math.random() * 0.8 - 0.4); }
   }
 
   update(dt, timestamp) {
@@ -225,14 +257,18 @@ class LavaBlob {
 
     const speedMultiplier = 1 + (0.2 * Math.sin((timestamp + this.timeOffset) * 0.0015));
     const currentSpeed = this.baseSpeed * speedMultiplier;
-    this.angle += 0.005 * Math.sin((timestamp + this.timeOffset) * 0.001);
-    this.x += Math.cos(this.angle) * currentSpeed;
-    this.y += Math.sin(this.angle) * currentSpeed;
+    this.angle += (0.005 * LAVA_CONFIG.directionDriftMultiplier) * Math.sin((timestamp + this.timeOffset) * 0.001);
+    this.baseX += Math.cos(this.angle) * currentSpeed;
+    this.baseY += Math.sin(this.angle) * currentSpeed;
 
-    if (this.x < -20) { this.x = -20; this.angle = Math.random() * 0.5 - 0.25; }
-    if (this.x > 120) { this.x = 120; this.angle = Math.PI + (Math.random() * 0.5 - 0.25); }
-    if (this.y < -20) { this.y = -20; this.angle = (Math.PI / 2) + (Math.random() * 0.5 - 0.25); }
-    if (this.y > 120) { this.y = 120; this.angle = (-Math.PI / 2) + (Math.random() * 0.5 - 0.25); }
+    const waveX = Math.sin((timestamp + this.timeOffset) * 0.00042) * this.xWaveRange;
+    const waveY = Math.cos((timestamp + this.timeOffset) * 0.00037) * this.yWaveRange;
+    this.x = this.baseX + waveX;
+    this.y = this.baseY + waveY;
+
+    this.clampToVisibleBounds();
+    this.baseX = this.x - waveX;
+    this.baseY = this.y - waveY;
 
     this.el.style.transform = `translate3d(calc(${this.x}vw - 50%), calc(${this.y}vh - 50%), 0) scale(${scale})`;
     return true;
