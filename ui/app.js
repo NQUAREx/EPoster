@@ -1,5 +1,4 @@
 const stateView = document.getElementById('stateView');
-const deployUpdateBadge = document.getElementById('deployUpdateBadge');
 
 let wakeActiveUntil = 0;
 let wakeSync = null;
@@ -473,6 +472,12 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
 
 function setDeployNoticeVisible(visible) {
   deployNoticeVisible = Boolean(visible);
+  if (typeof window.setDeployUpdateBadgeVisible === 'function') {
+    window.setDeployUpdateBadgeVisible(deployNoticeVisible);
+    return;
+  }
+
+  const deployUpdateBadge = document.getElementById('deployUpdateBadge');
   if (!deployUpdateBadge) return;
   deployUpdateBadge.hidden = !deployNoticeVisible;
 }

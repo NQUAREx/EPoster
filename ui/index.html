@@ -15,6 +15,22 @@
     <span>Идёт обновление…</span>
   </aside>
   <main id="stateView" class="fullscreen"></main>
+  <script>
+    (() => {
+      const deployUpdateBadge = document.getElementById('deployUpdateBadge');
+      const setDeployUpdateBadgeVisible = (visible) => {
+        if (!deployUpdateBadge) return;
+        if (visible) {
+          deployUpdateBadge.removeAttribute('hidden');
+          return;
+        }
+        deployUpdateBadge.setAttribute('hidden', '');
+      };
+
+      setDeployUpdateBadgeVisible(false);
+      window.setDeployUpdateBadgeVisible = setDeployUpdateBadgeVisible;
+    })();
+  </script>
   <script src="/ui/app.js"></script>
 </body>
 </html>
