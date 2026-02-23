@@ -34,6 +34,33 @@ body.base-active {
   background-color: var(--color-bg);
 }
 
+.deploy-update-badge {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 10001;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  color: #f3fbff;
+  background: linear-gradient(150deg, rgba(50, 133, 255, 0.82), rgba(55, 92, 194, 0.82));
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 24px rgba(15, 29, 64, 0.36);
+  font-size: clamp(14px, 1.05vw, 17px);
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  animation: riseIn .24s ease;
+}
+
+.deploy-update-icon {
+  font-size: 18px;
+  line-height: 1;
+  animation: deploySpin 1.2s linear infinite;
+}
+
 body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
 
 .fullscreen,
@@ -517,6 +544,11 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
 @keyframes pulseColon {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
+}
+
+@keyframes deploySpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .calibration-screen {

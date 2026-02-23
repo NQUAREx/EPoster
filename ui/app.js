@@ -1,4 +1,5 @@
 const stateView = document.getElementById('stateView');
+const deployUpdateBadge = document.getElementById('deployUpdateBadge');
 
 let wakeActiveUntil = 0;
 let wakeSync = null;
@@ -11,6 +12,10 @@ let baseCountdownSeconds = null;
 let wsConnected = false;
 let appInstanceId = null;
 let reloadInProgress = false;
+let backendUnreachableSince = null;
+let deployNoticeVisible = false;
+let refreshFailCount = 0;
+const DEPLOY_NOTICE_DELAY_MS = 2500;
 const baseViewCache = {
   nextPrayerLabel: null,
   progressTitle: null,
@@ -466,23 +471,55 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
   updateWakeBorder();
 }
 
+function setDeployNoticeVisible(visible) {
+  deployNoticeVisible = Boolean(visible);
+  if (!deployUpdateBadge) return;
+  deployUpdateBadge.hidden = !deployNoticeVisible;
+}
+
+function markBackendReachable() {
+  backendUnreachableSince = null;
+  refreshFailCount = 0;
+  setDeployNoticeVisible(false);
+}
+
+function markBackendUnreachable() {
+  if (!wsConnected) {
+    if (backendUnreachableSince == null) {
+      backendUnreachableSince = Date.now();
+    }
+
+    const offlineDurationMs = Date.now() - backendUnreachableSince;
+    if (refreshFailCount >= 2 && offlineDurationMs >= DEPLOY_NOTICE_DELAY_MS) {
+      setDeployNoticeVisible(true);
+    }
+  }
+}
+
 async function refreshState(forceFullRender = false) {
   if (refreshInFlight) {
     return refreshInFlight;
   }
 
   refreshInFlight = (async () => {
-    const response = await fetch('/api/state', { cache: 'no-store' });
-    if (!response.ok) {
-      throw new Error(`State API error: ${response.status}`);
+    try {
+      const response = await fetch('/api/state', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`State API error: ${response.status}`);
+      }
+      const data = await response.json();
+      trackAppInstance(data.app_instance_id);
+      const viewModel = extractViewModel(data);
+      if (!viewModel) {
+        throw new Error('State API payload has no view model');
+      }
+      applyViewModel(viewModel, { forceFullRender });
+      markBackendReachable();
+    } catch (error) {
+      refreshFailCount += 1;
+      markBackendUnreachable();
+      throw error;
     }
-    const data = await response.json();
-    trackAppInstance(data.app_instance_id);
-    const viewModel = extractViewModel(data);
-    if (!viewModel) {
-      throw new Error('State API payload has no view model');
-    }
-    applyViewModel(viewModel, { forceFullRender });
   })();
 
   try {
@@ -510,6 +547,7 @@ function connectStateSocket() {
 
   stateSocket.addEventListener('open', () => {
     wsConnected = true;
+    markBackendReachable();
   });
 
   stateSocket.addEventListener('message', (event) => {
@@ -522,6 +560,7 @@ function connectStateSocket() {
         return;
       }
       applyViewModel(viewModel);
+      markBackendReachable();
     } catch (_) {
       refreshState().catch(() => {});
     }
