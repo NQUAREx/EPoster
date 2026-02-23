@@ -1,16 +1,29 @@
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Callable
+
 from models import AppSettings, PrayerTimes, Session, Task
 from states import BaseScreenState, DayReviewState, EidState, TaskInfoState, TasksMapState
 from states.base_state import BaseState
 
 
 class StateManager:
-    def __init__(self, session: Session, tasks: list[Task], settings: AppSettings, prayer_times: dict[str, PrayerTimes]):
+    def __init__(
+        self,
+        session: Session,
+        tasks: list[Task],
+        settings: AppSettings,
+        prayer_times: dict[str, PrayerTimes],
+        now_provider: Callable[[], datetime] | None = None,
+        prayer_overrides_provider: Callable[[], dict[str, str]] | None = None,
+    ):
         self.session = session
         self.tasks = tasks
         self.settings = settings
         self.prayer_times = prayer_times
+        self._now_provider = now_provider
+        self._prayer_overrides_provider = prayer_overrides_provider
         self.state: BaseState = self._create_state("base_state")
 
     def refresh_data(self, tasks: list[Task], prayer_times: dict[str, PrayerTimes]) -> None:
@@ -24,7 +37,13 @@ class StateManager:
 
     def _create_state(self, state_name: str) -> BaseState:
         if state_name == "base_state":
-            return BaseScreenState(self.session, self.tasks, self.prayer_times)
+            return BaseScreenState(
+                self.session,
+                self.tasks,
+                self.prayer_times,
+                now_provider=self._now_provider,
+                prayer_overrides_provider=self._prayer_overrides_provider,
+            )
         if state_name == "task_info_state":
             return TaskInfoState(self.session, self.tasks)
         if state_name == "tasks_map_state":

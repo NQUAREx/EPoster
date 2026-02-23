@@ -99,5 +99,54 @@ class AppService:
         result["state_payload"] = payload
         return result
 
+
+    async def runtime_status(self) -> dict:
+        async with self._lock:
+            status = await asyncio.to_thread(self._controller.runtime_status)
+            payload = self._with_meta({"state": "runtime_test", "view_model": status})
+        return payload
+
+    async def runtime_start(self) -> dict:
+        async with self._lock:
+            status = await asyncio.to_thread(self._controller.runtime_start)
+            response = self._with_meta({"state": "runtime_test", "view_model": status})
+        await self._broadcaster.publish(await self.get_state())
+        return response
+
+    async def runtime_stop(self) -> dict:
+        async with self._lock:
+            status = await asyncio.to_thread(self._controller.runtime_stop)
+            response = self._with_meta({"state": "runtime_test", "view_model": status})
+        await self._broadcaster.publish(await self.get_state())
+        return response
+
+    async def runtime_set_prayer_overrides(self, suhoor: str, iftar: str) -> dict:
+        async with self._lock:
+            status = await asyncio.to_thread(self._controller.runtime_set_prayer_overrides, suhoor, iftar)
+            response = self._with_meta({"state": "runtime_test", "view_model": status})
+        await self._broadcaster.publish(await self.get_state())
+        return response
+
+    async def runtime_clear_prayer_overrides(self) -> dict:
+        async with self._lock:
+            status = await asyncio.to_thread(self._controller.runtime_clear_prayer_overrides)
+            response = self._with_meta({"state": "runtime_test", "view_model": status})
+        await self._broadcaster.publish(await self.get_state())
+        return response
+
+    async def runtime_start_time_cycle(self, hours_per_second: float) -> dict:
+        async with self._lock:
+            status = await asyncio.to_thread(self._controller.runtime_start_time_cycle, hours_per_second)
+            response = self._with_meta({"state": "runtime_test", "view_model": status})
+        await self._broadcaster.publish(await self.get_state())
+        return response
+
+    async def runtime_stop_time_cycle(self) -> dict:
+        async with self._lock:
+            status = await asyncio.to_thread(self._controller.runtime_stop_time_cycle)
+            response = self._with_meta({"state": "runtime_test", "view_model": status})
+        await self._broadcaster.publish(await self.get_state())
+        return response
+
     async def shutdown(self) -> None:
         await asyncio.to_thread(self._controller.shutdown)

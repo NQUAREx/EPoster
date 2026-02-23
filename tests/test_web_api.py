@@ -134,3 +134,36 @@ def test_calibration_preview_requires_active_session(client):
     preview = client.post("/api/calibration/preview", json={"observed_rgb": [10, 20, 30]})
     assert preview.status_code == 200
     assert preview.json()["ok"] is False
+
+def test_runtime_console_lock_and_restore(client):
+    start = client.post('/api/runtime-test/start')
+    assert start.status_code == 200
+    assert start.json()['view_model']['active'] is True
+
+    blocked = client.post('/api/command', json={'command': 'open_tasks_map'})
+    assert blocked.status_code == 200
+    assert blocked.json()['view_model']['command_source'] == 'runtime_lock'
+
+    stop = client.post('/api/runtime-test/stop')
+    assert stop.status_code == 200
+    assert stop.json()['view_model']['active'] is False
+
+    normal = client.post('/api/command', json={'command': 'open_tasks_map'})
+    assert normal.status_code == 200
+    assert normal.json()['state'] == 'tasks_map_state'
+
+
+def test_runtime_prayer_override_endpoint(client):
+    client.post('/api/runtime-test/start')
+
+    override = client.post('/api/runtime-test/prayer-override', json={'suhoor': '06:10', 'iftar': '20:20'})
+    assert override.status_code == 200
+    assert override.json()['view_model']['overrides']['suhoor'] == '06:10'
+
+    state = client.get('/api/state')
+    assert state.status_code == 200
+    assert state.json()['view_model']['next_prayer']['suhoor'] == '06:10'
+
+    clear = client.post('/api/runtime-test/prayer-override/clear')
+    assert clear.status_code == 200
+    assert clear.json()['view_model']['overrides']['suhoor'] is None
