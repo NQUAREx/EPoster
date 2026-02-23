@@ -3,12 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EPoster - Dynamic Lava Base</title>
+  <title>EPoster - Dynamic Lava Base (v2)</title>
   <style>
-    /* ПРЕДУПРЕЖДЕНИЕ: При интеграции через Python замените { на {{ и } на }} */
-    
     :root {
-      /* Цвет фона по умолчанию, будет перезаписан из JS */
       --bg-color: #1a0505; 
     }
 
@@ -22,7 +19,6 @@
       transition: background-color 2s ease;
     }
 
-    /* Контейнер для лавы. Используем blur для эффекта слияния жидкостей */
     #lava-container {
       position: absolute;
       top: 0; left: 0;
@@ -31,20 +27,16 @@
       overflow: hidden;
     }
 
-    /* Базовый класс для капли лавы */
     .blob {
       position: absolute;
       top: 0; left: 0;
       border-radius: 50%;
-      /* Сильный блюр для создания "жидкого" эффекта */
       filter: blur(6vw); 
       opacity: 0.8;
-      /* Аппаратное ускорение */
       will-change: transform; 
       transform-origin: center center;
     }
 
-    /* Элементы интерфейса поверх лавы (для примера) */
     .ui-layer {
       position: relative;
       z-index: 10;
@@ -63,7 +55,7 @@
 <body>
 
   <div id="lava-container"></div>
-
+  
   <div class="ui-layer">
     <div id="status-text">Base State / Ожидание...</div>
   </div>
@@ -71,38 +63,31 @@
   <script>
     const container = document.getElementById('lava-container');
     
-    // Глобальные настройки
     const CONFIG = {
-      minBlobs: 5,
-      maxBlobs: 13,
-      baseColorHSL: { h: 358, s: 100, l: 68 }, // По умолчанию #ff5e62
-      minLife: 3000,  // 3 сек
-      maxLife: 30000, // 30 сек
-      anomalyChance: 0.03 // 3%
+      minBlobs: 8,       // Строгий минимум
+      maxBlobs: 14,      // Максимум
+      baseColorHSL: { h: 358, s: 100, l: 68 }, 
+      minLife: 10000,    // От 10 сек
+      maxLife: 40000,    // До 40 сек
+      anomalyChance: 0.03 // 3% шанс
     };
 
     let blobs = [];
 
-    // --- Утилиты ---
-
-    // Нелинейное сглаживание для появления/исчезновения (Ease In-Out)
     function easeInOutQuad(t) {
       return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
     }
 
-    // Конвертер HEX в HSL для получения базового цвета из бекенда
     function hexToHSL(hex) {
       hex = hex.replace(/^#/, '');
       let r = parseInt(hex.substring(0, 2), 16) / 255;
       let g = parseInt(hex.substring(2, 4), 16) / 255;
       let b = parseInt(hex.substring(4, 6), 16) / 255;
-
       let max = Math.max(r, g, b), min = Math.min(r, g, b);
       let h, s, l = (max + min) / 2;
 
-      if (max === min) {
-        h = s = 0; 
-      } else {
+      if (max === min) { h = s = 0; } 
+      else {
         let d = max - min;
         s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
         switch (max) {
@@ -115,56 +100,47 @@
       return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
     }
 
-    // --- Класс Blob ---
     class Blob {
       constructor() {
         this.el = document.createElement('div');
         this.el.className = 'blob';
         
-        // 3% шанс на аномалию
         this.isAnomaly = Math.random() < CONFIG.anomalyChance;
-        
-        // Размер от 20% до 55% экрана
         this.size = 20 + Math.random() * 35;
         this.el.style.width = this.size + 'vw';
         this.el.style.height = this.size + 'vw';
 
-        // Начальная позиция (в процентах от экрана)
+        // Рандомная стартовая позиция
         this.x = Math.random() * 100;
         this.y = Math.random() * 100;
 
-        // Вектор движения и плавающие колебания
+        // Полностью случайное направление от 0 до 360 градусов (в радианах)
         this.angle = Math.random() * Math.PI * 2;
-        this.baseSpeed = 0.02 + Math.random() * 0.04; // Базовая скорость
-        this.timeOffset = Math.random() * 10000; // Для рассинхронизации синусоид
+        this.baseSpeed = 0.02 + Math.random() * 0.04; 
+        this.timeOffset = Math.random() * 10000; 
 
-        // Жизненный цикл
         this.lifeTime = 0;
         
         if (this.isAnomaly) {
-          // Аномалия: Случайный цвет (H от 0 до 360), живет 1.5 - 3 сек, скорость +50%
+          // Аномалия: случайный цвет, 5-7 сек жизни, скорость 1.5x
           this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
-          this.maxLife = 1500 + Math.random() * 1500; 
+          this.maxLife = 5000 + Math.random() * 2000; 
           this.baseSpeed *= 1.5; 
-          this.el.style.zIndex = 5; // Выше остальных
+          this.el.style.zIndex = 5; 
         } else {
-          // Обычный: Цвет базы с расхождением яркости (L) ±20%
+          // Обычная лава: цвет базы ±20% яркости, 10-40 сек жизни
           let lVariation = CONFIG.baseColorHSL.l + (Math.random() * 40 - 20);
-          // Ограничиваем яркость, чтобы не ушло в белый/черный
           lVariation = Math.max(10, Math.min(90, lVariation)); 
           this.color = `hsl(${CONFIG.baseColorHSL.h}, ${CONFIG.baseColorHSL.s}%, ${lVariation}%)`;
           
-          // Живет от 3 до 30 секунд
           this.maxLife = CONFIG.minLife + Math.random() * (CONFIG.maxLife - CONFIG.minLife);
           this.el.style.zIndex = 1;
         }
 
         this.el.style.backgroundColor = this.color;
 
-        // Разбег скорости появления/исчезновения (±15% от базовых 1500мс)
         let fadeVariance = 1 + (Math.random() * 0.3 - 0.15); 
-        // Анимация появления занимает максимум 1.5 сек (или половину жизни аномалии)
-        this.fadeDuration = Math.min(1500 * fadeVariance, this.maxLife * 0.4);
+        this.fadeDuration = Math.min(2500 * fadeVariance, this.maxLife * 0.3);
 
         container.appendChild(this.el);
       }
@@ -172,43 +148,36 @@
       update(dt, timestamp) {
         this.lifeTime += dt;
 
-        // 1. УПРАВЛЕНИЕ МАСШТАБОМ (Scale 0 -> 1 -> 0 плавно, не линейно)
+        // 1. Плавный Scale (0-1-0)
         let scale = 1;
         if (this.lifeTime < this.fadeDuration) {
-          // Появление
-          let progress = this.lifeTime / this.fadeDuration;
-          scale = easeInOutQuad(progress);
+          scale = easeInOutQuad(this.lifeTime / this.fadeDuration);
         } else if (this.lifeTime > this.maxLife - this.fadeDuration) {
-          // Исчезновение
-          let progress = (this.maxLife - this.lifeTime) / this.fadeDuration;
-          scale = Math.max(0, easeInOutQuad(progress));
+          scale = Math.max(0, easeInOutQuad((this.maxLife - this.lifeTime) / this.fadeDuration));
         }
 
-        // Если время вышло - сообщаем движку удалить нас
         if (this.lifeTime >= this.maxLife) return false;
 
-        // 2. ДИНАМИКА ДВИЖЕНИЯ
-        // Нелинейная скорость: колеблется на ±20% от базовой скорости плавно по синусоиде
-        let speedMultiplier = 1 + 0.2 * Math.sin((timestamp + this.timeOffset) * 0.002);
+        // 2. Движение XY: Нелинейная скорость (±20%)
+        let speedMultiplier = 1 + 0.2 * Math.sin((timestamp + this.timeOffset) * 0.0015);
         let currentSpeed = this.baseSpeed * speedMultiplier;
 
-        // Плавное изменение направления движения (заворачивает)
-        this.angle += 0.01 * Math.cos((timestamp + this.timeOffset) * 0.001);
+        // Искажение траектории: заставляет их "извиваться", а не лететь прямо
+        this.angle += 0.005 * Math.sin((timestamp + this.timeOffset) * 0.001);
 
         this.x += Math.cos(this.angle) * currentSpeed;
         this.y += Math.sin(this.angle) * currentSpeed;
 
-        // Мягкое отталкивание от краев экрана
-        if (this.x < -10) this.angle = 0;
-        if (this.x > 110) this.angle = Math.PI;
-        if (this.y < -10) this.angle = Math.PI / 2;
-        if (this.y > 110) this.angle = -Math.PI / 2;
+        // Мягкое отталкивание от невидимых краев (за экраном), чтобы не улетали навсегда
+        if (this.x < -20) { this.x = -20; this.angle = 0 + (Math.random() * 0.5 - 0.25); }
+        if (this.x > 120) { this.x = 120; this.angle = Math.PI + (Math.random() * 0.5 - 0.25); }
+        if (this.y < -20) { this.y = -20; this.angle = Math.PI / 2 + (Math.random() * 0.5 - 0.25); }
+        if (this.y > 120) { this.y = 120; this.angle = -Math.PI / 2 + (Math.random() * 0.5 - 0.25); }
 
-        // 3. ОТРИСОВКА (GPU ускорение)
-        // Используем 3D трансформации, чтобы Linux не пересчитывал Layout
+        // 3. Аппаратный рендер
         this.el.style.transform = `translate3d(calc(${this.x}vw - 50%), calc(${this.y}vh - 50%), 0) scale(${scale})`;
 
-        return true; // Жив
+        return true; 
       }
 
       destroy() {
@@ -218,7 +187,6 @@
       }
     }
 
-    // --- Главный цикл анимации ---
     let lastTime = 0;
 
     function animate(timestamp) {
@@ -226,16 +194,16 @@
       let dt = timestamp - lastTime;
       lastTime = timestamp;
 
-      // Динамическое поддержание числа blobs (от 5 до 13)
-      if (blobs.length < CONFIG.minBlobs) {
-        // Если меньше минимума - спавним сразу
+      // ЖЕСТКИЙ ЛИМИТ: Мгновенно добиваем до 8, если их меньше
+      while (blobs.length < CONFIG.minBlobs) {
         blobs.push(new Blob());
-      } else if (blobs.length < CONFIG.maxBlobs && Math.random() < 0.01) {
-        // Если место есть, с небольшой вероятностью спавним новый каждый кадр
+      } 
+      
+      // Плавный спавн до 14
+      if (blobs.length < CONFIG.maxBlobs && Math.random() < 0.01) {
         blobs.push(new Blob());
       }
 
-      // Обновляем все капли и удаляем "мертвые"
       for (let i = blobs.length - 1; i >= 0; i--) {
         let isAlive = blobs[i].update(dt, timestamp);
         if (!isAlive) {
@@ -247,38 +215,20 @@
       requestAnimationFrame(animate);
     }
 
-    // --- API ДЛЯ БЕКЕНДА (Python/C++) ---
-
-    /**
-     * Вызови эту функцию из бекенда для смены базового цвета.
-     * @param {string} hexColor - Цвет в формате "#FF0000"
-     */
     function setLavaColor(hexColor) {
       CONFIG.baseColorHSL = hexToHSL(hexColor);
-      
-      // Сделаем фон чуть более темной версией базового цвета
       let darkBg = `hsl(${CONFIG.baseColorHSL.h}, ${CONFIG.baseColorHSL.s}%, 10%)`;
       document.documentElement.style.setProperty('--bg-color', darkBg);
-      
-      // Можно раскомментировать, если хочешь убить старые капли при смене цвета
-      /*
-      blobs.forEach(b => b.destroy());
-      blobs = [];
-      */
-      
-      document.getElementById('status-text').innerText = `Цвет изменен: ${hexColor}`;
+      document.getElementById('status-text').innerText = `Цвет: ${hexColor}`;
     }
 
-    // Запуск двигателя
     requestAnimationFrame(animate);
 
-    // --- ДЛЯ ТЕСТА В БРАУЗЕРЕ (Эмуляция сигналов бекенда) ---
-    // Каждые 15 секунд меняем базовый цвет на случайный
+    // Демонстрация смены цвета каждые 20 сек
     setInterval(() => {
       let randomHex = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
       setLavaColor(randomHex);
-    }, 15000);
-    // --------------------------------------------------------
+    }, 20000);
 
   </script>
 </body>
