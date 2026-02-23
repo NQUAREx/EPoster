@@ -3,23 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EPoster - Map of Tasks</title>
-  
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap" rel="stylesheet">
-
+  <title>EPoster - Dynamic Lava Base</title>
   <style>
+    /* ПРЕДУПРЕЖДЕНИЕ: При интеграции через Python замените { на {{ и } на }} */
+    
     :root {
-      --color-bg: #2b0a0a;
-      --color-blob1: #ff5e62;
-      --color-blob2: #ff9966;
-      --color-blob3: #f12711;
-      
-      --glass-border: rgba(255, 255, 255, 0.2);
-      --text-color: #ffffff;
-      
-      --card-open-bg: rgba(255, 255, 255, 0.15);
-      --card-locked-bg: rgba(80, 80, 80, 0.4);
-      --card-completed-bg: rgba(46, 204, 113, 0.85);
+      /* Цвет фона по умолчанию, будет перезаписан из JS */
+      --bg-color: #1a0505; 
     }
 
     * { box-sizing: border-box; }
@@ -28,251 +18,268 @@
       margin: 0; padding: 0;
       width: 100vw; height: 100vh;
       overflow: hidden;
-      font-family: 'Nunito', sans-serif;
-      color: var(--text-color);
-      background-color: var(--color-bg);
+      background-color: var(--bg-color);
+      transition: background-color 2s ease;
     }
 
-    .lava-background {
+    /* Контейнер для лавы. Используем blur для эффекта слияния жидкостей */
+    #lava-container {
       position: absolute;
-      top: 0; left: 0; width: 100vw; height: 100vh;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       z-index: 0;
       overflow: hidden;
     }
 
+    /* Базовый класс для капли лавы */
     .blob {
       position: absolute;
+      top: 0; left: 0;
       border-radius: 50%;
-      filter: blur(80px);
+      /* Сильный блюр для создания "жидкого" эффекта */
+      filter: blur(6vw); 
       opacity: 0.8;
-      animation: float 20s infinite alternate cubic-bezier(0.4, 0.0, 0.2, 1);
-    }
-    .blob:nth-child(1) { width: 60vw; height: 60vw; background: var(--color-blob1); top: -10%; left: -10%; animation-duration: 25s; }
-    .blob:nth-child(2) { width: 50vw; height: 50vw; background: var(--color-blob2); bottom: -20%; right: -10%; animation-duration: 22s; animation-delay: -5s; }
-    .blob:nth-child(3) { width: 55vw; height: 55vw; background: var(--color-blob3); bottom: 20%; left: 20%; animation-duration: 28s; animation-delay: -10s; }
-
-    @keyframes float {
-      0% { transform: translate(0, 0) scale(1); }
-      50% { transform: translate(10%, 20%) scale(1.2); }
-      100% { transform: translate(-20%, 10%) scale(0.9); }
+      /* Аппаратное ускорение */
+      will-change: transform; 
+      transform-origin: center center;
     }
 
-    /* Исправлено: Текстура доски через Base64 (никаких спецсимволов) */
-    .chalkboard-overlay {
-      position: absolute;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 1;
-      backdrop-filter: blur(20px) brightness(0.6);
-      -webkit-backdrop-filter: blur(20px) brightness(0.6);
-      background-image: url("data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZmlsdGVyIGlkPSJub2lzZUZpbHRlciI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuODUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2VGaWx0ZXIpIiBvcGFjaXR5PSIwLjE1Ii8+PC9zdmc+");
-    }
-
-    .wake-frame {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      pointer-events: none;
-      box-shadow: inset 0 0 0px 0px rgba(0, 150, 255, 0);
-      transition: box-shadow 0.3s ease;
-      z-index: 9999;
-    }
-    body.wake-active .wake-frame { animation: pulseBlue 1.5s infinite; }
-    @keyframes pulseBlue {
-      0% { box-shadow: inset 0 0 30px 10px rgba(0, 150, 255, 0.6); }
-      50% { box-shadow: inset 0 0 100px 40px rgba(0, 190, 255, 0.9); }
-      100% { box-shadow: inset 0 0 30px 10px rgba(0, 150, 255, 0.6); }
-    }
-
-    .tasks-grid {
+    /* Элементы интерфейса поверх лавы (для примера) */
+    .ui-layer {
       position: relative;
       z-index: 10;
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      grid-template-rows: repeat(5, 1fr);
-      gap: 1.5vw;
-      width: 100vw;
-      height: 100vh;
-      padding: 3vw 5vw;
-    }
-
-    .card {
-      position: relative;
-      background: var(--card-open-bg);
-      border: 1px solid var(--glass-border);
+      width: 100%; height: 100%;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      text-align: center;
-      padding: 1vw;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-      border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
-      animation: jellyWobble 8s ease-in-out infinite alternate;
-      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s, filter 0.4s;
-    }
-
-    .card:nth-child(even) { animation-direction: alternate-reverse; animation-duration: 9s; }
-    .card:nth-child(3n) { animation-duration: 11s; }
-
-    @keyframes jellyWobble {
-      0% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
-      33% { border-radius: 60% 40% 50% 50% / 50% 60% 40% 60%; }
-      66% { border-radius: 50% 50% 30% 70% / 60% 40% 60% 40%; }
-      100% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; }
-    }
-
-    .pin {
-      position: absolute;
-      top: 6%;
-      width: 1.2vw;
-      height: 1.2vw;
-      background: radial-gradient(circle at 30% 30%, #ff7675, #d63031);
-      border-radius: 50%;
-      box-shadow: inset -2px -2px 4px rgba(0,0,0,0.4), 3px 5px 8px rgba(0,0,0,0.5);
-      z-index: 2;
-    }
-
-    .day-number {
-      font-size: 2.5vw;
-      line-height: 1;
-      margin-top: 1vw;
-      text-shadow: 0 2px 5px rgba(0,0,0,0.5);
-      z-index: 2;
-    }
-
-    .card-text {
-      font-size: 0.7vw;
+      color: white;
       font-family: sans-serif;
-      font-weight: bold;
-      opacity: 0.8;
-      margin-top: 0.5vw;
-      line-height: 1.2;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      z-index: 2;
-    }
-
-    .card.locked { background: var(--card-locked-bg); filter: grayscale(0.8) brightness(0.7); }
-    .card.locked .lock-icon { width: 2.5vw; height: 2.5vw; fill: rgba(255, 255, 255, 0.5); margin-top: 0.5vw; }
-    
-    .card.locked .skeleton-lines { width: 70%; display: flex; flex-direction: column; gap: 0.3vw; margin-top: 0.5vw; }
-    .skeleton-line { height: 0.4vw; background: rgba(0, 0, 0, 0.4); border-radius: 2px; }
-    .skeleton-line:nth-child(1) { width: 100%; }
-    .skeleton-line:nth-child(2) { width: 80%; }
-    .skeleton-line:nth-child(3) { width: 60%; }
-
-    .card.completed {
-      background: var(--card-completed-bg);
-      border-color: rgba(46, 204, 113, 0.5);
-      box-shadow: 0 0 30px rgba(46, 204, 113, 0.4);
-    }
-    .card.completed .day-number, .card.completed .card-text { display: none; }
-    .card.completed .check-icon {
-      width: 5vw; height: 5vw;
-      fill: none; stroke: #ffffff; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round;
-      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
-    }
-
-    .card.selected {
-      transform: scale(1.35) translateY(-1vw);
-      z-index: 100;
-      background: rgba(255, 255, 255, 0.25);
-      border: 2px solid rgba(255, 255, 255, 0.8);
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 40px rgba(255,255,255,0.4);
-      animation: jellyFast 1.5s ease-in-out infinite alternate;
-    }
-    .card.selected.locked { background: rgba(100, 100, 100, 0.6); border-color: rgba(255,255,255,0.4); }
-    .card.selected.completed { background: rgba(46, 204, 113, 1); box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 40px rgba(46, 204, 113, 0.8); }
-
-    @keyframes jellyFast {
-      0% { border-radius: 45% 55% 60% 40% / 45% 45% 55% 55%; }
-      100% { border-radius: 55% 45% 40% 60% / 55% 55% 45% 45%; }
+      font-size: 2rem;
+      pointer-events: none;
+      text-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
   </style>
 </head>
 <body>
 
-  <div class="lava-background">
-    <div class="blob"></div>
-    <div class="blob"></div>
-    <div class="blob"></div>
+  <div id="lava-container"></div>
+
+  <div class="ui-layer">
+    <div id="status-text">Base State / Ожидание...</div>
   </div>
 
-  <div class="chalkboard-overlay"></div>
-  <div class="wake-frame"></div>
-  <div class="tasks-grid" id="tasks-grid"></div>
-
   <script>
-    var totalDays = 30;
-    var grid = document.getElementById('tasks-grid');
-    var cards = [];
-    var currentCursorIndex = 0;
-
-    // Исправлено: Однострочные SVG для безопасности парсеров
-    var lockSVG = '<svg class="lock-icon" viewBox="0 0 24 24"><path d="M12 17a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M8 10V7a4 4 0 118 0v3h1a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2-3a2 2 0 114 0v3h-4V7z" clip-rule="evenodd"/></svg>';
-    var checkSVG = '<svg class="check-icon" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" /></svg>';
-
-    function initCards() {
-      grid.innerHTML = '';
-      cards = [];
-      for (var i = 1; i <= totalDays; i++) {
-        var card = document.createElement('div');
-        card.className = 'card';
-        card.id = 'day-' + i;
-        // Исправлено: Классическая конкатенация строк
-        card.innerHTML = '<div class="pin"></div><div class="day-number">' + i + '</div><div class="content-container"></div>';
-        
-        grid.appendChild(card);
-        cards.push(card);
-      }
-    }
-
-    function setDayState(day, state, text) {
-      if (day < 1 || day > totalDays) return;
-      var card = cards[day - 1];
-      var container = card.querySelector('.content-container');
-      
-      card.classList.remove('locked', 'completed', 'open');
-      card.classList.add(state);
-
-      if (state === 'locked') {
-        container.innerHTML = lockSVG + '<div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line"></div><div class="skeleton-line"></div></div>';
-      } else if (state === 'completed') {
-        container.innerHTML = checkSVG;
-      } else if (state === 'open') {
-        container.innerHTML = '<div class="card-text">' + (text || '') + '</div>';
-      }
-    }
-
-    function setCursor(day) {
-      if (day < 1 || day > totalDays) return;
-      if (cards[currentCursorIndex]) {
-        cards[currentCursorIndex].classList.remove('selected');
-      }
-      currentCursorIndex = day - 1;
-      cards[currentCursorIndex].classList.add('selected');
-    }
-
-    function triggerWakeWord(durationMs) {
-      var ms = durationMs || 3000;
-      document.body.classList.add('wake-active');
-      setTimeout(function() {
-        document.body.classList.remove('wake-active');
-      }, ms);
-    }
-
-    // Инициализация
-    initCards();
-
-    // --- ДЕМОНСТРАЦИОННЫЙ БЛОК ---
-    for (var j = 1; j <= 12; j++) setDayState(j, 'completed');
-    setDayState(13, 'open', 'Прочитать суру Аль-Кахф после Джума.');
-    setDayState(14, 'open', 'Сделать садака, накормить нуждающегося.');
-    setDayState(15, 'open', 'Позвонить родственникам, спросить о здоровье.');
-    for (var k = 16; k <= 30; k++) setDayState(k, 'locked');
+    const container = document.getElementById('lava-container');
     
-    setCursor(14);
+    // Глобальные настройки
+    const CONFIG = {
+      minBlobs: 5,
+      maxBlobs: 13,
+      baseColorHSL: { h: 358, s: 100, l: 68 }, // По умолчанию #ff5e62
+      minLife: 3000,  // 3 сек
+      maxLife: 30000, // 30 сек
+      anomalyChance: 0.03 // 3%
+    };
+
+    let blobs = [];
+
+    // --- Утилиты ---
+
+    // Нелинейное сглаживание для появления/исчезновения (Ease In-Out)
+    function easeInOutQuad(t) {
+      return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    }
+
+    // Конвертер HEX в HSL для получения базового цвета из бекенда
+    function hexToHSL(hex) {
+      hex = hex.replace(/^#/, '');
+      let r = parseInt(hex.substring(0, 2), 16) / 255;
+      let g = parseInt(hex.substring(2, 4), 16) / 255;
+      let b = parseInt(hex.substring(4, 6), 16) / 255;
+
+      let max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+
+      if (max === min) {
+        h = s = 0; 
+      } else {
+        let d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+      }
+      return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+    }
+
+    // --- Класс Blob ---
+    class Blob {
+      constructor() {
+        this.el = document.createElement('div');
+        this.el.className = 'blob';
+        
+        // 3% шанс на аномалию
+        this.isAnomaly = Math.random() < CONFIG.anomalyChance;
+        
+        // Размер от 20% до 55% экрана
+        this.size = 20 + Math.random() * 35;
+        this.el.style.width = this.size + 'vw';
+        this.el.style.height = this.size + 'vw';
+
+        // Начальная позиция (в процентах от экрана)
+        this.x = Math.random() * 100;
+        this.y = Math.random() * 100;
+
+        // Вектор движения и плавающие колебания
+        this.angle = Math.random() * Math.PI * 2;
+        this.baseSpeed = 0.02 + Math.random() * 0.04; // Базовая скорость
+        this.timeOffset = Math.random() * 10000; // Для рассинхронизации синусоид
+
+        // Жизненный цикл
+        this.lifeTime = 0;
+        
+        if (this.isAnomaly) {
+          // Аномалия: Случайный цвет (H от 0 до 360), живет 1.5 - 3 сек, скорость +50%
+          this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
+          this.maxLife = 1500 + Math.random() * 1500; 
+          this.baseSpeed *= 1.5; 
+          this.el.style.zIndex = 5; // Выше остальных
+        } else {
+          // Обычный: Цвет базы с расхождением яркости (L) ±20%
+          let lVariation = CONFIG.baseColorHSL.l + (Math.random() * 40 - 20);
+          // Ограничиваем яркость, чтобы не ушло в белый/черный
+          lVariation = Math.max(10, Math.min(90, lVariation)); 
+          this.color = `hsl(${CONFIG.baseColorHSL.h}, ${CONFIG.baseColorHSL.s}%, ${lVariation}%)`;
+          
+          // Живет от 3 до 30 секунд
+          this.maxLife = CONFIG.minLife + Math.random() * (CONFIG.maxLife - CONFIG.minLife);
+          this.el.style.zIndex = 1;
+        }
+
+        this.el.style.backgroundColor = this.color;
+
+        // Разбег скорости появления/исчезновения (±15% от базовых 1500мс)
+        let fadeVariance = 1 + (Math.random() * 0.3 - 0.15); 
+        // Анимация появления занимает максимум 1.5 сек (или половину жизни аномалии)
+        this.fadeDuration = Math.min(1500 * fadeVariance, this.maxLife * 0.4);
+
+        container.appendChild(this.el);
+      }
+
+      update(dt, timestamp) {
+        this.lifeTime += dt;
+
+        // 1. УПРАВЛЕНИЕ МАСШТАБОМ (Scale 0 -> 1 -> 0 плавно, не линейно)
+        let scale = 1;
+        if (this.lifeTime < this.fadeDuration) {
+          // Появление
+          let progress = this.lifeTime / this.fadeDuration;
+          scale = easeInOutQuad(progress);
+        } else if (this.lifeTime > this.maxLife - this.fadeDuration) {
+          // Исчезновение
+          let progress = (this.maxLife - this.lifeTime) / this.fadeDuration;
+          scale = Math.max(0, easeInOutQuad(progress));
+        }
+
+        // Если время вышло - сообщаем движку удалить нас
+        if (this.lifeTime >= this.maxLife) return false;
+
+        // 2. ДИНАМИКА ДВИЖЕНИЯ
+        // Нелинейная скорость: колеблется на ±20% от базовой скорости плавно по синусоиде
+        let speedMultiplier = 1 + 0.2 * Math.sin((timestamp + this.timeOffset) * 0.002);
+        let currentSpeed = this.baseSpeed * speedMultiplier;
+
+        // Плавное изменение направления движения (заворачивает)
+        this.angle += 0.01 * Math.cos((timestamp + this.timeOffset) * 0.001);
+
+        this.x += Math.cos(this.angle) * currentSpeed;
+        this.y += Math.sin(this.angle) * currentSpeed;
+
+        // Мягкое отталкивание от краев экрана
+        if (this.x < -10) this.angle = 0;
+        if (this.x > 110) this.angle = Math.PI;
+        if (this.y < -10) this.angle = Math.PI / 2;
+        if (this.y > 110) this.angle = -Math.PI / 2;
+
+        // 3. ОТРИСОВКА (GPU ускорение)
+        // Используем 3D трансформации, чтобы Linux не пересчитывал Layout
+        this.el.style.transform = `translate3d(calc(${this.x}vw - 50%), calc(${this.y}vh - 50%), 0) scale(${scale})`;
+
+        return true; // Жив
+      }
+
+      destroy() {
+        if (this.el.parentNode) {
+          this.el.parentNode.removeChild(this.el);
+        }
+      }
+    }
+
+    // --- Главный цикл анимации ---
+    let lastTime = 0;
+
+    function animate(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      let dt = timestamp - lastTime;
+      lastTime = timestamp;
+
+      // Динамическое поддержание числа blobs (от 5 до 13)
+      if (blobs.length < CONFIG.minBlobs) {
+        // Если меньше минимума - спавним сразу
+        blobs.push(new Blob());
+      } else if (blobs.length < CONFIG.maxBlobs && Math.random() < 0.01) {
+        // Если место есть, с небольшой вероятностью спавним новый каждый кадр
+        blobs.push(new Blob());
+      }
+
+      // Обновляем все капли и удаляем "мертвые"
+      for (let i = blobs.length - 1; i >= 0; i--) {
+        let isAlive = blobs[i].update(dt, timestamp);
+        if (!isAlive) {
+          blobs[i].destroy();
+          blobs.splice(i, 1);
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    // --- API ДЛЯ БЕКЕНДА (Python/C++) ---
+
+    /**
+     * Вызови эту функцию из бекенда для смены базового цвета.
+     * @param {string} hexColor - Цвет в формате "#FF0000"
+     */
+    function setLavaColor(hexColor) {
+      CONFIG.baseColorHSL = hexToHSL(hexColor);
+      
+      // Сделаем фон чуть более темной версией базового цвета
+      let darkBg = `hsl(${CONFIG.baseColorHSL.h}, ${CONFIG.baseColorHSL.s}%, 10%)`;
+      document.documentElement.style.setProperty('--bg-color', darkBg);
+      
+      // Можно раскомментировать, если хочешь убить старые капли при смене цвета
+      /*
+      blobs.forEach(b => b.destroy());
+      blobs = [];
+      */
+      
+      document.getElementById('status-text').innerText = `Цвет изменен: ${hexColor}`;
+    }
+
+    // Запуск двигателя
+    requestAnimationFrame(animate);
+
+    // --- ДЛЯ ТЕСТА В БРАУЗЕРЕ (Эмуляция сигналов бекенда) ---
+    // Каждые 15 секунд меняем базовый цвет на случайный
+    setInterval(() => {
+      let randomHex = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+      setLavaColor(randomHex);
+    }, 15000);
+    // --------------------------------------------------------
+
   </script>
 </body>
 </html>
