@@ -12,7 +12,6 @@ from state_manager import StateManager
 from services.ambilight_calibration import AmbilightCalibration
 from storage import (
     create_session,
-    load_children,
     load_color_profile,
     load_prayer_times,
     load_session,
@@ -33,8 +32,8 @@ class AppController:
         self.tasks = load_tasks()
         self.prayer_times = load_prayer_times()
 
-        children = load_children()
-        session = load_session()
+        children = list(self.settings.children)
+        session = load_session(children)
         if session is None:
             session = create_session(children)
 
