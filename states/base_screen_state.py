@@ -94,7 +94,9 @@ class BaseScreenState(BaseState):
             phase = "night"
             start = iftar_yesterday
             end = suhoor_today
-            schedule = yesterday_times
+            # Даже ночью до сухура отображаем ифтар текущего дня,
+            # чтобы карточка всегда соответствовала "сегодняшней" дате.
+            schedule = today_times
 
         delta = max(0, int((target - now).total_seconds()))
         total = max(1, int((end - start).total_seconds()))

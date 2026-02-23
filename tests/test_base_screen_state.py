@@ -52,6 +52,34 @@ def test_night_progress_uses_yesterday_iftar_schedule(monkeypatch):
     assert BaseScreenState._remap_palette_progress(payload["phase_progress"]) < 0.2
 
 
+def test_early_night_shows_iftar_for_today_date_block(monkeypatch):
+    fake_now = datetime(2026, 2, 23, 3, 0, 0)
+
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fake_now
+
+    monkeypatch.setattr("states.base_screen_state.datetime", FrozenDateTime)
+
+    session = Session(current_day=1, celebration_mode=False, children=[], days={1: Day()})
+    state = BaseScreenState(
+        session=session,
+        tasks=[Task(day=1, text="task", type="обычное")],
+        prayer_times={
+            "2026-02-22": PrayerTimes(fajr="04:48", maghrib="17:02"),
+            "2026-02-23": PrayerTimes(fajr="04:46", maghrib="17:04"),
+            "2026-02-24": PrayerTimes(fajr="04:44", maghrib="17:06"),
+        },
+    )
+
+    payload = state._times()
+
+    assert payload["next"] == "сухура"
+    assert payload["suhoor"] == "04:46"
+    assert payload["iftar"] == "17:04"
+
+
 def test_prayer_lookup_falls_back_to_nearest_date():
     session = Session(current_day=1, celebration_mode=False, children=[], days={1: Day()})
     state = BaseScreenState(
