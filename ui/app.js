@@ -14,6 +14,8 @@ let reloadInProgress = false;
 let backendUnreachableSince = null;
 let deployNoticeVisible = false;
 let refreshFailCount = 0;
+let blobAnimationFrame = null;
+let blobSystem = null;
 const DEPLOY_NOTICE_DELAY_MS = 2500;
 const baseViewCache = {
   nextPrayerLabel: null,
@@ -123,11 +125,7 @@ function renderBase(model) {
   const nextPrayerSourceDate = model.next_prayer.source_date || '—';
   const nextPrayerText = `До ${model.next_prayer.next}`;
   return `<section class="base-screen" data-view="base_state">
-    <div class="lava-background">
-      <div class="blob"></div>
-      <div class="blob"></div>
-      <div class="blob"></div>
-    </div>
+    <div class="lava-background" id="lavaBackground"></div>
 
     <div class="wake-frame"></div>
 
@@ -168,6 +166,177 @@ function renderBase(model) {
       <div class="task-text" id="daily-task">${model.today_task}</div>
     </div>
   </section>`;
+}
+
+function randomInRange(min, max) {
+  return min + (Math.random() * (max - min));
+}
+
+function createBlobNode(isFlash = false) {
+  const node = document.createElement('div');
+  node.className = 'blob dynamic-blob';
+  if (isFlash) {
+    node.classList.add('blob-flash');
+    const flashPalette = ['#be2fff', '#ff2bd6', '#090909'];
+    node.style.background = flashPalette[Math.floor(Math.random() * flashPalette.length)];
+  }
+  return node;
+}
+
+function makeBlob(isFlash = false) {
+  const now = performance.now();
+  const baseSizeVw = randomInRange(22, 60);
+  const spawnDurationMs = randomInRange(1400, 2600);
+  const holdDurationMs = isFlash ? randomInRange(2800, 5200) : randomInRange(8000, 19000);
+  return {
+    id: `blob-${Math.random().toString(36).slice(2)}`,
+    node: createBlobNode(isFlash),
+    xVw: randomInRange(-15, 95),
+    yVh: randomInRange(-20, 95),
+    vx: randomInRange(-0.9, 0.9),
+    vy: randomInRange(-0.8, 0.8),
+    baseSizeVw,
+    pulseAmplitude: randomInRange(0.12, 0.35),
+    aspectRatio: randomInRange(0.88, 1.14),
+    pulseSpeed: randomInRange(0.0005, 0.0013),
+    movementPhase: randomInRange(0, Math.PI * 2),
+    movementSpeed: randomInRange(0.00025, 0.0007),
+    speedScale: isFlash ? 1.7 : 1,
+    deformPhase: randomInRange(0, Math.PI * 2),
+    deformSpeed: randomInRange(0.0008, 0.0017),
+    isFlash,
+    stage: 'spawning',
+    createdAtMs: now,
+    stageSinceMs: now,
+    spawnDurationMs,
+    despawnDurationMs: randomInRange(1700, 2900),
+    holdDurationMs,
+  };
+}
+
+function ensureBlobSystem() {
+  const container = document.getElementById('lavaBackground');
+  if (!container) {
+    blobSystem = null;
+    return;
+  }
+
+  if (blobSystem && blobSystem.container === container) {
+    return;
+  }
+
+  blobSystem = {
+    container,
+    blobs: [],
+    startedAtMs: performance.now(),
+  };
+
+  const initialCount = Math.floor(randomInRange(7, 12));
+  for (let i = 0; i < initialCount; i += 1) {
+    const blob = makeBlob(false);
+    blobSystem.blobs.push(blob);
+    container.appendChild(blob.node);
+  }
+}
+
+function retireBlob(blob, nowMs) {
+  if (blob.stage === 'despawning') return;
+  blob.stage = 'despawning';
+  blob.stageSinceMs = nowMs;
+}
+
+function updateBlobSystem() {
+  if (currentState !== 'base_state') {
+    blobSystem = null;
+    blobAnimationFrame = requestAnimationFrame(updateBlobSystem);
+    return;
+  }
+
+  ensureBlobSystem();
+  if (!blobSystem) {
+    blobAnimationFrame = requestAnimationFrame(updateBlobSystem);
+    return;
+  }
+
+  const nowMs = performance.now();
+  const elapsed = nowMs - blobSystem.startedAtMs;
+  const wave = (Math.sin(elapsed * 0.00023) + 1) / 2;
+  const targetCount = Math.round(7 + (wave * 8));
+
+  const livingBlobs = blobSystem.blobs.filter((blob) => blob.stage !== 'despawning').length;
+  if (livingBlobs < targetCount) {
+    const addCount = Math.min(2, targetCount - livingBlobs);
+    for (let i = 0; i < addCount; i += 1) {
+      const isFlash = Math.random() < 0.10;
+      const blob = makeBlob(isFlash);
+      blobSystem.blobs.push(blob);
+      blobSystem.container.appendChild(blob.node);
+    }
+  } else if (livingBlobs > targetCount) {
+    const dropCount = Math.min(2, livingBlobs - targetCount);
+    let dropped = 0;
+    for (const blob of blobSystem.blobs) {
+      if (blob.stage === 'alive' || blob.stage === 'spawning') {
+        retireBlob(blob, nowMs);
+        dropped += 1;
+      }
+      if (dropped >= dropCount) break;
+    }
+  }
+
+  for (const blob of blobSystem.blobs) {
+    if (blob.stage === 'spawning') {
+      if ((nowMs - blob.stageSinceMs) >= blob.spawnDurationMs) {
+        blob.stage = 'alive';
+        blob.stageSinceMs = nowMs;
+      }
+    } else if (blob.stage === 'alive') {
+      if ((nowMs - blob.stageSinceMs) >= blob.holdDurationMs) {
+        retireBlob(blob, nowMs);
+      }
+    }
+
+    const accel = 1 + (0.5 * Math.sin((nowMs * blob.movementSpeed) + blob.movementPhase));
+    blob.xVw += blob.vx * accel * blob.speedScale * 0.028;
+    blob.yVh += blob.vy * accel * blob.speedScale * 0.028;
+
+    if (blob.xVw < -22 || blob.xVw > 102) blob.vx *= -1;
+    if (blob.yVh < -22 || blob.yVh > 102) blob.vy *= -1;
+
+    const pulse = 1 + (blob.pulseAmplitude * Math.sin((nowMs * blob.pulseSpeed) + blob.deformPhase));
+    const sizeVw = blob.baseSizeVw * pulse;
+
+    let stageScale = 1;
+    if (blob.stage === 'spawning') {
+      stageScale = Math.max(0, Math.min(1, (nowMs - blob.stageSinceMs) / blob.spawnDurationMs));
+    }
+    if (blob.stage === 'despawning') {
+      const k = Math.max(0, 1 - ((nowMs - blob.stageSinceMs) / blob.despawnDurationMs));
+      stageScale = Math.max(0, Math.min(1, k));
+    }
+
+    const jelly = Math.sin((nowMs * blob.deformSpeed) + blob.deformPhase);
+    const jellyCross = Math.cos((nowMs * blob.deformSpeed * 0.76) + blob.deformPhase);
+    const stretchX = 1 + (jelly * 0.12);
+    const stretchY = 1 - (jelly * 0.10);
+    const wobble = Math.abs(jellyCross) * 22;
+
+    blob.node.style.width = `${sizeVw}vw`;
+    blob.node.style.height = `${sizeVw * blob.aspectRatio}vw`;
+    blob.node.style.left = `${blob.xVw}vw`;
+    blob.node.style.top = `${blob.yVh}vh`;
+    blob.node.style.opacity = `${(0.16 + (0.68 * stageScale)).toFixed(3)}`;
+    blob.node.style.transform = `translate(-50%, -50%) scale(${(stageScale * stretchX).toFixed(4)}, ${(stageScale * stretchY).toFixed(4)})`;
+    blob.node.style.borderRadius = `${48 + wobble}% ${52 - (wobble * 0.4)}% ${45 + (wobble * 0.5)}% ${55 - (wobble * 0.3)}% / ${52 - (wobble * 0.2)}% ${46 + (wobble * 0.3)}% ${54 - (wobble * 0.35)}% ${48 + (wobble * 0.3)}%`;
+  }
+
+  blobSystem.blobs = blobSystem.blobs.filter((blob) => {
+    const isGone = blob.stage === 'despawning' && (nowMs - blob.stageSinceMs) > blob.despawnDurationMs;
+    if (isGone) blob.node.remove();
+    return !isGone;
+  });
+
+  blobAnimationFrame = requestAnimationFrame(updateBlobSystem);
 }
 
 function renderTaskInfo(model) {
@@ -848,6 +1017,9 @@ document.addEventListener('keydown', () => {
 fetchAmbilightConfig();
 if (wakeAnimationFrame == null) {
   wakeAnimationFrame = requestAnimationFrame(renderWakeFrame);
+}
+if (blobAnimationFrame == null) {
+  blobAnimationFrame = requestAnimationFrame(updateBlobSystem);
 }
 refreshState(true);
 connectStateSocket();

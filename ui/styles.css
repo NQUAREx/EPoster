@@ -121,40 +121,34 @@ body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
 
 .blob {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.8;
-  animation: float 20s infinite alternate cubic-bezier(0.4, 0.0, 0.2, 1);
+  border-radius: 52% 48% 46% 54% / 50% 47% 53% 50%;
+  filter: blur(96px) saturate(1.15);
+  opacity: 0.75;
   transition: background 2s ease;
+  will-change: transform, width, height, top, left, border-radius, opacity;
 }
 
-.blob:nth-child(1) {
-  width: 60vw;
-  height: 60vw;
+.dynamic-blob {
+  width: 42vw;
+  height: 42vw;
+  left: 45vw;
+  top: 50vh;
+}
+
+.dynamic-blob:nth-of-type(3n + 1) {
   background: var(--color-blob1);
-  top: -10%;
-  left: -10%;
-  animation-duration: 22.5s;
 }
 
-.blob:nth-child(2) {
-  width: 50vw;
-  height: 50vw;
+.dynamic-blob:nth-of-type(3n + 2) {
   background: var(--color-blob2);
-  bottom: -20%;
-  right: -10%;
-  animation-duration: 19.8s;
-  animation-delay: -5s;
 }
 
-.blob:nth-child(3) {
-  width: 55vw;
-  height: 55vw;
+.dynamic-blob:nth-of-type(3n) {
   background: var(--color-blob3);
-  bottom: 20%;
-  left: 20%;
-  animation-duration: 25.2s;
-  animation-delay: -10s;
+}
+
+.blob-flash {
+  filter: blur(96px) saturate(1.4) brightness(1.25);
 }
 
 .wake-frame {
