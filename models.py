@@ -40,6 +40,7 @@ class AppSettings:
     ambilight_order: str = "GRB"
     ambilight_color_profile_file: str = "ambilight_color_profile.json"
     base_background_id: int = 1
+    sleep_mode: bool = False
 
     @staticmethod
     def from_dict(data: dict) -> "AppSettings":
@@ -82,6 +83,7 @@ class AppSettings:
             ).strip()
             or "ambilight_color_profile.json",
             base_background_id=max(1, parse_int(data.get("base_background_id", 1), 1)),
+            sleep_mode=bool(data.get("sleep_mode", False)),
         )
 
     def to_dict(self) -> dict:
