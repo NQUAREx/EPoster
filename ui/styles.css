@@ -31,7 +31,7 @@ body {
 }
 
 body.base-active {
-  background-color: var(--color-bg);
+  background-color: #000;
 }
 
 .deploy-update-badge {
@@ -112,6 +112,10 @@ body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
   height: 100vh;
   z-index: 0;
   overflow: hidden;
+}
+
+.lava-background {
+  background: #000;
 }
 
 .background-fix {
