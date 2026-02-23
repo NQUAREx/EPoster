@@ -33,6 +33,8 @@ class CommandMapper:
             "режим проверки": "open_day_review",
             "открыть проверку": "open_day_review",
             "начать проверку": "open_day_review",
+            "пропустить": "score_skip",
+            "скип": "score_skip",
             "задание": "open_task_info",
             "открыть задание": "open_task_info",
             "открой задание": "open_task_info",
@@ -64,6 +66,8 @@ class CommandMapper:
             return "score_1"
         if "хорошо" in words:
             return "score_3"
+        if "пропустить" in words or "скип" in words:
+            return "score_skip"
         return None
 
     def to_backend_command(self, text: str) -> str | None:
