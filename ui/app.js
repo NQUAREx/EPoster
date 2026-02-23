@@ -173,6 +173,8 @@ function renderBase(model) {
       <div class="task-label" id="daily-task-label">Задание на сегодня · День ${model.day}${taskMeta}</div>
       <div class="task-text" id="daily-task">${model.today_task}</div>
     </div>
+
+    <div class="sleep-overlay" id="sleepOverlay" style="opacity:${Number(model.sleep_overlay_alpha) || 0}"></div>
   </section>`;
 }
 
@@ -305,6 +307,13 @@ function patchBaseView(model) {
       baseViewCache.progressBar.style.width = `${progressPercent}%`;
       baseViewCache.lastProgressPercent = progressPercent;
     }
+  }
+
+
+  const sleepOverlay = document.getElementById('sleepOverlay');
+  if (sleepOverlay) {
+    sleepOverlay.style.opacity = String(Number(model.sleep_overlay_alpha) || 0);
+    sleepOverlay.classList.toggle('active', Boolean(model.sleep_mode));
   }
 
   applyPaletteFromModel(model);

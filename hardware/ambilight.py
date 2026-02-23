@@ -326,6 +326,9 @@ class AmbilightController:
                 },
             }
 
+    def set_brightness(self, brightness: int) -> None:
+        self._driver.set_brightness(brightness)
+
     def set_effect_mode(self, name: str) -> bool:
         normalized = str(name or "").strip().lower()
         factory = self._effect_factories.get(normalized)

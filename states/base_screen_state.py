@@ -158,6 +158,8 @@ class BaseScreenState(BaseState):
                 "theme_class": background.theme_class,
                 "animation_profile": background.animation_profile,
             },
+            "sleep_mode": self.settings.sleep_mode,
+            "sleep_overlay_alpha": 0.55 if self.settings.sleep_mode else 0.0,
         }
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:

@@ -85,6 +85,16 @@ class LightController:
 
             self._pixels.show()
 
+
+    def set_brightness(self, brightness: int) -> None:
+        safe = min(255, max(0, int(brightness)))
+        if not self._active or self._pixels is None:
+            return
+
+        with self._lock:
+            self._pixels.brightness = self._brightness_to_float(safe)
+            self._pixels.show()
+
     def off(self) -> None:
         if not self._active or self._pixels is None:
             return
