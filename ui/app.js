@@ -30,6 +30,19 @@ const baseViewCache = {
   lastProgressPercent: null,
 };
 
+let lavaAnimationFrame = null;
+let lavaContainer = null;
+let lavaBlobs = [];
+let lavaLastTimestamp = 0;
+const LAVA_CONFIG = {
+  minBlobs: 5,
+  maxBlobs: 13,
+  minLife: 3000,
+  maxLife: 30000,
+  anomalyChance: 0.03,
+  baseColorHSL: { h: 358, s: 100, l: 68 },
+};
+
 function asGlass(content) {
   return `<div class="glass">${content}</div>`;
 }
@@ -83,6 +96,184 @@ function applyPaletteFromModel(model) {
   root.style.setProperty('--color-blob3', String(palette.blob3 || ''));
 }
 
+
+function easeInOutQuad(t) {
+  if (t < 0.5) return 2 * t * t;
+  return -1 + (4 - 2 * t) * t;
+}
+
+function hexToHSL(hex) {
+  const normalized = String(hex || '').replace(/^#/, '').trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
+    return null;
+  }
+
+  const r = parseInt(normalized.slice(0, 2), 16) / 255;
+  const g = parseInt(normalized.slice(2, 4), 16) / 255;
+  const b = parseInt(normalized.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+
+  if (max === min) {
+    return { h: 0, s: 0, l: Math.round(l * 100) };
+  }
+
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+  if (max === g) h = (b - r) / d + 2;
+  if (max === b) h = (r - g) / d + 4;
+
+  return {
+    h: Math.round((h / 6) * 360),
+    s: Math.round(s * 100),
+    l: Math.round(l * 100),
+  };
+}
+
+class LavaBlob {
+  constructor(container) {
+    this.container = container;
+    this.el = document.createElement('div');
+    this.el.className = 'lava-blob';
+    this.container.appendChild(this.el);
+
+    this.isAnomaly = Math.random() < LAVA_CONFIG.anomalyChance;
+    this.size = 20 + Math.random() * 35;
+    this.el.style.width = `${this.size}vw`;
+    this.el.style.height = `${this.size}vw`;
+
+    this.x = Math.random() * 100;
+    this.y = Math.random() * 100;
+    this.angle = Math.random() * Math.PI * 2;
+    this.baseSpeed = 0.02 + Math.random() * 0.04;
+    this.timeOffset = Math.random() * 10000;
+    this.lifeTime = 0;
+
+    if (this.isAnomaly) {
+      this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
+      this.maxLife = 1500 + Math.random() * 1500;
+      this.baseSpeed *= 1.5;
+      this.el.style.zIndex = '5';
+    } else {
+      let lVariation = LAVA_CONFIG.baseColorHSL.l + (Math.random() * 40 - 20);
+      lVariation = Math.max(10, Math.min(90, lVariation));
+      this.color = `hsl(${LAVA_CONFIG.baseColorHSL.h}, ${LAVA_CONFIG.baseColorHSL.s}%, ${lVariation}%)`;
+      this.maxLife = LAVA_CONFIG.minLife + Math.random() * (LAVA_CONFIG.maxLife - LAVA_CONFIG.minLife);
+      this.el.style.zIndex = '1';
+    }
+
+    this.el.style.backgroundColor = this.color;
+    const fadeVariance = 1 + (Math.random() * 0.3 - 0.15);
+    this.fadeDuration = Math.min(1500 * fadeVariance, this.maxLife * 0.4);
+  }
+
+  update(dt, timestamp) {
+    this.lifeTime += dt;
+
+    let scale = 1;
+    if (this.lifeTime < this.fadeDuration) {
+      scale = easeInOutQuad(this.lifeTime / this.fadeDuration);
+    } else if (this.lifeTime > this.maxLife - this.fadeDuration) {
+      const progress = (this.maxLife - this.lifeTime) / this.fadeDuration;
+      scale = Math.max(0, easeInOutQuad(progress));
+    }
+
+    if (this.lifeTime >= this.maxLife) return false;
+
+    const speedMultiplier = 1 + 0.2 * Math.sin((timestamp + this.timeOffset) * 0.002);
+    const currentSpeed = this.baseSpeed * speedMultiplier;
+
+    this.angle += 0.01 * Math.cos((timestamp + this.timeOffset) * 0.001);
+    this.x += Math.cos(this.angle) * currentSpeed;
+    this.y += Math.sin(this.angle) * currentSpeed;
+
+    if (this.x < -10) this.angle = 0;
+    if (this.x > 110) this.angle = Math.PI;
+    if (this.y < -10) this.angle = Math.PI / 2;
+    if (this.y > 110) this.angle = -Math.PI / 2;
+
+    this.el.style.transform = `translate3d(calc(${this.x}vw - 50%), calc(${this.y}vh - 50%), 0) scale(${scale})`;
+    return true;
+  }
+
+  destroy() {
+    if (this.el.parentNode) this.el.parentNode.removeChild(this.el);
+  }
+}
+
+function clearLavaBlobs() {
+  lavaBlobs.forEach((blob) => blob.destroy());
+  lavaBlobs = [];
+}
+
+function syncLavaPalette() {
+  const rootStyle = getComputedStyle(document.documentElement);
+  const blobColor = rootStyle.getPropertyValue('--color-blob1').trim();
+  const colorHSL = hexToHSL(blobColor);
+  if (colorHSL) {
+    LAVA_CONFIG.baseColorHSL = colorHSL;
+  }
+}
+
+function stopLavaEngine() {
+  if (lavaAnimationFrame != null) {
+    cancelAnimationFrame(lavaAnimationFrame);
+    lavaAnimationFrame = null;
+  }
+  lavaContainer = null;
+  lavaLastTimestamp = 0;
+  clearLavaBlobs();
+}
+
+function animateLava(timestamp) {
+  if (!lavaContainer || currentState !== 'base_state') {
+    stopLavaEngine();
+    return;
+  }
+
+  if (!lavaLastTimestamp) lavaLastTimestamp = timestamp;
+  const dt = timestamp - lavaLastTimestamp;
+  lavaLastTimestamp = timestamp;
+
+  if (lavaBlobs.length < LAVA_CONFIG.minBlobs) {
+    lavaBlobs.push(new LavaBlob(lavaContainer));
+  } else if (lavaBlobs.length < LAVA_CONFIG.maxBlobs && Math.random() < 0.01) {
+    lavaBlobs.push(new LavaBlob(lavaContainer));
+  }
+
+  for (let index = lavaBlobs.length - 1; index >= 0; index -= 1) {
+    const alive = lavaBlobs[index].update(dt, timestamp);
+    if (!alive) {
+      lavaBlobs[index].destroy();
+      lavaBlobs.splice(index, 1);
+    }
+  }
+
+  lavaAnimationFrame = requestAnimationFrame(animateLava);
+}
+
+function ensureLavaEngine() {
+  const container = stateView.querySelector('.lava-background');
+  if (!container || currentState !== 'base_state') {
+    stopLavaEngine();
+    return;
+  }
+
+  if (lavaContainer !== container) {
+    stopLavaEngine();
+    lavaContainer = container;
+  }
+
+  syncLavaPalette();
+
+  if (lavaAnimationFrame == null) {
+    lavaAnimationFrame = requestAnimationFrame(animateLava);
+  }
+}
+
 function updateDigit(id, newValue) {
   const container = document.getElementById(id);
   if (!container) return;
@@ -125,11 +316,7 @@ function renderBase(model) {
   const nextPrayerSourceDate = model.next_prayer.source_date || '—';
   const nextPrayerText = `До ${model.next_prayer.next}`;
   return `<section class="base-screen" data-view="base_state">
-    <div class="lava-background">
-      <div class="blob"></div>
-      <div class="blob"></div>
-      <div class="blob"></div>
-    </div>
+    <div class="lava-background"></div>
 
     <div class="wake-frame"></div>
 
@@ -311,6 +498,7 @@ function patchBaseView(model) {
   }
 
   applyPaletteFromModel(model);
+  ensureLavaEngine();
   baseCountdownSeconds = parseCountdownToSeconds(model.next_prayer.countdown);
   updateJellyClock(formatClock(baseCountdownSeconds));
 }
@@ -484,6 +672,10 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
   currentState = model.view;
   document.body.classList.toggle('base-active', model.view === 'base_state');
 
+  if (model.view !== 'base_state') {
+    stopLavaEngine();
+  }
+
   if (forceFullRender || stateChanged || !stateView.firstElementChild) {
     stateView.innerHTML = renderState(model);
     baseViewCache.nextPrayerLabel = null;
@@ -505,6 +697,10 @@ function applyViewModel(model, { forceFullRender = false } = {}) {
   }
 
   patchCurrentView(model);
+
+  if (model.view === 'base_state') {
+    ensureLavaEngine();
+  }
 
   if (model.wake_sync) {
     wakeSync = model.wake_sync;
