@@ -179,3 +179,23 @@ def test_runtime_time_cycle_exposes_multiplier_in_state(client):
     state = client.get('/api/state')
     assert state.status_code == 200
     assert state.json()['view_model']['runtime_time_multiplier'] == 3600.0
+
+
+def test_runtime_blob_override_endpoint(client):
+    client.post('/api/runtime-test/start')
+
+    override = client.post('/api/runtime-test/blob-override', json={'blob1': 'rgb(1, 2, 3)', 'blob2': '#112233'})
+    assert override.status_code == 200
+    assert override.json()['view_model']['overrides']['blob1'] == 'rgb(1, 2, 3)'
+    assert override.json()['view_model']['overrides']['blob2'] == '#112233'
+
+    state = client.get('/api/state')
+    assert state.status_code == 200
+    palette = state.json()['view_model']['next_prayer']['palette']
+    assert palette['blob1'] == 'rgb(1, 2, 3)'
+    assert palette['blob2'] == '#112233'
+
+    clear = client.post('/api/runtime-test/blob-override/clear')
+    assert clear.status_code == 200
+    assert clear.json()['view_model']['overrides']['blob1'] is None
+    assert clear.json()['view_model']['overrides']['blob2'] is None

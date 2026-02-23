@@ -38,3 +38,10 @@ class RuntimePrayerOverrideRequest(BaseModel):
 
 class RuntimeAccelerationRequest(BaseModel):
     hours_per_second: float = Field(default=1.0, ge=0.1, le=24.0)
+
+
+class RuntimeBlobOverrideRequest(BaseModel):
+    bg: str | None = Field(default=None, min_length=1)
+    blob1: str | None = Field(default=None, min_length=1)
+    blob2: str | None = Field(default=None, min_length=1)
+    blob3: str | None = Field(default=None, min_length=1)

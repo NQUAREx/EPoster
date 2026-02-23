@@ -134,6 +134,33 @@ class AppService:
         await self._broadcaster.publish(await self.get_state())
         return response
 
+    async def runtime_set_blob_overrides(
+        self,
+        *,
+        bg: str | None = None,
+        blob1: str | None = None,
+        blob2: str | None = None,
+        blob3: str | None = None,
+    ) -> dict:
+        async with self._lock:
+            status = await asyncio.to_thread(
+                self._controller.runtime_set_blob_overrides,
+                bg=bg,
+                blob1=blob1,
+                blob2=blob2,
+                blob3=blob3,
+            )
+            response = self._with_meta({"state": "runtime_test", "view_model": status})
+        await self._broadcaster.publish(await self.get_state())
+        return response
+
+    async def runtime_clear_blob_overrides(self) -> dict:
+        async with self._lock:
+            status = await asyncio.to_thread(self._controller.runtime_clear_blob_overrides)
+            response = self._with_meta({"state": "runtime_test", "view_model": status})
+        await self._broadcaster.publish(await self.get_state())
+        return response
+
     async def runtime_start_time_cycle(self, hours_per_second: float) -> dict:
         async with self._lock:
             status = await asyncio.to_thread(self._controller.runtime_start_time_cycle, hours_per_second)

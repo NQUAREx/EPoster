@@ -17,6 +17,7 @@ class StateManager:
         prayer_times: dict[str, PrayerTimes],
         now_provider: Callable[[], datetime] | None = None,
         prayer_overrides_provider: Callable[[], dict[str, str]] | None = None,
+        blob_overrides_provider: Callable[[], dict[str, str]] | None = None,
     ):
         self.session = session
         self.tasks = tasks
@@ -24,6 +25,7 @@ class StateManager:
         self.prayer_times = prayer_times
         self._now_provider = now_provider
         self._prayer_overrides_provider = prayer_overrides_provider
+        self._blob_overrides_provider = blob_overrides_provider
         self.state: BaseState = self._create_state("base_state")
 
     def refresh_data(self, tasks: list[Task], prayer_times: dict[str, PrayerTimes]) -> None:
@@ -43,6 +45,7 @@ class StateManager:
                 self.prayer_times,
                 now_provider=self._now_provider,
                 prayer_overrides_provider=self._prayer_overrides_provider,
+                blob_overrides_provider=self._blob_overrides_provider,
             )
         if state_name == "task_info_state":
             return TaskInfoState(self.session, self.tasks)

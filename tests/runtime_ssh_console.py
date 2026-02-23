@@ -47,6 +47,11 @@ def print_help() -> None:
   clear-times              - убрать override времени
   cycle-start              - ускорить время (1 час = 1 сек)
   cycle-stop               - остановить ускорение времени
+  set-blob-bg VALUE        - override цвета фона blob (rgb(...) или #RRGGBB)
+  set-blob1 VALUE          - override blob1
+  set-blob2 VALUE          - override blob2
+  set-blob3 VALUE          - override blob3
+  clear-blob               - убрать все blob override
   pick                     - меню выбора пункта
   exit                     - выход
 """.strip()
@@ -71,6 +76,11 @@ def selection_menu(client: RuntimeTestClient) -> None:
         print(" 5) clear-times")
         print(" 6) cycle-start")
         print(" 7) cycle-stop")
+        print(" 8) set-blob-bg")
+        print(" 9) set-blob1")
+        print("10) set-blob2")
+        print("11) set-blob3")
+        print("12) clear-blob")
         print(" 0) back")
         choice = input("> ").strip()
         if choice == "0":
@@ -91,6 +101,20 @@ def selection_menu(client: RuntimeTestClient) -> None:
             print_status(client.post("/api/runtime-test/time-cycle/start", {"hours_per_second": 1.0}))
         elif choice == "7":
             print_status(client.post("/api/runtime-test/time-cycle/stop"))
+        elif choice == "8":
+            value = input("blob bg color> ").strip()
+            print_status(client.post("/api/runtime-test/blob-override", {"bg": value}))
+        elif choice == "9":
+            value = input("blob1 color> ").strip()
+            print_status(client.post("/api/runtime-test/blob-override", {"blob1": value}))
+        elif choice == "10":
+            value = input("blob2 color> ").strip()
+            print_status(client.post("/api/runtime-test/blob-override", {"blob2": value}))
+        elif choice == "11":
+            value = input("blob3 color> ").strip()
+            print_status(client.post("/api/runtime-test/blob-override", {"blob3": value}))
+        elif choice == "12":
+            print_status(client.post("/api/runtime-test/blob-override/clear"))
         else:
             print("Неизвестный пункт")
 
@@ -133,6 +157,20 @@ def main() -> int:
                 print_status(client.post("/api/runtime-test/time-cycle/start", {"hours_per_second": 1.0}))
             elif raw == "cycle-stop":
                 print_status(client.post("/api/runtime-test/time-cycle/stop"))
+            elif raw.startswith("set-blob-bg "):
+                _, value = raw.split(maxsplit=1)
+                print_status(client.post("/api/runtime-test/blob-override", {"bg": value}))
+            elif raw.startswith("set-blob1 "):
+                _, value = raw.split(maxsplit=1)
+                print_status(client.post("/api/runtime-test/blob-override", {"blob1": value}))
+            elif raw.startswith("set-blob2 "):
+                _, value = raw.split(maxsplit=1)
+                print_status(client.post("/api/runtime-test/blob-override", {"blob2": value}))
+            elif raw.startswith("set-blob3 "):
+                _, value = raw.split(maxsplit=1)
+                print_status(client.post("/api/runtime-test/blob-override", {"blob3": value}))
+            elif raw == "clear-blob":
+                print_status(client.post("/api/runtime-test/blob-override/clear"))
             elif raw == "pick":
                 selection_menu(client)
             else:

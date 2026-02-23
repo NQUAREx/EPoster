@@ -36,3 +36,33 @@ def test_base_state_uses_runtime_prayer_overrides() -> None:
 
     assert payload["suhoor"] == "06:00"
     assert payload["iftar"] == "20:00"
+
+
+def test_base_state_uses_runtime_blob_overrides() -> None:
+    fixed_now = datetime(2026, 2, 23, 12, 0, 0)
+    state = BaseScreenState(
+        session=Session(current_day=1, celebration_mode=False, children=[], days={1: Day()}),
+        tasks=[Task(day=1, text="task", type="обычное")],
+        prayer_times={
+            "2026-02-22": PrayerTimes(fajr="04:48", maghrib="17:02"),
+            "2026-02-23": PrayerTimes(fajr="04:46", maghrib="17:04"),
+            "2026-02-24": PrayerTimes(fajr="04:44", maghrib="17:06"),
+        },
+        now_provider=lambda: fixed_now,
+        blob_overrides_provider=lambda: {"blob1": "rgb(1, 2, 3)", "blob2": "#AABBCC"},
+    )
+
+    payload = state._times()
+
+    assert payload["palette"]["blob1"] == "rgb(1, 2, 3)"
+    assert payload["palette"]["blob2"] == "#AABBCC"
+
+
+def test_runtime_control_blob_overrides_only_when_active() -> None:
+    control = RuntimeControl()
+    control.set_blob_overrides(blob1="#101010")
+    assert control.blob_overrides() == {}
+
+    control.start()
+    control.set_blob_overrides(blob1="#101010", blob3="rgb(20, 30, 40)")
+    assert control.blob_overrides() == {"blob1": "#101010", "blob3": "rgb(20, 30, 40)"}

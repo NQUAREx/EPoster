@@ -10,6 +10,7 @@ from api.schemas import (
     CalibrationSampleRequest,
     CommandRequest,
     RuntimeAccelerationRequest,
+    RuntimeBlobOverrideRequest,
     RuntimePrayerOverrideRequest,
     WakeRequest,
 )
@@ -116,6 +117,20 @@ def build_router(ui_dir: Path) -> APIRouter:
     @router.post("/api/runtime-test/prayer-override/clear")
     async def post_runtime_test_prayer_override_clear(request: Request) -> dict:
         return await request.app.state.app_service.runtime_clear_prayer_overrides()
+
+
+    @router.post("/api/runtime-test/blob-override")
+    async def post_runtime_test_blob_override(payload: RuntimeBlobOverrideRequest, request: Request) -> dict:
+        return await request.app.state.app_service.runtime_set_blob_overrides(
+            bg=payload.bg,
+            blob1=payload.blob1,
+            blob2=payload.blob2,
+            blob3=payload.blob3,
+        )
+
+    @router.post("/api/runtime-test/blob-override/clear")
+    async def post_runtime_test_blob_override_clear(request: Request) -> dict:
+        return await request.app.state.app_service.runtime_clear_blob_overrides()
 
     @router.post("/api/runtime-test/time-cycle/start")
     async def post_runtime_time_cycle_start(payload: RuntimeAccelerationRequest, request: Request) -> dict:

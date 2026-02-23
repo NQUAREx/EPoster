@@ -14,6 +14,10 @@ class RuntimeControlState:
     time_multiplier: float = 1.0
     suhoor_override: str | None = None
     iftar_override: str | None = None
+    blob_bg_override: str | None = None
+    blob1_override: str | None = None
+    blob2_override: str | None = None
+    blob3_override: str | None = None
 
 
 class RuntimeControl:
@@ -32,6 +36,10 @@ class RuntimeControl:
             self._state.time_multiplier = 1.0
             self._state.suhoor_override = None
             self._state.iftar_override = None
+            self._state.blob_bg_override = None
+            self._state.blob1_override = None
+            self._state.blob2_override = None
+            self._state.blob3_override = None
             return self._snapshot()
 
     def stop(self) -> RuntimeControlState:
@@ -49,6 +57,10 @@ class RuntimeControl:
                 "overrides": {
                     "suhoor": self._state.suhoor_override,
                     "iftar": self._state.iftar_override,
+                    "blob_bg": self._state.blob_bg_override,
+                    "blob1": self._state.blob1_override,
+                    "blob2": self._state.blob2_override,
+                    "blob3": self._state.blob3_override,
                 },
             }
 
@@ -62,6 +74,33 @@ class RuntimeControl:
         with self._lock:
             self._state.suhoor_override = None
             self._state.iftar_override = None
+            return self._snapshot()
+
+    def set_blob_overrides(
+        self,
+        *,
+        bg: str | None = None,
+        blob1: str | None = None,
+        blob2: str | None = None,
+        blob3: str | None = None,
+    ) -> RuntimeControlState:
+        with self._lock:
+            if bg is not None:
+                self._state.blob_bg_override = bg
+            if blob1 is not None:
+                self._state.blob1_override = blob1
+            if blob2 is not None:
+                self._state.blob2_override = blob2
+            if blob3 is not None:
+                self._state.blob3_override = blob3
+            return self._snapshot()
+
+    def clear_blob_overrides(self) -> RuntimeControlState:
+        with self._lock:
+            self._state.blob_bg_override = None
+            self._state.blob1_override = None
+            self._state.blob2_override = None
+            self._state.blob3_override = None
             return self._snapshot()
 
     def start_time_acceleration(self, multiplier: float) -> RuntimeControlState:
@@ -105,6 +144,21 @@ class RuntimeControl:
                 result["iftar"] = self._state.iftar_override
             return result
 
+    def blob_overrides(self) -> dict[str, str]:
+        with self._lock:
+            if not self._state.active:
+                return {}
+            result: dict[str, str] = {}
+            if self._state.blob_bg_override:
+                result["bg"] = self._state.blob_bg_override
+            if self._state.blob1_override:
+                result["blob1"] = self._state.blob1_override
+            if self._state.blob2_override:
+                result["blob2"] = self._state.blob2_override
+            if self._state.blob3_override:
+                result["blob3"] = self._state.blob3_override
+            return result
+
     def _now_locked(self) -> datetime:
         if not self._state.active:
             return datetime.now()
@@ -122,4 +176,8 @@ class RuntimeControl:
             time_multiplier=self._state.time_multiplier,
             suhoor_override=self._state.suhoor_override,
             iftar_override=self._state.iftar_override,
+            blob_bg_override=self._state.blob_bg_override,
+            blob1_override=self._state.blob1_override,
+            blob2_override=self._state.blob2_override,
+            blob3_override=self._state.blob3_override,
         )

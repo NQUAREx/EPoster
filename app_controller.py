@@ -47,6 +47,7 @@ class AppController:
             self.prayer_times,
             now_provider=self._runtime_control.runtime_now,
             prayer_overrides_provider=self._runtime_control.prayer_overrides,
+            blob_overrides_provider=self._runtime_control.blob_overrides,
         )
         self._wake_active_until = 0.0
         self._calibration = AmbilightCalibration()
@@ -259,6 +260,21 @@ class AppController:
 
     def runtime_clear_prayer_overrides(self) -> dict:
         self._runtime_control.clear_prayer_overrides()
+        return self.runtime_status()
+
+    def runtime_set_blob_overrides(
+        self,
+        *,
+        bg: str | None = None,
+        blob1: str | None = None,
+        blob2: str | None = None,
+        blob3: str | None = None,
+    ) -> dict:
+        self._runtime_control.set_blob_overrides(bg=bg, blob1=blob1, blob2=blob2, blob3=blob3)
+        return self.runtime_status()
+
+    def runtime_clear_blob_overrides(self) -> dict:
+        self._runtime_control.clear_blob_overrides()
         return self.runtime_status()
 
     def runtime_start_time_cycle(self, hours_per_second: float = 1.0) -> dict:

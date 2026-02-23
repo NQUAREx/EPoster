@@ -20,12 +20,14 @@ class BaseScreenState(BaseState):
         prayer_times: Dict[str, PrayerTimes],
         now_provider: Callable[[], datetime] | None = None,
         prayer_overrides_provider: Callable[[], dict[str, str]] | None = None,
+        blob_overrides_provider: Callable[[], dict[str, str]] | None = None,
     ):
         self.session = session
         self.tasks = tasks
         self.prayer_times = prayer_times
         self._now_provider = now_provider or datetime.now
         self._prayer_overrides_provider = prayer_overrides_provider or (lambda: {})
+        self._blob_overrides_provider = blob_overrides_provider or (lambda: {})
 
     @staticmethod
     def _lerp_color(start: tuple[int, int, int], end: tuple[int, int, int], progress: float) -> str:
@@ -115,6 +117,8 @@ class BaseScreenState(BaseState):
         total = max(1, int((end - start).total_seconds()))
         progress = min(1.0, max(0.0, (now - start).total_seconds() / total))
         palette_progress = self._remap_palette_progress(progress)
+        palette = self._phase_palette(phase, palette_progress)
+        palette.update(self._blob_overrides_provider())
         return {
             "next": next_name,
             "source_date": today_source_date,
@@ -124,7 +128,7 @@ class BaseScreenState(BaseState):
             "phase_total_seconds": total,
             "suhoor": suhoor_time,
             "iftar": iftar_time if schedule is today_times else schedule.maghrib,
-            "palette": self._phase_palette(phase, palette_progress),
+            "palette": palette,
         }
 
     def _prayer_times_for_date(self, target_date: date) -> PrayerTimes:
