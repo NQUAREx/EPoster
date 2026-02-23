@@ -4,22 +4,22 @@ from datetime import datetime
 
 import pytest
 
-from models import AppSettings, Day, PrayerTimes, Session, Task
+from models import Day, PrayerTimes, Session, Task
 from states.base_screen_state import BaseScreenState
 
 
 def test_palette_progress_remap_split_points():
     assert BaseScreenState._remap_palette_progress(0.0) == 0.0
-    assert BaseScreenState._remap_palette_progress(0.8) == 0.2
+    assert BaseScreenState._remap_palette_progress(0.9) == 0.1
     assert BaseScreenState._remap_palette_progress(1.0) == 1.0
 
 
 def test_palette_progress_remap_slow_then_fast():
     early = BaseScreenState._remap_palette_progress(0.4)
-    late = BaseScreenState._remap_palette_progress(0.9)
+    late = BaseScreenState._remap_palette_progress(0.95)
 
-    assert early == 0.1
-    assert late == pytest.approx(0.6)
+    assert early == pytest.approx(0.0444444444)
+    assert late == pytest.approx(0.55)
 
 
 def test_night_progress_uses_yesterday_iftar_schedule(monkeypatch):
@@ -41,7 +41,6 @@ def test_night_progress_uses_yesterday_iftar_schedule(monkeypatch):
             "2025-03-20": PrayerTimes(fajr="05:00", maghrib="18:00"),
             "2025-03-21": PrayerTimes(fajr="05:00", maghrib="18:00"),
         },
-        settings=AppSettings(),
     )
 
     payload = state._times()
@@ -62,7 +61,6 @@ def test_prayer_lookup_falls_back_to_nearest_date():
             "2025-03-10": PrayerTimes(fajr="05:10", maghrib="18:10"),
             "2025-03-30": PrayerTimes(fajr="04:50", maghrib="18:30"),
         },
-        settings=AppSettings(),
     )
 
     nearest = state._prayer_times_for_date(datetime(2025, 3, 29).date())
