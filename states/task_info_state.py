@@ -24,14 +24,14 @@ class TaskInfoState(BaseState):
             "task_type": self.tasks[day_num - 1].type,
             "closed": day.closed,
             "scores_line": [
-                {"child": child, "emoji": self._emoji(score)}
+                {"child": child, "score": self._format_score(score)}
                 for child, score in day.scores.items()
                 if score is not None
             ],
         }
 
-    def _emoji(self, score: int | None) -> str:
-        return {1: "☹️", 2: "🙂", 3: "😄"}.get(score, "—")
+    def _format_score(self, score: int | None) -> str:
+        return "—" if score is None else str(score)
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
         if command == "back":

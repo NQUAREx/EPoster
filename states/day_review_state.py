@@ -9,12 +9,8 @@ from states.base_state import BaseState
 
 class DayReviewState(BaseState):
     name = "day_review_state"
-    _SCORE_COMMANDS = {
-        "score_1": 1,
-        "score_2": 2,
-        "score_3": 3,
-        "score_skip": None,
-    }
+    _SCORES = list(range(10))
+    _SCORE_SKIP = None
 
     def __init__(self, session: Session, tasks: list[Task]):
         self.session = session
@@ -56,13 +52,27 @@ class DayReviewState(BaseState):
         day_data = self.session.days[self.session.selected_day]
         return max(0, len(day_data.review_order) - day_data.review_index)
 
+    def _score_options(self) -> list[int | None]:
+        return [*self._SCORES, self._SCORE_SKIP]
+
+    def _move_cursor(self, direction: int) -> None:
+        day_data = self.session.days[self.session.selected_day]
+        options_count = len(self._score_options())
+        day_data.review_score_cursor = (day_data.review_score_cursor + direction) % options_count
+
+    def _selected_score(self) -> int | None:
+        day_data = self.session.days[self.session.selected_day]
+        return self._score_options()[day_data.review_score_cursor]
+
     def _resolve_score(self, command: str, payload: dict[str, Any] | None) -> int | None | str:
-        if command in self._SCORE_COMMANDS:
-            return self._SCORE_COMMANDS[command]
+        if command == "ok":
+            return self._selected_score()
+        if command == "score_skip":
+            return self._SCORE_SKIP
 
         if command == "set_score" and payload:
             if payload.get("score") is None:
-                return None
+                return self._SCORE_SKIP
             try:
                 return int(payload["score"])
             except (TypeError, ValueError):
@@ -79,19 +89,27 @@ class DayReviewState(BaseState):
             "child": self._current_child(),
             "completed": self.completed,
             "score_options": [
-                {"score": 1, "emoji": "☹️", "label": "Плохо"},
-                {"score": 2, "emoji": "🙂", "label": "Не очень"},
-                {"score": 3, "emoji": "😄", "label": "Хорошо"},
-                {"score": None, "emoji": "⏭️", "label": "Пропустить"},
+                {
+                    "score": score,
+                    "label": "Пропуск" if score is None else str(score),
+                    "selected": self.session.days[self.session.selected_day].review_score_cursor == index,
+                }
+                for index, score in enumerate(self._score_options())
             ],
         }
 
     def handle_command(self, command: str, payload: dict[str, Any] | None = None) -> str | None:
         if command == "back":
             return "base_state"
+        if command in {"next", "+1"}:
+            self._move_cursor(1)
+            return None
+        if command in {"prev", "-1"}:
+            self._move_cursor(-1)
+            return None
 
         score = self._resolve_score(command, payload)
-        if score == "invalid" or score not in {1, 2, 3, None}:
+        if score == "invalid" or score not in {*self._SCORES, self._SCORE_SKIP}:
             return None
 
         day_data = self.session.days[self.session.selected_day]
@@ -104,7 +122,7 @@ class DayReviewState(BaseState):
         self._prepared_index = None
 
         if not self._remaining_children():
-            day_data.closed = all(child_score in {1, 2, 3} for child_score in day_data.scores.values())
+            day_data.closed = all(child_score is not None for child_score in day_data.scores.values())
             day_data.review_index = 0
             day_data.review_order = []
             self.completed = day_data.closed

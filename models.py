@@ -109,6 +109,7 @@ class Day:
     viewed: bool = False
     review_order: List[str] = field(default_factory=list)
     review_index: int = 0
+    review_score_cursor: int = 0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -118,13 +119,17 @@ class Day:
         scores_data = data.get("scores", {})
         normalized: Dict[str, int | None] = {}
         for child, score in scores_data.items():
-            normalized[child] = score if isinstance(score, int) else None
+            if isinstance(score, int):
+                normalized[child] = min(9, max(0, score))
+            else:
+                normalized[child] = None
         return Day(
             scores=normalized,
             closed=data.get("closed", False),
             viewed=bool(data.get("viewed", False)),
             review_order=[name for name in data.get("review_order", []) if isinstance(name, str)],
             review_index=int(data.get("review_index", 0) or 0),
+            review_score_cursor=int(data.get("review_score_cursor", 0) or 0),
         )
 
 

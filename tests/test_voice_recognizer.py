@@ -19,13 +19,12 @@ def test_command_mapper_fixed_aliases_and_score():
     mapper = CommandMapper()
     assert mapper.to_backend_command("  Открыть   карту ") == "open_tasks_map"
     assert mapper.to_backend_command("режим проверки") == "open_day_review"
-    assert mapper.to_backend_command("плохо") == "score_1"
-    assert mapper.to_backend_command("не очень") == "score_2"
-    assert mapper.to_backend_command("хорошо") == "score_3"
+    assert mapper.to_backend_command("следующий") == "next"
+    assert mapper.to_backend_command("предыдущий") == "prev"
     assert mapper.to_backend_command("пропустить") == "score_skip"
-    assert mapper.to_backend_command("оценка 2") is None
-    assert mapper.to_backend_command("средне") is None
-    assert mapper.to_backend_command("отлично") is None
+    assert mapper.to_backend_command("плохо") is None
+    assert mapper.to_backend_command("не очень") is None
+    assert mapper.to_backend_command("хорошо") is None
     assert mapper.to_backend_command("неизвестно") is None
 
 
