@@ -1094,6 +1094,12 @@ function samplePixelColorAt(x, y) {
 function collectEdgeSamples(count, edge) {
   const width = Math.max(1, window.innerWidth);
   const height = Math.max(1, window.innerHeight);
+  const depthX = Math.max(0, Math.min(Math.floor(width / 3), AMBILIGHT_EDGE_DEPTH_PX));
+  const depthY = Math.max(0, Math.min(Math.floor(height / 3), AMBILIGHT_EDGE_DEPTH_PX));
+  const minX = depthX;
+  const maxX = Math.max(minX, width - 1 - depthX);
+  const minY = depthY;
+  const maxY = Math.max(minY, height - 1 - depthY);
   const samples = [];
 
   for (let i = 0; i < count; i += 1) {
@@ -1102,17 +1108,17 @@ function collectEdgeSamples(count, edge) {
     let y = 0;
 
     if (edge === 'top') {
-      x = t * (width - 1);
-      y = 0;
+      x = minX + (t * (maxX - minX));
+      y = minY;
     } else if (edge === 'right') {
-      x = width - 1;
-      y = t * (height - 1);
+      x = maxX;
+      y = minY + (t * (maxY - minY));
     } else if (edge === 'bottom') {
-      x = t * (width - 1);
-      y = height - 1;
+      x = minX + (t * (maxX - minX));
+      y = maxY;
     } else {
-      x = 0;
-      y = t * (height - 1);
+      x = minX;
+      y = minY + (t * (maxY - minY));
     }
 
     samples.push(samplePixelColorAt(x, y));
