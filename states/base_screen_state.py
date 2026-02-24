@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from typing import Any, Callable, Dict, List
 
-from models import PrayerTimes, Session, Task
+from models import AppSettings, PrayerTimes, Session, Task
 from states.base_state import BaseState
 
 
@@ -18,40 +18,63 @@ class BaseScreenState(BaseState):
         session: Session,
         tasks: List[Task],
         prayer_times: Dict[str, PrayerTimes],
+        settings: AppSettings,
         now_provider: Callable[[], datetime] | None = None,
         prayer_overrides_provider: Callable[[], dict[str, str]] | None = None,
     ):
         self.session = session
         self.tasks = tasks
         self.prayer_times = prayer_times
+        self.settings = settings
         self._now_provider = now_provider or datetime.now
         self._prayer_overrides_provider = prayer_overrides_provider or (lambda: {})
 
     @staticmethod
-    def _lerp_color(start: tuple[int, int, int], end: tuple[int, int, int], progress: float) -> str:
+    def _hex_to_rgb(value: str) -> tuple[int, int, int]:
+        code = str(value or "").strip().lstrip("#")
+        if len(code) != 6:
+            raise ValueError(f"Invalid color '{value}'")
+        return int(code[0:2], 16), int(code[2:4], 16), int(code[4:6], 16)
+
+    @staticmethod
+    def _lerp_rgb(start: tuple[int, int, int], end: tuple[int, int, int], progress: float) -> tuple[int, int, int]:
         p = min(1.0, max(0.0, progress))
-        r = round(start[0] + (end[0] - start[0]) * p)
-        g = round(start[1] + (end[1] - start[1]) * p)
-        b = round(start[2] + (end[2] - start[2]) * p)
-        return f"rgb({r}, {g}, {b})"
+        return (
+            round(start[0] + (end[0] - start[0]) * p),
+            round(start[1] + (end[1] - start[1]) * p),
+            round(start[2] + (end[2] - start[2]) * p),
+        )
+
+    @staticmethod
+    def _rgb_css(color: tuple[int, int, int]) -> str:
+        return f"rgb({color[0]}, {color[1]}, {color[2]})"
+
+    @staticmethod
+    def _apply_offset(color: tuple[int, int, int], offset: tuple[int, int, int]) -> tuple[int, int, int]:
+        return (
+            min(255, max(0, color[0] + offset[0])),
+            min(255, max(0, color[1] + offset[1])),
+            min(255, max(0, color[2] + offset[2])),
+        )
 
     def _phase_palette(self, phase: str, progress: float) -> dict[str, str]:
-        # Требуемая схема:
-        # day (от сухура до ифтара): красный -> зеленый
-        # night (от ифтара до сухура): зеленый -> красный
-        red_to_green = {
-            "bg": self._lerp_color((43, 10, 10), (10, 43, 18), progress),
-            "blob1": self._lerp_color((255, 98, 102), (86, 246, 150), progress),
-            "blob2": self._lerp_color((232, 34, 24), (18, 178, 104), progress),
-            "blob3": self._lerp_color((255, 164, 110), (116, 232, 140), progress),
+        suhoor_rgb = self._hex_to_rgb(self.settings.suhoor_color)
+        iftar_rgb = self._hex_to_rgb(self.settings.iftar_color)
+
+        # red -> green axis independent from current phase direction.
+        red_to_green_progress = progress if phase == "day" else 1.0 - progress
+        core = self._lerp_rgb(suhoor_rgb, iftar_rgb, red_to_green_progress)
+
+        bg_offset = self._lerp_rgb((-212, -84, -88), (-92, -212, -142), red_to_green_progress)
+        blob2_offset = self._lerp_rgb((-14, -55, -81), (-82, -54, -48), red_to_green_progress)
+        blob3_offset = self._lerp_rgb((0, 59, 4), (-11, -31, -33), red_to_green_progress)
+
+        return {
+            "bg": self._rgb_css(self._apply_offset(core, bg_offset)),
+            "blob1": self._rgb_css(core),
+            "blob2": self._rgb_css(self._apply_offset(core, blob2_offset)),
+            "blob3": self._rgb_css(self._apply_offset(core, blob3_offset)),
         }
-        green_to_red = {
-            "bg": self._lerp_color((10, 43, 18), (43, 10, 10), progress),
-            "blob1": self._lerp_color((86, 246, 150), (255, 98, 102), progress),
-            "blob2": self._lerp_color((18, 178, 104), (232, 34, 24), progress),
-            "blob3": self._lerp_color((116, 232, 140), (255, 164, 110), progress),
-        }
-        return green_to_red if phase == "night" else red_to_green
 
     @classmethod
     def _remap_palette_progress(cls, linear_progress: float) -> float:
@@ -107,8 +130,6 @@ class BaseScreenState(BaseState):
             phase = "night"
             start = iftar_yesterday
             end = suhoor_today
-            # Даже ночью до сухура отображаем ифтар текущего дня,
-            # чтобы карточка всегда соответствовала "сегодняшней" дате.
             schedule = today_times
 
         delta = max(0, int((target - now).total_seconds()))
@@ -146,9 +167,6 @@ class BaseScreenState(BaseState):
         if not parsed:
             raise ValueError("Prayer times are not configured")
 
-        # Файл расписания может быть за конкретный год (например 2026),
-        # тогда при несовпадении года сначала ищем совпадение по месяцу/дню.
-        # Это позволяет показывать корректные времена в текущем году.
         by_month_day = [item for item in parsed if item[1].month == target_date.month and item[1].day == target_date.day]
         if by_month_day:
             return by_month_day[0][0], by_month_day[0][2]

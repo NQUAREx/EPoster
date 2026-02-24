@@ -41,6 +41,7 @@ class StateManager:
                 self.session,
                 self.tasks,
                 self.prayer_times,
+                settings=self.settings,
                 now_provider=self._now_provider,
                 prayer_overrides_provider=self._prayer_overrides_provider,
             )
