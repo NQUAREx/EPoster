@@ -37,11 +37,12 @@ const lavaRuntime = {
   rafId: null,
   lastTime: 0,
   baseColorHSL: { h: 358, s: 100, l: 68 },
+  phaseRemainingMs: null,
 };
 
 const LAVA_CONFIG = {
-  minBlobs: 15,
-  maxBlobs: 10,
+  minBlobs: 10,
+  maxBlobs: 20,
   minLifeMs: 60000,
   maxLifeMs: 300000,
   anomalyChance: 0.1,
@@ -108,7 +109,17 @@ function applyPaletteFromModel(model) {
   root.style.setProperty('--color-blob1', String(palette.blob1 || ''));
   root.style.setProperty('--color-blob2', String(palette.blob2 || ''));
   root.style.setProperty('--color-blob3', String(palette.blob3 || ''));
-  setLavaColor(String(palette.bg || ''));
+
+  const nextPrayer = model && model.next_prayer ? model.next_prayer : null;
+  if (nextPrayer && Number.isFinite(Number(nextPrayer.phase_total_seconds)) && Number.isFinite(Number(nextPrayer.phase_progress))) {
+    const totalSeconds = Math.max(1, Number(nextPrayer.phase_total_seconds));
+    const progress = Math.max(0, Math.min(1, Number(nextPrayer.phase_progress)));
+    lavaRuntime.phaseRemainingMs = (totalSeconds * (1 - progress)) * 1000;
+  } else {
+    lavaRuntime.phaseRemainingMs = null;
+  }
+
+  setLavaColor(String(palette.blob1 || palette.bg || ''));
 }
 
 function easeInOutQuad(t) {
@@ -189,7 +200,7 @@ class LavaBlob {
     this.container = container;
 
     this.isAnomaly = Math.random() < LAVA_CONFIG.anomalyChance;
-    this.size = 20 + (Math.random() * 13.41);
+    this.size = 20 + (Math.random() * 13.4125);
     this.el.style.width = `${this.size}vw`;
     this.el.style.height = `${this.size}vw`;
 
@@ -218,17 +229,16 @@ class LavaBlob {
       let saturation = lavaRuntime.baseColorHSL.s + ((Math.random() * (saturationSpread * 2)) - saturationSpread);
       let hue = (lavaRuntime.baseColorHSL.h + ((Math.random() * (hueSpread * 2)) - hueSpread) + 360) % 360;
 
-      // Возвращаемся на 30% к более яркой "детской" теплой палитре,
-      // не ломая текущий дизайн полностью.
-      hue = (hue * 0.7) + (15 * 0.3);
-      saturation = (saturation * 0.7) + (95 * 0.3);
-      lightness = (lightness * 0.7) + (62 * 0.3);
-
       lightness = Math.max(10, Math.min(90, lightness));
       saturation = Math.max(35, Math.min(100, saturation));
       hue = (hue + 360) % 360;
       this.color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
       this.maxLifeMs = LAVA_CONFIG.minLifeMs + (Math.random() * (LAVA_CONFIG.maxLifeMs - LAVA_CONFIG.minLifeMs));
+      if (Number.isFinite(lavaRuntime.phaseRemainingMs)) {
+        const minAdaptiveLifeMs = Math.max(10000, LAVA_CONFIG.minLifeMs * 0.35);
+        const cappedLifeMs = Math.max(minAdaptiveLifeMs, lavaRuntime.phaseRemainingMs);
+        this.maxLifeMs = Math.min(this.maxLifeMs, cappedLifeMs);
+      }
       this.baseSpeed *= 0.8 * LAVA_CONFIG.normalXySpeedMultiplier;
       this.el.style.zIndex = '1';
     }
@@ -401,8 +411,11 @@ function renderBase(model) {
   const taskMeta = taskType ? ` · ${taskType}` : '';
   const nextPrayerSourceDate = model.next_prayer.source_date || '—';
   const nextPrayerText = `До ${model.next_prayer.next}`;
+  const backgroundColor = String(model.next_prayer?.palette?.bg || '#000000');
   return `<section class="base-screen" data-view="base_state">
     <div class="lava-background" id="lava-container"></div>
+
+    <div class="backend-bg-debug-chip" title="Цвет фона из backend" style="background:${escapeHtml(backgroundColor)}"></div>
 
     <div class="wake-frame"></div>
 
@@ -556,6 +569,11 @@ function patchBaseView(model) {
   if (baseViewCache.taskText && baseViewCache.lastTaskText !== model.today_task) {
     baseViewCache.taskText.textContent = model.today_task;
     baseViewCache.lastTaskText = model.today_task;
+  }
+
+  const debugChip = stateView.querySelector('.backend-bg-debug-chip');
+  if (debugChip) {
+    debugChip.style.background = String(model.next_prayer?.palette?.bg || '#000000');
   }
 
   const taskContainer = stateView.querySelector('.task-container');
@@ -1094,6 +1112,12 @@ function samplePixelColorAt(x, y) {
 function collectEdgeSamples(count, edge) {
   const width = Math.max(1, window.innerWidth);
   const height = Math.max(1, window.innerHeight);
+  const depthX = Math.max(0, Math.min(Math.floor(width / 3), AMBILIGHT_EDGE_DEPTH_PX));
+  const depthY = Math.max(0, Math.min(Math.floor(height / 3), AMBILIGHT_EDGE_DEPTH_PX));
+  const minX = depthX;
+  const maxX = Math.max(minX, width - 1 - depthX);
+  const minY = depthY;
+  const maxY = Math.max(minY, height - 1 - depthY);
   const samples = [];
 
   for (let i = 0; i < count; i += 1) {

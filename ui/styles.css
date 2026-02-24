@@ -134,6 +134,19 @@ body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
   transform-origin: center center;
 }
 
+
+.backend-bg-debug-chip {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+}
+
 .wake-frame {
   position: absolute;
   inset: 0;
