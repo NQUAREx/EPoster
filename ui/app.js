@@ -411,11 +411,8 @@ function renderBase(model) {
   const taskMeta = taskType ? ` · ${taskType}` : '';
   const nextPrayerSourceDate = model.next_prayer.source_date || '—';
   const nextPrayerText = `До ${model.next_prayer.next}`;
-  const backgroundColor = String(model.next_prayer?.palette?.bg || '#000000');
   return `<section class="base-screen" data-view="base_state">
     <div class="lava-background" id="lava-container"></div>
-
-    <div class="backend-bg-debug-chip" title="Цвет фона из backend" style="background:${escapeHtml(backgroundColor)}"></div>
 
     <div class="wake-frame"></div>
 
@@ -569,11 +566,6 @@ function patchBaseView(model) {
   if (baseViewCache.taskText && baseViewCache.lastTaskText !== model.today_task) {
     baseViewCache.taskText.textContent = model.today_task;
     baseViewCache.lastTaskText = model.today_task;
-  }
-
-  const debugChip = stateView.querySelector('.backend-bg-debug-chip');
-  if (debugChip) {
-    debugChip.style.background = String(model.next_prayer?.palette?.bg || '#000000');
   }
 
   const taskContainer = stateView.querySelector('.task-container');
