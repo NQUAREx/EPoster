@@ -37,6 +37,7 @@ const lavaRuntime = {
   rafId: null,
   lastTime: 0,
   baseColorHSL: { h: 358, s: 100, l: 68 },
+  phaseRemainingMs: null,
 };
 
 const LAVA_CONFIG = {
@@ -108,7 +109,17 @@ function applyPaletteFromModel(model) {
   root.style.setProperty('--color-blob1', String(palette.blob1 || ''));
   root.style.setProperty('--color-blob2', String(palette.blob2 || ''));
   root.style.setProperty('--color-blob3', String(palette.blob3 || ''));
-  setLavaColor(String(palette.bg || ''));
+
+  const nextPrayer = model && model.next_prayer ? model.next_prayer : null;
+  if (nextPrayer && Number.isFinite(Number(nextPrayer.phase_total_seconds)) && Number.isFinite(Number(nextPrayer.phase_progress))) {
+    const totalSeconds = Math.max(1, Number(nextPrayer.phase_total_seconds));
+    const progress = Math.max(0, Math.min(1, Number(nextPrayer.phase_progress)));
+    lavaRuntime.phaseRemainingMs = (totalSeconds * (1 - progress)) * 1000;
+  } else {
+    lavaRuntime.phaseRemainingMs = null;
+  }
+
+  setLavaColor(String(palette.blob1 || palette.bg || ''));
 }
 
 function easeInOutQuad(t) {
@@ -218,17 +229,16 @@ class LavaBlob {
       let saturation = lavaRuntime.baseColorHSL.s + ((Math.random() * (saturationSpread * 2)) - saturationSpread);
       let hue = (lavaRuntime.baseColorHSL.h + ((Math.random() * (hueSpread * 2)) - hueSpread) + 360) % 360;
 
-      // Возвращаемся на 30% к более яркой "детской" теплой палитре,
-      // не ломая текущий дизайн полностью.
-      hue = (hue * 0.7) + (15 * 0.3);
-      saturation = (saturation * 0.7) + (95 * 0.3);
-      lightness = (lightness * 0.7) + (62 * 0.3);
-
       lightness = Math.max(10, Math.min(90, lightness));
       saturation = Math.max(35, Math.min(100, saturation));
       hue = (hue + 360) % 360;
       this.color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
       this.maxLifeMs = LAVA_CONFIG.minLifeMs + (Math.random() * (LAVA_CONFIG.maxLifeMs - LAVA_CONFIG.minLifeMs));
+      if (Number.isFinite(lavaRuntime.phaseRemainingMs)) {
+        const minAdaptiveLifeMs = Math.max(10000, LAVA_CONFIG.minLifeMs * 0.35);
+        const cappedLifeMs = Math.max(minAdaptiveLifeMs, lavaRuntime.phaseRemainingMs);
+        this.maxLifeMs = Math.min(this.maxLifeMs, cappedLifeMs);
+      }
       this.baseSpeed *= 0.8 * LAVA_CONFIG.normalXySpeedMultiplier;
       this.el.style.zIndex = '1';
     }

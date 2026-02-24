@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 import pytest
@@ -79,6 +80,39 @@ def test_early_night_shows_iftar_for_today_date_block(monkeypatch):
     assert payload["source_date"] == "2026-02-23"
     assert payload["suhoor"] == "04:46"
     assert payload["iftar"] == "17:04"
+
+
+def test_night_palette_turns_red_near_suhoor(monkeypatch):
+    fake_now = datetime(2026, 2, 23, 4, 45, 0)
+
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fake_now
+
+    monkeypatch.setattr("states.base_screen_state.datetime", FrozenDateTime)
+
+    session = Session(current_day=1, celebration_mode=False, children=[], days={1: Day()})
+    state = BaseScreenState(
+        session=session,
+        tasks=[Task(day=1, text="task", type="обычное")],
+        prayer_times={
+            "2026-02-22": PrayerTimes(fajr="04:48", maghrib="17:02"),
+            "2026-02-23": PrayerTimes(fajr="04:46", maghrib="17:04"),
+            "2026-02-24": PrayerTimes(fajr="04:44", maghrib="17:06"),
+        },
+    )
+
+    payload = state._times()
+
+    assert payload["phase"] == "night"
+    assert payload["next"] == "сухура"
+    match = re.match(r"rgb\((\d+),\s*(\d+),\s*(\d+)\)", payload["palette"]["blob1"])
+    assert match is not None
+    red, green, blue = (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    assert red >= 250
+    assert green <= 110
+    assert blue <= 110
 
 
 def test_times_payload_contains_source_date_when_year_differs(monkeypatch):
