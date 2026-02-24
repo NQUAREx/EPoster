@@ -14,5 +14,7 @@
   "ambilight_gpio_pin": 18,
   "ambilight_led_count": 165,
   "ambilight_brightness": 200,
-  "ambilight_order": "GRB"
+  "ambilight_order": "GRB",
+  "suhoor_color": "#ff5e62",
+  "iftar_color": "#66ffa0"
 }

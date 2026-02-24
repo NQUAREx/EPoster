@@ -39,6 +39,8 @@ class AppSettings:
     ambilight_brightness: int = 96
     ambilight_order: str = "GRB"
     ambilight_color_profile_file: str = "ambilight_color_profile.json"
+    suhoor_color: str = "#ff5e62"
+    iftar_color: str = "#66ffa0"
 
     @staticmethod
     def from_dict(data: dict) -> "AppSettings":
@@ -47,6 +49,16 @@ class AppSettings:
                 return int(value)
             except (TypeError, ValueError):
                 return default
+
+        def parse_hex_color(value: object, default: str) -> str:
+            source = str(value or "").strip()
+            if len(source) == 7 and source.startswith("#"):
+                try:
+                    int(source[1:], 16)
+                    return source.lower()
+                except ValueError:
+                    return default
+            return default
 
         raw_day = data.get("ramadan_day", 1)
         try:
@@ -80,6 +92,8 @@ class AppSettings:
                 or "ambilight_color_profile.json"
             ).strip()
             or "ambilight_color_profile.json",
+            suhoor_color=parse_hex_color(data.get("suhoor_color"), "#ff5e62"),
+            iftar_color=parse_hex_color(data.get("iftar_color"), "#66ffa0"),
         )
 
     def to_dict(self) -> dict:
@@ -178,3 +192,12 @@ class Session:
         if selected.closed:
             return self.first_open_task_day()
         return selected_day
+        def parse_hex_color(value: object, default: str) -> str:
+            source = str(value or "").strip()
+            if len(source) == 7 and source.startswith("#"):
+                try:
+                    int(source[1:], 16)
+                    return source.lower()
+                except ValueError:
+                    return default
+            return default
