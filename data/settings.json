@@ -15,6 +15,6 @@
   "ambilight_led_count": 165,
   "ambilight_brightness": 200,
   "ambilight_order": "GRB",
-  "suhoor_color": "#ff5e62",
-  "iftar_color": "#66ffa0"
+  "suhoor_color": "#e22400",
+  "iftar_color": "#16ff58"
 }
