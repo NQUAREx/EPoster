@@ -101,6 +101,7 @@ body.state-transitioning { filter: saturate(1.16) brightness(1.05); }
   justify-content: space-between;
   color: var(--text-color);
   overflow: hidden;
+  background-color: #000;
 }
 
 .lava-background,
