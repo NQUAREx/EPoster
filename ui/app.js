@@ -1126,17 +1126,17 @@ function collectEdgeSamples(count, edge) {
     let y = 0;
 
     if (edge === 'top') {
-      x = minX + (t * (maxX - minX));
-      y = minY;
+      x = t * (width - 1);
+      y = 0;
     } else if (edge === 'right') {
-      x = maxX;
-      y = minY + (t * (maxY - minY));
+      x = width - 1;
+      y = t * (height - 1);
     } else if (edge === 'bottom') {
-      x = minX + (t * (maxX - minX));
-      y = maxY;
+      x = t * (width - 1);
+      y = height - 1;
     } else {
-      x = minX;
-      y = minY + (t * (maxY - minY));
+      x = 0;
+      y = t * (height - 1);
     }
 
     samples.push(samplePixelColorAt(x, y));
