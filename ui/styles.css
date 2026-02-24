@@ -471,30 +471,38 @@ p { font-size: clamp(34px, 4.4vw, 62px); margin: 6px 0; font-weight: 900; }
   transform: translateX(-50%);
   font-size: clamp(24px, 2.4vw, 40px);
 }
-.score-row { display:flex; justify-content:center; gap:16px; }
+.score-row {
+  display:flex;
+  justify-content:center;
+  flex-wrap: wrap;
+  gap:16px;
+}
 .score {
-  width:170px;
-  height:170px;
+  width:100px;
+  height:100px;
   border-radius:50%;
   background:#e5efff36;
+  border: 2px solid transparent;
   display:grid;
   place-items:center;
   align-content:center;
-  gap: 8px;
-  transition: transform .25s ease;
+  transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
 }
-.score:hover { transform: translateY(-6px) scale(1.03); }
-.score small { font-size: 28px; font-weight: 900; line-height: 1; }
-.score-icon {
-  width: 72px;
-  height: 72px;
+.score.selected {
+  border-color: var(--task-accent-border, #fff);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+  transform: scale(1.08);
 }
-.score-icon circle,
-.score-icon path {
-  stroke: #f3f8ff;
-  stroke-width: 3.5;
-  stroke-linecap: round;
-  fill: none;
+.score strong,
+.score small {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+}
+.score small {
+  font-size: 22px;
+  text-align: center;
+  padding: 0 6px;
 }
 .scores-line { font-size: clamp(28px, 3.2vw, 48px); font-weight: 900; }
 .confetti { position: fixed; inset: 0; pointer-events:none; background-image: radial-gradient(circle, #fff 2px, transparent 2px); background-size: 30px 30px; animation: fall 8s linear infinite; opacity:.5; }

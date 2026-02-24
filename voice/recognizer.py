@@ -58,23 +58,8 @@ class CommandMapper:
         cleaned = re.sub(r"[^\w\s]", " ", text.lower())
         return " ".join(cleaned.strip().split())
 
-    def _extract_score_command(self, normalized: str) -> str | None:
-        words = normalized.split()
-        if "не" in words and "очень" in words:
-            return "score_2"
-        if "плохо" in words:
-            return "score_1"
-        if "хорошо" in words:
-            return "score_3"
-        if "пропустить" in words or "скип" in words:
-            return "score_skip"
-        return None
-
     def to_backend_command(self, text: str) -> str | None:
         normalized = self.normalize_text(text)
-        score_command = self._extract_score_command(normalized)
-        if score_command:
-            return score_command
         return self._aliases.get(normalized)
 
     def to_backend_event(self, text: str) -> BackendEvent | None:

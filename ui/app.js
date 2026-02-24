@@ -457,7 +457,7 @@ function renderBase(model) {
 
 function renderTaskInfo(model) {
   const scores = model.closed
-    ? `<div class="scores-line">${model.scores_line.map((item) => `<span>${item.child}: <span class="emoji-plain">${item.emoji}</span></span>`).join(' · ')}</div>`
+    ? `<div class="scores-line">${model.scores_line.map((item) => `<span>${item.child}: <span class="emoji-plain">${item.score}</span></span>`).join(' · ')}</div>`
     : '';
   return `<section class="task-info-screen" data-view="task_info_state">${asWakeFrame()}${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h1>${textGradient(`Задание дня ${model.day}`)}</h1><p class="large-copy">${textGradient(model.task_text)}</p>${scores}</div>`)}</section>`;
 }
@@ -502,21 +502,14 @@ function renderMap(model) {
 
 function renderReview(model) {
   const done = model.completed ? `<h1>${textGradient('День завершен!')}</h1>` : '';
-  const scoreSvg = (score) => {
-    if (score === 1) {
-      return '<svg class="score-icon score-icon-bad" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><circle cx="22" cy="25" r="3.2"/><circle cx="42" cy="25" r="3.2"/><path d="M19 45c3.5-6 8.3-9 13-9s9.5 3 13 9"/></svg>';
-    }
-    if (score === 2) {
-      return '<svg class="score-icon score-icon-mid" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><circle cx="22" cy="25" r="3.2"/><circle cx="42" cy="25" r="3.2"/><path d="M19 41h26"/></svg>';
-    }
-    if (score === null) {
-      return '<svg class="score-icon score-icon-skip" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><path d="M20 22l14 10-14 10z"/><path d="M36 22l14 10-14 10z"/><path d="M50 20v24"/></svg>';
-    }
-    return '<svg class="score-icon score-icon-good" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="29"/><circle cx="22" cy="25" r="3.2"/><circle cx="42" cy="25" r="3.2"/><path d="M19 39c3.5 6 8.3 9 13 9s9.5-3 13-9"/></svg>';
-  };
-  const options = model.score_options.map((s) => `<div class="score">${scoreSvg(s.score)}<small>${textGradient(s.label)}</small></div>`).join('');
+  const options = model.score_options.map((s) => {
+    const content = s.score === null
+      ? `<small>${textGradient(s.label)}</small>`
+      : `<strong>${textGradient(String(s.score))}</strong>`;
+    return `<div class="score ${s.selected ? 'selected' : ''}">${content}</div>`;
+  }).join('');
   const childName = model.child == null ? '-' : model.child;
-  return `<section class="review-screen" data-view="day_review_state">${asWakeFrame()}${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${childName}`)}</h1><div class="score-row">${options}</div>${done}</div>`)}</section>`;
+  return `<section class="review-screen" data-view="day_review_state">${asWakeFrame()}${asGlass(`<div class="task-glass ${taskTypeClass(model.task_type)}"><h2 id="reviewTaskText">${textGradient(model.task_text)}</h2><h1 id="reviewChildText">${textGradient(`Отвечает: ${childName}`)}</h1><div class="score-row" id="reviewScoreRow">${options}</div>${done}</div>`)}</section>`;
 }
 
 function renderEid(model) {
@@ -674,6 +667,17 @@ function patchReviewView(model) {
   if (childText) {
     const childName = model.child == null ? '-' : model.child;
     childText.innerHTML = textGradient(`Отвечает: ${childName}`);
+  }
+
+  const scoreRow = document.getElementById('reviewScoreRow');
+  if (!scoreRow || !Array.isArray(model.score_options)) {
+    return;
+  }
+
+  for (const [index, option] of model.score_options.entries()) {
+    const node = scoreRow.children[index];
+    if (!node) continue;
+    node.classList.toggle('selected', Boolean(option.selected));
   }
 }
 

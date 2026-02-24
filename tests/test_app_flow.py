@@ -33,7 +33,7 @@ def test_day_review_scores_and_moves_to_base(isolated_app):
     app.dispatch("open_day_review")
 
     for _ in app.session.children:
-        payload = app.dispatch("score_3")
+        payload = app.dispatch("set_score", {"score": 9})
 
     assert payload["view"] == "base_state"
     assert app.session.days[2].closed is True
@@ -47,7 +47,7 @@ def test_day_review_skip_sets_null_and_keeps_day_open(isolated_app):
 
     child_count = len(app.session.children)
     for _ in range(child_count - 1):
-        app.dispatch("score_3")
+        app.dispatch("set_score", {"score": 9})
     payload = app.dispatch("score_skip")
 
     assert payload["view"] == "base_state"
@@ -61,7 +61,8 @@ def test_day_review_view_contains_skip_option(isolated_app):
     payload = app.dispatch("open_day_review")
 
     labels = {item["label"] for item in payload["score_options"]}
-    assert "Пропустить" in labels
+    assert "Пропуск" in labels
+    assert len(payload["score_options"]) == 11
 
 
 def test_day_review_randomizes_next_child_from_remaining(isolated_app, monkeypatch):
@@ -84,9 +85,23 @@ def test_day_review_randomizes_next_child_from_remaining(isolated_app, monkeypat
     first_view = app.render()
     assert first_view["child"] == "Амалия"
 
-    app.dispatch("score_3")
+    app.dispatch("set_score", {"score": 9})
     second_view = app.render()
     assert second_view["child"] == "Самир"
+
+
+
+def test_day_review_cursor_controls_score_selection(isolated_app):
+    app = isolated_app
+    app.session.selected_day = 2
+
+    app.dispatch("open_day_review")
+    app.dispatch("next")
+    app.dispatch("next")
+    app.dispatch("ok")
+
+    day_scores = app.session.days[2].scores
+    assert 2 in day_scores.values()
 
 def test_map_navigation_and_open_selected_day(isolated_app):
     app = isolated_app
@@ -259,13 +274,14 @@ def test_day_scores_are_restored_from_session_file(tmp_path, monkeypatch):
 
     session_file = tmp_path / "data" / "session.json"
     session_payload = json.loads(session_file.read_text(encoding="utf-8"))
-    session_payload["days"]["2"]["scores"] = {"Камила": 3, "Самир": 2}
+    session_payload["days"]["2"]["scores"] = {"Камила": 3, "Самир": 2, "Амалия": 1}
     session_file.write_text(json.dumps(session_payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     app = AppController()
 
-    assert app.session.days[2].scores["Камила"] == 3
-    assert app.session.days[2].scores["Самир"] == 2
+    assert app.session.days[2].scores["Камила"] == 9
+    assert app.session.days[2].scores["Самир"] == 5
+    assert app.session.days[2].scores["Амалия"] == 0
 
 
 def test_wake_detection_triggers_ambilight_effect(isolated_app, monkeypatch):

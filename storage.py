@@ -50,6 +50,14 @@ def _build_review_order(children: list[str]) -> list[str]:
     return order
 
 
+def _convert_legacy_scores(day: Day) -> None:
+    legacy_values = {0, 1, 2, 3, None}
+    values = set(day.scores.values())
+    if values and values.issubset(legacy_values) and any(score in {1, 2, 3} for score in values):
+        mapping = {1: 0, 2: 5, 3: 9}
+        day.scores = {child: mapping.get(score, score) for child, score in day.scores.items()}
+
+
 def _normalize_session(session: Session, children: list[str]) -> Session:
     session.children = list(children)
     session.current_day = min(30, max(1, int(session.current_day or 1)))
@@ -64,6 +72,7 @@ def _normalize_session(session: Session, children: list[str]) -> Session:
     for day in session.days.values():
         day.viewed = bool(day.viewed)
         day.scores = {child: day.scores.get(child) for child in session.children}
+        _convert_legacy_scores(day)
 
         day.review_order = [child for child in day.review_order if child in session.children]
         for child in session.children:
@@ -77,6 +86,11 @@ def _normalize_session(session: Session, children: list[str]) -> Session:
             day.review_index = 0
         if day.review_index > len(day.review_order):
             day.review_index = len(day.review_order)
+
+        if day.review_score_cursor < 0:
+            day.review_score_cursor = 0
+        if day.review_score_cursor > 10:
+            day.review_score_cursor = 10
 
     return session
 
