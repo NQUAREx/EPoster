@@ -925,6 +925,11 @@ function connectStateSocket() {
 
 
 let ambilightInFlight = false;
+let ambilightCaptureReady = false;
+let ambilightCaptureTried = false;
+let ambilightCaptureVideo = null;
+let ambilightCaptureCanvas = null;
+let ambilightCaptureCtx = null;
 let ambilightEdgeLayout = { right: 30, top: 52, left: 30, bottom: 52 };
 
 const AMBILIGHT_EDGE_DEPTH_PX = 30;
@@ -968,7 +973,42 @@ async function fetchAmbilightConfig() {
   }
 }
 
-function parseVisualColorToRgb(colorValue) {
+async function ensureAmbilightCapture() {
+  if (ambilightCaptureReady || ambilightCaptureTried || !navigator.mediaDevices?.getDisplayMedia) {
+    return;
+  }
+
+  ambilightCaptureTried = true;
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        frameRate: { ideal: 30, max: 60 },
+        cursor: 'never',
+      },
+      audio: false,
+    });
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.muted = true;
+    await video.play();
+
+    const track = stream.getVideoTracks()[0];
+    if (track) {
+      track.addEventListener('ended', () => {
+        ambilightCaptureReady = false;
+      });
+    }
+
+    ambilightCaptureVideo = video;
+    ambilightCaptureCanvas = document.createElement('canvas');
+    ambilightCaptureCtx = ambilightCaptureCanvas.getContext('2d', { willReadFrequently: true });
+    ambilightCaptureReady = Boolean(ambilightCaptureCtx);
+  } catch (_) {
+    ambilightCaptureReady = false;
+  }
+}
+
+function parseCssColorToRgb(colorValue) {
   const source = String(colorValue || '').trim();
   const rgbaMatch = source.match(/rgba?\(([^)]+)\)/i);
   if (rgbaMatch) {
@@ -984,79 +1024,85 @@ function parseVisualColorToRgb(colorValue) {
   if (hex.length === 6) {
     return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16), 1];
   }
-  const hslMatch = source.match(/hsla?\(([^)]+)\)/i);
-  if (hslMatch) {
-    const parts = hslMatch[1].split(',').map((v) => v.trim());
-    const h = Number(parts[0]?.replace('deg', '')) || 0;
-    const s = Math.max(0, Math.min(100, parseFloat(parts[1]) || 0)) / 100;
-    const l = Math.max(0, Math.min(100, parseFloat(parts[2]) || 0)) / 100;
-    const alpha = Math.max(0, Math.min(1, parseFloat(parts[3] || '1') || 0));
-    const c = (1 - Math.abs((2 * l) - 1)) * s;
-    const hp = ((h % 360) + 360) % 360 / 60;
-    const x = c * (1 - Math.abs((hp % 2) - 1));
-    let [r1, g1, b1] = [0, 0, 0];
-    if (hp >= 0 && hp < 1) [r1, g1, b1] = [c, x, 0];
-    else if (hp < 2) [r1, g1, b1] = [x, c, 0];
-    else if (hp < 3) [r1, g1, b1] = [0, c, x];
-    else if (hp < 4) [r1, g1, b1] = [0, x, c];
-    else if (hp < 5) [r1, g1, b1] = [x, 0, c];
-    else [r1, g1, b1] = [c, 0, x];
-    const m = l - (c / 2);
-    return [
-      Math.round((r1 + m) * 255),
-      Math.round((g1 + m) * 255),
-      Math.round((b1 + m) * 255),
-      alpha,
-    ];
-  }
   return [0, 0, 0, 0];
 }
 
-function readBaseBackgroundRgb() {
-  const cssColor = window.getComputedStyle(document.documentElement).getPropertyValue('--color-bg');
-  const [r, g, b, alpha] = parseVisualColorToRgb(cssColor);
-  if (alpha > 0.01) {
-    return [r, g, b];
+function resolveVisualColor(element) {
+  let node = element;
+  while (node && node !== document.documentElement) {
+    const style = window.getComputedStyle(node);
+    const [r, g, b, alpha] = parseCssColorToRgb(style.backgroundColor);
+    if (alpha > 0.04) {
+      return [r, g, b];
+    }
+    node = node.parentElement;
   }
-  return [0, 0, 0];
+
+  const [bodyR, bodyG, bodyB] = parseCssColorToRgb(window.getComputedStyle(document.body).backgroundColor);
+  return [bodyR, bodyG, bodyB];
 }
 
-function sampleLavaColorAt(x, y) {
-  const width = Math.max(1, window.innerWidth);
-  const height = Math.max(1, window.innerHeight);
-  const px = Math.max(0, Math.min(width - 1, x));
-  const py = Math.max(0, Math.min(height - 1, y));
-  const background = readBaseBackgroundRgb();
-
-  let sumWeight = 1;
-  let sumR = background[0];
-  let sumG = background[1];
-  let sumB = background[2];
-
-  for (const blob of lavaRuntime.blobs) {
-    if (!blob || !blob.color) continue;
-    const cx = (blob.x / 100) * width;
-    const cy = (blob.y / 100) * height;
-    const radiusPx = Math.max(1, ((blob.size / 100) * width) * 0.5);
-    const dx = px - cx;
-    const dy = py - cy;
-    const distance = Math.sqrt((dx * dx) + (dy * dy));
-    if (distance > radiusPx * 1.35) continue;
-
-    const [r, g, b, alpha] = parseVisualColorToRgb(blob.color);
-    const influence = Math.max(0, 1 - (distance / (radiusPx * 1.35)));
-    const weight = Math.max(0.03, influence * influence) * Math.max(0.08, alpha);
-    sumWeight += weight;
-    sumR += r * weight;
-    sumG += g * weight;
-    sumB += b * weight;
+function sampleFromCapture(x, y) {
+  if (!ambilightCaptureReady || !ambilightCaptureVideo || !ambilightCaptureCtx || !ambilightCaptureCanvas) {
+    return null;
   }
 
-  return [
-    Math.round(sumR / sumWeight),
-    Math.round(sumG / sumWeight),
-    Math.round(sumB / sumWeight),
+  const sourceWidth = ambilightCaptureVideo.videoWidth || window.innerWidth;
+  const sourceHeight = ambilightCaptureVideo.videoHeight || window.innerHeight;
+  if (!sourceWidth || !sourceHeight) {
+    return null;
+  }
+
+  if (ambilightCaptureCanvas.width !== sourceWidth || ambilightCaptureCanvas.height !== sourceHeight) {
+    ambilightCaptureCanvas.width = sourceWidth;
+    ambilightCaptureCanvas.height = sourceHeight;
+  }
+
+  ambilightCaptureCtx.drawImage(ambilightCaptureVideo, 0, 0, sourceWidth, sourceHeight);
+  const px = Math.max(0, Math.min(sourceWidth - 1, Math.round((x / Math.max(1, window.innerWidth - 1)) * (sourceWidth - 1))));
+  const py = Math.max(0, Math.min(sourceHeight - 1, Math.round((y / Math.max(1, window.innerHeight - 1)) * (sourceHeight - 1))));
+
+  const pixel = ambilightCaptureCtx.getImageData(px, py, 1, 1).data;
+  return [pixel[0], pixel[1], pixel[2]];
+}
+
+function samplePixelColorAt(x, y) {
+  const captured = sampleFromCapture(x, y);
+  if (captured) {
+    return captured;
+  }
+
+  const width = Math.max(1, window.innerWidth);
+  const height = Math.max(1, window.innerHeight);
+  const clampedX = Math.max(0, Math.min(width - 1, Math.round(x)));
+  const clampedY = Math.max(0, Math.min(height - 1, Math.round(y)));
+
+  const probeOffsets = [
+    [0, 0],
+    [8, 0],
+    [-8, 0],
+    [0, 8],
+    [0, -8],
+    [16, 0],
+    [-16, 0],
   ];
+
+  let best = [0, 0, 0];
+  let bestLuma = -1;
+  for (const [dx, dy] of probeOffsets) {
+    const px = Math.max(0, Math.min(width - 1, clampedX + dx));
+    const py = Math.max(0, Math.min(height - 1, clampedY + dy));
+    const element = document.elementFromPoint(px, py);
+    if (!element) continue;
+    const rgb = resolveVisualColor(element);
+    const luma = (0.2126 * rgb[0]) + (0.7152 * rgb[1]) + (0.0722 * rgb[2]);
+    if (luma > bestLuma) {
+      bestLuma = luma;
+      best = rgb;
+    }
+  }
+
+  return best;
 }
 
 function collectEdgeSamples(count, edge) {
@@ -1089,7 +1135,7 @@ function collectEdgeSamples(count, edge) {
       y = t * (height - 1);
     }
 
-    samples.push(sampleLavaColorAt(x, y));
+    samples.push(samplePixelColorAt(x, y));
   }
 
   return samples;
@@ -1151,8 +1197,17 @@ document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
     refreshState();
     connectStateSocket();
+    ensureAmbilightCapture();
   }
 });
+
+document.addEventListener('pointerdown', () => {
+  ensureAmbilightCapture();
+}, { once: true });
+
+document.addEventListener('keydown', () => {
+  ensureAmbilightCapture();
+}, { once: true });
 
 fetchAmbilightConfig();
 if (wakeAnimationFrame == null) {
