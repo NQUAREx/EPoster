@@ -10,8 +10,8 @@ from states.base_state import BaseState
 class BaseScreenState(BaseState):
     name = "base_state"
 
-    SLOW_PHASE_REAL_SHARE = 0.9
-    SLOW_PHASE_COLOR_SHARE = 0.1
+    SLOW_PHASE_REAL_SHARE = 0.8
+    SLOW_PHASE_COLOR_SHARE = 0.2
 
     def __init__(
         self,
@@ -81,8 +81,8 @@ class BaseScreenState(BaseState):
         """Замедляет смену фона в начале и ускоряет за 2 часа до конца.
 
         Пример из запроса: при окне в 10 часов
-        - первые 9 реальных часов покрывают только 10% цветового перехода;
-        - последний 1 реальный час покрывает оставшиеся 90%.
+        - первые 8 реальных часов покрывают только 20% цветового перехода;
+        - последние 2 реальных часа покрывают оставшиеся 80%.
         """
         p = min(1.0, max(0.0, linear_progress))
         split_real = cls.SLOW_PHASE_REAL_SHARE

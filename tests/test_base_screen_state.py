@@ -11,7 +11,7 @@ from states.base_screen_state import BaseScreenState
 
 def test_palette_progress_remap_split_points():
     assert BaseScreenState._remap_palette_progress(0.0) == 0.0
-    assert BaseScreenState._remap_palette_progress(0.9) == 0.1
+    assert BaseScreenState._remap_palette_progress(0.8) == 0.2
     assert BaseScreenState._remap_palette_progress(1.0) == 1.0
 
 
@@ -19,8 +19,8 @@ def test_palette_progress_remap_slow_then_fast():
     early = BaseScreenState._remap_palette_progress(0.4)
     late = BaseScreenState._remap_palette_progress(0.95)
 
-    assert early == pytest.approx(0.0444444444)
-    assert late == pytest.approx(0.55)
+    assert early == pytest.approx(0.1)
+    assert late == pytest.approx(0.8)
 
 
 def test_night_progress_uses_yesterday_iftar_schedule(monkeypatch):
