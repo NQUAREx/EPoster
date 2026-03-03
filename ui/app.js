@@ -37,6 +37,7 @@ const lavaRuntime = {
   rafId: null,
   lastTime: 0,
   baseColorHSL: { h: 358, s: 100, l: 68 },
+  paletteHSL: [],
   phaseRemainingMs: null,
 };
 
@@ -45,7 +46,7 @@ const LAVA_CONFIG = {
   maxBlobs: 20,
   minLifeMs: 60000,
   maxLifeMs: 300000,
-  anomalyChance: 0.1,
+  anomalyChance: 0.15,
   anomalyMinLifeMs: 2000,
   anomalyMaxLifeMs: 5000,
   fadeSlowdownFactor: 3,
@@ -120,6 +121,7 @@ function applyPaletteFromModel(model) {
   }
 
   setLavaColor(String(palette.blob1 || palette.bg || ''));
+  setLavaPalette(palette);
 }
 
 function easeInOutQuad(t) {
@@ -186,6 +188,19 @@ function setLavaColor(colorValue) {
   lavaRuntime.baseColorHSL = rgbToHsl(parsedRgb);
 }
 
+function setLavaPalette(palette) {
+  const paletteCandidates = [palette?.blob1, palette?.blob2, palette?.blob3]
+    .map((colorValue) => parseCssColorToRgb(colorValue))
+    .filter((rgb) => Array.isArray(rgb));
+
+  if (paletteCandidates.length === 0) {
+    lavaRuntime.paletteHSL = [];
+    return;
+  }
+
+  lavaRuntime.paletteHSL = paletteCandidates.map((rgb) => rgbToHsl(rgb));
+}
+
 function randomRgbColor() {
   const r = Math.floor(Math.random() * 256);
   const g = Math.floor(Math.random() * 256);
@@ -222,12 +237,14 @@ class LavaBlob {
       this.baseSpeed *= LAVA_CONFIG.anomalyXySpeedMultiplier;
       this.el.style.zIndex = '5';
     } else {
-      const lightnessSpread = 20 * LAVA_CONFIG.shadeVarianceMultiplier;
-      const saturationSpread = 12 * LAVA_CONFIG.shadeVarianceMultiplier;
-      const hueSpread = 8 * LAVA_CONFIG.shadeVarianceMultiplier * LAVA_CONFIG.hueVarianceBoost;
-      let lightness = lavaRuntime.baseColorHSL.l + ((Math.random() * (lightnessSpread * 2)) - lightnessSpread);
-      let saturation = lavaRuntime.baseColorHSL.s + ((Math.random() * (saturationSpread * 2)) - saturationSpread);
-      let hue = (lavaRuntime.baseColorHSL.h + ((Math.random() * (hueSpread * 2)) - hueSpread) + 360) % 360;
+      const basePalette = lavaRuntime.paletteHSL.length > 0 ? lavaRuntime.paletteHSL : [lavaRuntime.baseColorHSL];
+      const anchorColor = basePalette[Math.floor(Math.random() * basePalette.length)] || lavaRuntime.baseColorHSL;
+      const lightnessSpread = 4;
+      const saturationSpread = 6;
+      const hueSpread = 5;
+      let lightness = anchorColor.l + ((Math.random() * (lightnessSpread * 2)) - lightnessSpread);
+      let saturation = anchorColor.s + ((Math.random() * (saturationSpread * 2)) - saturationSpread);
+      let hue = (anchorColor.h + ((Math.random() * (hueSpread * 2)) - hueSpread) + 360) % 360;
 
       lightness = Math.max(10, Math.min(90, lightness));
       saturation = Math.max(35, Math.min(100, saturation));
@@ -1012,26 +1029,15 @@ function parseVisualColorToRgb(colorValue) {
   return [0, 0, 0, 0];
 }
 
-function readBaseBackgroundRgb() {
-  const cssColor = window.getComputedStyle(document.documentElement).getPropertyValue('--color-bg');
-  const [r, g, b, alpha] = parseVisualColorToRgb(cssColor);
-  if (alpha > 0.01) {
-    return [r, g, b];
-  }
-  return [0, 0, 0];
-}
-
 function sampleLavaColorAt(x, y) {
   const width = Math.max(1, window.innerWidth);
   const height = Math.max(1, window.innerHeight);
   const px = Math.max(0, Math.min(width - 1, x));
   const py = Math.max(0, Math.min(height - 1, y));
-  const background = readBaseBackgroundRgb();
-
-  let sumWeight = 1;
-  let sumR = background[0];
-  let sumG = background[1];
-  let sumB = background[2];
+  let sumWeight = 0;
+  let sumR = 0;
+  let sumG = 0;
+  let sumB = 0;
 
   for (const blob of lavaRuntime.blobs) {
     if (!blob || !blob.color) continue;
@@ -1041,15 +1047,20 @@ function sampleLavaColorAt(x, y) {
     const dx = px - cx;
     const dy = py - cy;
     const distance = Math.sqrt((dx * dx) + (dy * dy));
-    if (distance > radiusPx * 1.35) continue;
+    const detectionRadius = radiusPx * 1.55;
+    if (distance > detectionRadius) continue;
 
     const [r, g, b, alpha] = parseVisualColorToRgb(blob.color);
-    const influence = Math.max(0, 1 - (distance / (radiusPx * 1.35)));
-    const weight = Math.max(0.03, influence * influence) * Math.max(0.08, alpha);
+    const influence = Math.max(0, 1 - (distance / detectionRadius));
+    const weight = Math.max(0.05, influence * influence * influence) * Math.max(0.12, alpha);
     sumWeight += weight;
     sumR += r * weight;
     sumG += g * weight;
     sumB += b * weight;
+  }
+
+  if (sumWeight <= 0.0001) {
+    return [0, 0, 0];
   }
 
   return [
